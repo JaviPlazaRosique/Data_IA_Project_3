@@ -1,0 +1,49 @@
+# Ignorados genéricos
+.DS_Store
+Thumbs.db
+
+# Python (Archivos generados por Python)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+.env/
+
+# Artefactos de distribución / construcción
+dist/
+build/
+*.egg-info/
+
+# Caché de MyPy
+.mypy_cache/
+
+# Puntos de control de Jupyter Notebook
+.ipynb_checkpoints/
+
+# Específicos del editor/IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Terraform (Archivos generados por Terraform)
+.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.backup
+crash.log
+override.tf
+override.tf.json
+*.override.tf
+*.override.tf.json
+.terraform.lock.hcl
+
+# Variables de entorno
+.env
+.env.*local
