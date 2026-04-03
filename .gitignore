@@ -2,6 +2,10 @@
 .DS_Store
 Thumbs.db
 
+# Node / Frontend
+node_modules/
+*.local
+
 # Python (Archivos generados por Python)
 __pycache__/
 *.pyc
