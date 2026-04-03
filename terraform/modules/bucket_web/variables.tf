@@ -1,0 +1,10 @@
+variable "nombre_bucket" {
+  description = "Nombre del bucket, en el que se alojará la web"
+  type        = string
+}
+
+variable "region" {
+  description = "Region en la que se despliegan los recursos dentro de GCP"
+  type        = string
+  default     = "europe-west1"
+}

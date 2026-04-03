@@ -47,6 +47,7 @@ override.tf.json
 *.override.tf
 *.override.tf.json
 .terraform.lock.hcl
+*.tfvars
 
 # Variables de entorno
 .env

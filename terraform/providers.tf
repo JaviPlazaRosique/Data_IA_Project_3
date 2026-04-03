@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket = ""
+    bucket = "estado-provisional-data-project-3"
     prefix = "terraform/state"
   }
   required_providers {
