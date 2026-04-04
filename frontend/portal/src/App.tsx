@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import DiscoverPage from './pages/DiscoverPage';
 import AIPlannerPage from './pages/AIPlannerPage';
 import EventDetailsPage from './pages/EventDetailsPage';
@@ -7,7 +7,7 @@ import ProfilePage from './pages/ProfilePage';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<DiscoverPage />} />
         <Route path="/planner" element={<AIPlannerPage />} />
@@ -15,6 +15,6 @@ export default function App() {
         <Route path="/map" element={<MapPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

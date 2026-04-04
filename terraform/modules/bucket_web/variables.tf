@@ -13,3 +13,8 @@ variable "ruta_recurso_web" {
   description = "Ruta a la carpeta donde se encuentra el frontend de la web"
   type        = string
 }
+
+variable "id_proyecto" {
+  description = "ID del proyecto de GCP"
+  type        = string
+}
