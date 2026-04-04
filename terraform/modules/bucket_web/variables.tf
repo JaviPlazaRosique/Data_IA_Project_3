@@ -8,3 +8,8 @@ variable "region" {
   type        = string
   default     = "europe-west1"
 }
+
+variable "ruta_recurso_web" {
+  description = "Ruta a la carpeta donde se encuentra el frontend de la web"
+  type        = string
+}
