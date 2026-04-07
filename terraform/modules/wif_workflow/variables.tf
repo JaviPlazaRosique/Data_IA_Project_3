@@ -1,4 +1,4 @@
-variable "id_cuenta_servicio" {
+variable "id_sa" {
   description = "ID de la cuenta de servicio"
   type        = string
 }
@@ -13,8 +13,18 @@ variable "id_proyecto" {
   type        = string
 }
 
-variable "cuenta_servicio_roles" {
+variable "sa_roles" {
   description = "Roles de IAM, que tendrá la cuenta de servicio"
   type        = list(string)
   default = []
+}
+
+variable "nombre_pool" {
+  description = "Nombre completo del pool"
+  type        = string
+}
+
+variable "nombre_workflow" {
+  description = "Nombre del workflow (campo `name` dentro del .yaml)"
+  type        = string
 }

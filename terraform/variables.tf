@@ -8,3 +8,13 @@ variable "region" {
   type        = string
   default     = "europe-west1"
 }
+
+variable "repo_github" {
+  description = "Repositorio de GitHub"
+  type        = string
+}
+
+variable "usuario_github" {
+  description = "Usuario de GitHub (debe tener permisos sobre el repo)"
+  type        = string
+}
