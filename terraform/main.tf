@@ -1,5 +1,8 @@
 module "setup" {
-  source = "./modules/setup"
+  source         = "./modules/setup"
+  id_proyecto    = var.id_proyecto
+  repo_github    = var.repo_github
+  usuario_github = var.usuario_github
 }
 
 module "frontend_usuarios" {
