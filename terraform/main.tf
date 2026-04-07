@@ -14,3 +14,15 @@ module "frontend_usuarios" {
     module.setup
   ]
 }
+
+module "cicd_frontend_usuarios" {
+  source                = "./modules/wif_workflow"
+  id_proyecto           = var.id_proyecto
+  id_cuenta_servicio    = "cicd-frontend-usuarios"
+  nombre_despliege      = "Cuenta de servicio para el CI/CD del frontend de la web de los usuarios"
+  cuenta_servicio_roles = [
+    "roles/storage.admin"
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_frontend_usuarios"
+}

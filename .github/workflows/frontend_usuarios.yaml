@@ -1,0 +1,80 @@
+name: cicd_frontend_usuarios
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/portal/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/portal/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  ci:
+    name: Integracion
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Cargar node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/portal/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+        working-directory: frontend/portal
+
+      - name: Test
+        run: npm run test
+        working-directory: frontend/portal
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend/portal
+
+      - name: Guardar dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: frontend/portal/dist/
+          retention-days: 1
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Despliegue
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.FRONTEND_USUARIOS_CUENTA_SERVICIO }}
+
+      - name: Inicio Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Descargar dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Borrar frontend antiguo
+        run: gsutil -m rm -r gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/** || true
+
+      - name: Subir frontend nuevo
+        run: gsutil -m cp -r dist/** gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/
