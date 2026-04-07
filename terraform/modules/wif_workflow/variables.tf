@@ -1,4 +1,4 @@
-variable "id_sa" {
+variable "id_cuenta_servicio" {
   description = "ID de la cuenta de servicio"
   type        = string
 }
@@ -13,7 +13,7 @@ variable "id_proyecto" {
   type        = string
 }
 
-variable "sa_roles" {
+variable "cuenta_servicio_roles" {
   description = "Roles de IAM, que tendrá la cuenta de servicio"
   type        = list(string)
   default = []
