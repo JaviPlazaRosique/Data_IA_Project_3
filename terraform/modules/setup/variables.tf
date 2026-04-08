@@ -1,5 +1,5 @@
-variable "gcp_services" {
-  description = "A list of GCP services to enable."
+variable "servicios_gcp" {
+  description = "Lista de los servicios de GCP para activar"
   type        = list(string)
   default = [
     "run.googleapis.com",                 
@@ -13,3 +13,18 @@ variable "gcp_services" {
     "storage.googleapis.com"
   ]
 } 
+
+variable "id_proyecto" {
+  description = "ID del proyecto de GCP"
+  type        = string
+}
+
+variable "usuario_github" {
+  description = "Usuario de GitHub"
+  type        = string
+}
+
+variable "repo_github" {
+  description = "Repositorio de GitHub, en el que se encuentran los workflows"
+  type        = string
+}
