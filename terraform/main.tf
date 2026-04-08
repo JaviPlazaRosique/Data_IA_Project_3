@@ -25,4 +25,16 @@ module "cicd_frontend_usuarios" {
   ]
   nombre_pool     = module.setup.nombre_pool
   nombre_workflow = "cicd_frontend_usuarios"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "repo_artifact" {
+  source           = "./modules/artifact_registry"
+  id_proyecto      = var.id_proyecto
+  id_repo_artifact = "repo-data-ia-project3"
+  depends_on = [
+    module.setup
+  ]
 }
