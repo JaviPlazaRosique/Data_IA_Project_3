@@ -9,12 +9,7 @@ variable "region" {
   default     = "europe-west1"
 }
 
-variable "repo_github" {
-  description = "Repositorio de GitHub"
-  type        = string
-}
-
-variable "usuario_github" {
-  description = "Usuario de GitHub (debe tener permisos sobre el repo)"
+variable "id_repo_artifact" {
+  description = "ID del repositorio de Artifact Registry"
   type        = string
 }

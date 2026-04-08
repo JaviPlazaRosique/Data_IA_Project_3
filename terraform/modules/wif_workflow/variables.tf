@@ -18,3 +18,13 @@ variable "cuenta_servicio_roles" {
   type        = list(string)
   default = []
 }
+
+variable "nombre_pool" {
+  description = "Nombre completo del pool"
+  type        = string
+}
+
+variable "nombre_workflow" {
+  description = "Nombre del workflow (campo `name` dentro del .yaml)"
+  type        = string
+}
