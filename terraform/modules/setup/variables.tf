@@ -10,7 +10,9 @@ variable "servicios_gcp" {
     "firestore.googleapis.com",         
     "cloudresourcemanager.googleapis.com", 
     "serviceusage.googleapis.com",
-    "storage.googleapis.com"
+    "storage.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "artifactregistry.googleapis.com"
   ]
 } 
 

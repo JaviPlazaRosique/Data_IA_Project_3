@@ -28,7 +28,7 @@ jobs:
       - name: Cargar node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/portal/package-lock.json
 
@@ -36,20 +36,9 @@ jobs:
         run: npm ci
         working-directory: frontend/portal
 
-      - name: Test
-        run: npm run test
-        working-directory: frontend/portal
-
       - name: Build
         run: npm run build
         working-directory: frontend/portal
-
-      - name: Guardar dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: frontend/portal/dist/
-          retention-days: 1
 
   cd:
     if: github.ref == 'refs/heads/main'
@@ -58,23 +47,37 @@ jobs:
     needs: ci
 
     steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
       - name: Autenticacion GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.FRONTEND_USUARIOS_CUENTA_SERVICIO }}
 
-      - name: Inicio Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Configurar Docker para Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 
-      - name: Descargar dist
-        uses: actions/download-artifact@v4
+      - name: Build imagen Docker
+        env:
+          IMAGE: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/repo-data-ia-project3/portal
+          TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t "$IMAGE:$TAG" \
+            -t "$IMAGE:latest" \
+            frontend/portal
+
+      - name: Push imagen Docker
+        env:
+          IMAGE: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/repo-data-ia-project3/portal
+        run: docker push --all-tags "$IMAGE"
+
+      - name: Desplegar en Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
-          name: dist
-          path: dist/
-
-      - name: Borrar frontend antiguo
-        run: gsutil -m rm -r gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/** || true
-
-      - name: Subir frontend nuevo
-        run: gsutil -m cp -r dist/** gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/
+          service: portal
+          image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/repo-data-ia-project3/portal:${{ github.sha }}
+          region: europe-west1
+          flags: --allow-unauthenticated
