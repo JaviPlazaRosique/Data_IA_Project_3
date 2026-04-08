@@ -104,3 +104,16 @@ export default defineConfig([
   },
 ])
 ```
+
+# Activate trigger in the cloud console
+
+```cmd
+gcloud builds triggers create github \
+    --name="portal-deploy" \                                                                                             
+    --repo-name="<YOUR_REPO_NAME>" \                        
+    --repo-owner="<YOUR_GITHUB_ORG_OR_USER>" \                                                                           
+    --branch-pattern="^main$" \                                                                                          
+    --build-config="frontend/portal/cloudbuild.yaml" \
+    --included-files="frontend/portal/**" \                                                                              
+    --region="europe-west1" 
+```
