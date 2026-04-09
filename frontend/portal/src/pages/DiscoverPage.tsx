@@ -14,14 +14,14 @@ export default function DiscoverPage() {
 
       <main className="min-h-screen">
         {/* Hero Section */}
-        <section className="relative pt-12 pb-24 px-8 hero-gradient">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
+        <section className="relative pt-12 pb-24 px-4 md:px-8 hero-gradient">
+          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-8 md:gap-16">
             <div className="flex-1 space-y-8">
               <div className="space-y-4">
                 <span className="text-tertiary font-bold tracking-widest text-xs uppercase font-label">
                   The Digital Concierge
                 </span>
-                <h1 className="text-6xl md:text-8xl font-black font-headline leading-[0.9] tracking-tighter text-on-surface">
+                <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-headline leading-[0.9] tracking-tighter text-on-surface">
                   Curation <br />
                   <span className="text-primary">Evolved.</span>
                 </h1>
@@ -69,11 +69,11 @@ export default function DiscoverPage() {
         </section>
 
         {/* Categories Bento Grid */}
-        <section className="py-24 px-8 bg-surface-container-low">
+        <section className="py-24 px-4 md:px-8 bg-surface-container-low">
           <div className="max-w-7xl mx-auto space-y-12">
             <div className="flex flex-col md:flex-row justify-between items-end gap-4">
               <div className="space-y-2">
-                <h2 className="text-4xl font-bold font-headline tracking-tight">Sonic &amp; Visual Pillars</h2>
+                <h2 className="text-2xl md:text-4xl font-bold font-headline tracking-tight">Sonic &amp; Visual Pillars</h2>
                 <p className="text-on-surface-variant font-body">Categorized by the frequency of your curiosity.</p>
               </div>
               <div className="bg-surface-container-lowest p-1 rounded-full border border-outline-variant/15">
@@ -107,10 +107,10 @@ export default function DiscoverPage() {
         </section>
 
         {/* Curated Events */}
-        <section className="py-24 px-8">
+        <section className="py-24 px-4 md:px-8">
           <div className="max-w-7xl mx-auto space-y-12">
             <div className="flex items-center gap-4">
-              <h2 className="text-4xl font-bold font-headline tracking-tight">Curated for Tonight</h2>
+              <h2 className="text-2xl md:text-4xl font-bold font-headline tracking-tight">Curated for Tonight</h2>
               <div className="h-[2px] flex-1 bg-outline-variant/20" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
