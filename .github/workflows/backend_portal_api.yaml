@@ -1,0 +1,67 @@
+name: cicd_backend_portal_api
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/portal-api/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/portal-api/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  ci:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Build imagen Docker
+        run: docker build -t portal-api:ci backend/portal-api/
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Despliegue
+    runs-on: ubuntu-latest
+    needs: ci
+
+    env:
+      IMAGE: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/repo-data-ia-project3/portal-api:latest
+      PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.BACKEND_PORTAL_API_CUENTA_SERVICIO }}
+
+      - name: Inicio Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configurar Docker para Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Build y push imagen
+        run: |
+          docker build -t "$IMAGE" backend/portal-api/
+          docker push "$IMAGE"
+
+      - name: Desplegar en Cloud Run
+        run: |
+          gcloud run services update portal-api \
+            --image="$IMAGE" \
+            --region=europe-west1 \
+            --project="$PROJECT"
