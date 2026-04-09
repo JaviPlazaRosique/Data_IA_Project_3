@@ -38,12 +38,12 @@ export default function EventDetailsPage() {
         <section className="relative h-[60vh] w-full overflow-hidden">
           <img src={heroImg} alt="Midnight Pulse Festival" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent" />
-          <div className="absolute bottom-0 left-0 w-full px-8 pb-12">
+          <div className="absolute bottom-0 left-0 w-full px-4 md:px-8 pb-12">
             <div className="max-w-7xl mx-auto flex flex-col items-start gap-4">
               <span className="bg-tertiary text-on-tertiary px-4 py-1 rounded-full text-xs font-bold font-label uppercase tracking-wider">
                 Live Tonight
               </span>
-              <h1 className="text-6xl md:text-8xl font-black font-headline tracking-tighter text-on-surface leading-none">
+              <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-headline tracking-tighter text-on-surface leading-none">
                 Midnight Pulse <br /> Festival
               </h1>
               <div className="flex flex-wrap items-center gap-6 mt-4 text-on-surface-variant font-label text-sm">
@@ -63,7 +63,7 @@ export default function EventDetailsPage() {
         </section>
 
         {/* Bento Grid */}
-        <section className="max-w-7xl mx-auto px-8 -mt-10 relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 pb-24">
+        <section className="max-w-7xl mx-auto px-4 md:px-8 -mt-10 relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 pb-24">
           {/* Weather Panel */}
           <div
             className="md:col-span-8 glass-panel rounded-xl p-8 border border-outline-variant/20 overflow-hidden relative"
@@ -195,7 +195,7 @@ export default function EventDetailsPage() {
 
       <Link
         to="/planner"
-        className="fixed bottom-8 right-8 w-16 h-16 bg-primary rounded-full shadow-2xl flex items-center justify-center text-on-primary z-50 hover:scale-105 transition-transform active:scale-95"
+        className="fixed bottom-24 md:bottom-8 right-8 w-16 h-16 bg-primary rounded-full shadow-2xl flex items-center justify-center text-on-primary z-50 hover:scale-105 transition-transform active:scale-95"
       >
         <span className="material-symbols-outlined">smart_toy</span>
       </Link>
