@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SideNav from '../components/layout/SideNav';
+import BottomNav from '../components/layout/BottomNav';
 import { chatMessages, quickActions, itineraryMapImage, userAvatarUrl } from '../data/mockData';
 
 interface Message {
@@ -14,6 +15,7 @@ interface Message {
 export default function AIPlannerPage() {
   const [messages, setMessages] = useState<Message[]>(chatMessages);
   const [input, setInput] = useState('');
+  const [showItinerary, setShowItinerary] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,9 +47,9 @@ export default function AIPlannerPage() {
     <div className="flex overflow-hidden h-screen bg-surface">
       <SideNav activeItem="AI Assistant" />
 
-      <main className="flex-1 md:ml-64 flex flex-col h-full bg-surface overflow-hidden relative">
+      <main className="flex-1 min-w-0 md:ml-64 flex flex-col h-full bg-surface overflow-hidden relative">
         {/* Top Nav */}
-        <header className="flex justify-between items-center w-full px-8 py-4 bg-surface z-40 border-b border-outline-variant/10">
+        <header className="flex justify-between items-center w-full px-4 md:px-8 py-4 bg-surface z-40 border-b border-outline-variant/10">
           <div className="flex items-center gap-8">
             <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">The Electric Curator</h1>
             <nav className="hidden lg:flex items-center gap-6">
@@ -80,14 +82,14 @@ export default function AIPlannerPage() {
         </header>
 
         {/* Planning Canvas */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden min-w-0 w-full">
           {/* Chat Panel */}
-          <section className="flex-1 flex flex-col bg-surface relative">
-            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+          <section className="flex-1 min-w-0 w-full flex flex-col bg-surface relative overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-6 space-y-6">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex gap-4 max-w-2xl ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
+                  className={`flex gap-4 w-full px-4 md:px-8 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                 >
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -100,7 +102,7 @@ export default function AIPlannerPage() {
                       {msg.role === 'assistant' ? 'smart_toy' : 'person'}
                     </span>
                   </div>
-                  <div className={`space-y-4 w-full ${msg.role === 'user' ? 'text-right' : ''}`}>
+                  <div className={`space-y-4 min-w-0 max-w-[85%] ${msg.role === 'user' ? 'text-right' : ''}`}>
                     <div
                       className={`p-4 rounded-2xl border backdrop-blur-md ${
                         msg.role === 'assistant'
@@ -108,7 +110,7 @@ export default function AIPlannerPage() {
                           : 'bg-primary/10 rounded-tr-none border-primary/20'
                       }`}
                     >
-                      <p className="text-sm leading-relaxed text-on-surface">{msg.content}</p>
+                      <p className="text-sm leading-relaxed text-on-surface break-words">{msg.content}</p>
                     </div>
                     {msg.timestamp && (
                       <span className="text-[10px] text-on-surface-variant px-1 uppercase tracking-widest">
@@ -116,11 +118,12 @@ export default function AIPlannerPage() {
                       </span>
                     )}
                     {msg.cards && (
-                      <div className="grid grid-cols-2 gap-3 mt-2">
+                      <div className="flex gap-3 mt-2 overflow-x-auto pb-2 no-scrollbar w-full min-w-0">
                         {msg.cards.map((card) => (
                           <div
                             key={card.id}
-                            className="bg-surface-container rounded-2xl border border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer overflow-hidden"
+                            onClick={() => setShowItinerary(true)}
+                            className="flex-shrink-0 w-48 bg-surface-container rounded-2xl border border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer overflow-hidden"
                           >
                             {card.imageUrl && (
                               <div className="h-28 overflow-hidden relative">
@@ -150,13 +153,13 @@ export default function AIPlannerPage() {
             </div>
 
             {/* Input Area */}
-            <div className="px-8 py-6 bg-surface/80 backdrop-blur-xl border-t border-outline-variant/10">
+            <div className="px-4 md:px-8 py-6 pb-20 md:pb-6 bg-surface/80 backdrop-blur-xl border-t border-outline-variant/10">
               <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
                 {quickActions.map((action) => (
                   <button
                     key={action.label}
                     onClick={() => setInput(action.label)}
-                    className={`whitespace-nowrap px-4 py-2 rounded-full border text-xs font-medium hover:bg-surface-container-high transition-all flex items-center gap-2 ${
+                    className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full border text-xs font-medium hover:bg-surface-container-high transition-all flex items-center gap-2 ${
                       action.isPrimary
                         ? 'border-primary/30 text-primary bg-primary/5 font-bold hover:bg-primary/10'
                         : 'border-outline-variant/20'
@@ -189,11 +192,20 @@ export default function AIPlannerPage() {
           </section>
 
           {/* Right Panel: Current Itinerary */}
-          <aside className="hidden xl:flex w-[420px] bg-surface-container-low border-l border-outline-variant/10 flex-col">
+          {showItinerary && (
+          <aside className="fixed inset-0 z-[200] xl:relative xl:inset-auto xl:z-auto flex w-full xl:w-[420px] bg-surface-container-low border-l border-outline-variant/10 flex-col">
             <div className="p-8 space-y-8 overflow-y-auto">
               <div className="space-y-4">
-                <div className="inline-block px-3 py-1 bg-tertiary/10 text-tertiary text-[10px] font-black uppercase tracking-[0.2em] rounded-full">
-                  Current Itinerary
+                <div className="flex items-center justify-between">
+                  <div className="inline-block px-3 py-1 bg-tertiary/10 text-tertiary text-[10px] font-black uppercase tracking-[0.2em] rounded-full">
+                    Current Itinerary
+                  </div>
+                  <button
+                    onClick={() => setShowItinerary(false)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-surface-container-highest transition-colors text-on-surface/60"
+                  >
+                    <span className="material-symbols-outlined text-base">close</span>
+                  </button>
                 </div>
                 <h2 className="text-3xl font-extrabold font-headline leading-tight">Neon Noir Tokyo</h2>
                 <div className="flex items-center gap-4 text-on-surface-variant text-sm">
@@ -281,6 +293,7 @@ export default function AIPlannerPage() {
               </button>
             </div>
           </aside>
+          )}
         </div>
 
         <footer className="hidden md:flex w-full py-6 border-t border-outline-variant/20 bg-surface">
@@ -296,6 +309,7 @@ export default function AIPlannerPage() {
           </div>
         </footer>
       </main>
+      <BottomNav />
     </div>
   );
 }

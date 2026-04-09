@@ -73,8 +73,5 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Borrar frontend antiguo
-        run: gsutil -m rm -r gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/** || true
-
-      - name: Subir frontend nuevo
-        run: gsutil -m cp -r dist/** gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/
+      - name: Desplegar frontend
+        run: gsutil -m rsync -r -d -j js,css,html,json,svg -x "public-config\.json" dist/ gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/
