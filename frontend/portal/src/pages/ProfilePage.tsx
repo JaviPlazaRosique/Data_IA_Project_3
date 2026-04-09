@@ -4,19 +4,26 @@ import TopNav from '../components/layout/TopNav';
 import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { savedEvents, historyEvents, profileAvatarUrl } from '../data/mockData';
+import { savedEvents, historyEvents } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { apiUpdateMe } from '../api';
 
 const budgetOptions = ['€', '€€', '€€€', '€€€€'];
 const favoriteCategories = ['Immersive Art', 'Techno Operas', 'Speakeasies'];
-const locations = [
-  { icon: 'apartment', name: 'Mitte District' },
-  { icon: 'water', name: 'Kreuzberg Waterfront' },
-];
 
 export default function ProfilePage() {
-  const [activeBudget, setActiveBudget] = useState('€');
+  const { user, setUser } = useAuth();
+  const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
   const [reviewText, setReviewText] = useState('');
   const [pendingRating, setPendingRating] = useState(0);
+
+  async function handleBudgetChange(opt: string) {
+    setActiveBudget(opt);
+    try {
+      const updated = await apiUpdateMe({ preferred_budget: opt });
+      setUser(updated);
+    } catch { /* silent */ }
+  }
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -31,23 +38,31 @@ export default function ProfilePage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
               <div className="flex items-center gap-6">
                 <div className="relative group">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-surface-container-high shadow-2xl">
-                    <img src={profileAvatarUrl} alt="Elena Vance" className="w-full h-full object-cover" />
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-surface-container-high shadow-2xl bg-surface-container-high flex items-center justify-center">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt={user.full_name ?? user?.username} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-5xl text-on-surface-variant">account_circle</span>
+                    )}
                   </div>
                   <div className="absolute bottom-0 right-0 bg-tertiary text-on-tertiary p-1.5 rounded-full shadow-lg border-2 border-surface">
                     <span className="material-symbols-outlined text-sm block">edit</span>
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">Elena Vance</h1>
+                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">
+                    {user?.full_name ?? user?.username}
+                  </h1>
                   <div className="flex items-center gap-3">
                     <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-primary/30">
-                      Premium Member
+                      {user?.is_verified ? 'Verified Member' : 'Member'}
                     </span>
-                    <span className="text-on-surface-variant text-sm flex items-center gap-1">
-                      <span className="material-symbols-outlined text-base">location_on</span>
-                      Berlin, Germany
-                    </span>
+                    {user?.preferred_location && (
+                      <span className="text-on-surface-variant text-sm flex items-center gap-1">
+                        <span className="material-symbols-outlined text-base">location_on</span>
+                        {user.preferred_location}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -78,7 +93,7 @@ export default function ProfilePage() {
                       {budgetOptions.map((opt) => (
                         <button
                           key={opt}
-                          onClick={() => setActiveBudget(opt)}
+                          onClick={() => handleBudgetChange(opt)}
                           className={`flex-1 py-2 text-xs font-bold rounded-full transition-colors ${
                             activeBudget === opt
                               ? 'bg-surface-container-high text-primary'
@@ -104,17 +119,27 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Preferred Locations</label>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Preferred Location</label>
                     <div className="space-y-3">
-                      {locations.map((loc) => (
-                        <div key={loc.name} className="bg-surface-container-lowest flex items-center justify-between p-3 rounded-xl">
+                      {user?.preferred_location ? (
+                        <div className="bg-surface-container-lowest flex items-center justify-between p-3 rounded-xl">
                           <div className="flex items-center gap-3">
-                            <span className="material-symbols-outlined text-secondary">{loc.icon}</span>
-                            <span className="text-sm font-medium">{loc.name}</span>
+                            <span className="material-symbols-outlined text-secondary">location_on</span>
+                            <span className="text-sm font-medium">{user.preferred_location}</span>
                           </div>
-                          <span className="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer hover:text-error transition-colors">close</span>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const updated = await apiUpdateMe({ preferred_location: null });
+                                setUser(updated);
+                              } catch { /* silent */ }
+                            }}
+                            className="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer hover:text-error transition-colors"
+                          >close</button>
                         </div>
-                      ))}
+                      ) : (
+                        <p className="text-on-surface-variant/50 text-sm italic">No location set</p>
+                      )}
                     </div>
                   </div>
                 </div>
