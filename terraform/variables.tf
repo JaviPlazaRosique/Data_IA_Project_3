@@ -49,14 +49,8 @@ variable "jwt_secret_key" {
   sensitive   = true
 }
 
-variable "cors_origins" {
-  description = "Origenes CORS permitidos para el Portal API (separados por comas)"
+variable "portal_api_image" {
+  description = "Override de la imagen Docker del Portal API. Si se deja vacío se calcula automáticamente desde id_proyecto."
   type        = string
   default     = ""
-}
-
-variable "portal_api_image" {
-  description = "Imagen Docker del Portal API (europe-west1-docker.pkg.dev/...)"
-  type        = string
-  default     = "europe-west1-docker.pkg.dev/PROJECT/repo-data-ia-project3/portal-api:latest"
 }

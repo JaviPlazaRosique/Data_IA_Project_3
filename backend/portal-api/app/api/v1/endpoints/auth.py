@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.limiter import limiter
 from app.core.exceptions import (
     credentials_exception,
     email_taken_exception,
@@ -26,7 +27,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(body: UserCreate, db: AsyncSession = Depends(get_db)) -> User:
+@limiter.limit("3/minute")
+async def register(request: Request, body: UserCreate, db: AsyncSession = Depends(get_db)) -> User:
     existing_email = await db.execute(select(User).where(User.email == body.email))
     if existing_email.scalar_one_or_none():
         raise email_taken_exception
@@ -48,7 +50,8 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)) -> User
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
