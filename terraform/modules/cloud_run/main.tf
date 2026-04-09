@@ -1,7 +1,8 @@
 resource "google_cloud_run_v2_service" "portal_api" {
-  name     = var.service_name
-  project  = var.id_proyecto
-  location = var.region
+  name                = var.service_name
+  project             = var.id_proyecto
+  location            = var.region
+  deletion_protection = false
 
   template {
     service_account = var.service_account_email
@@ -60,6 +61,13 @@ resource "google_cloud_run_v2_service" "portal_api" {
         }
       }
     }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      # Image is managed by CI/CD after initial provisioning
+      template[0].containers[0].image,
+    ]
   }
 }
 

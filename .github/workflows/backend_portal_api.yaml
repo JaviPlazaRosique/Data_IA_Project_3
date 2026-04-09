@@ -60,8 +60,22 @@ jobs:
           docker push "$IMAGE"
 
       - name: Desplegar en Cloud Run
+        env:
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
         run: |
           gcloud run services update portal-api \
             --image="$IMAGE" \
             --region=europe-west1 \
-            --project="$PROJECT"
+            --project="$PROJECT" \
+            --update-env-vars "CORS_ORIGINS=$CORS_ORIGINS"
+
+      - name: Actualizar public-config.json en el bucket del frontend
+        env:
+          BUCKET: ${{ secrets.BUCKET_FRONTEND_USUARIOS }}
+        run: |
+          BACKEND_URL=$(gcloud run services describe portal-api \
+            --region=europe-west1 \
+            --project="$PROJECT" \
+            --format='value(status.url)')
+          echo "{\"backendUrl\": \"$BACKEND_URL\"}" > public-config.json
+          gsutil -h "Cache-Control:no-cache" cp public-config.json gs://$BUCKET/public-config.json

@@ -1,5 +1,5 @@
 output "url_frontend_usuarios" {
-  description = "URL de la aplicación web de los usuarios alojada en GCS."
+  description = "URL de la aplicación web de los usuarios alojada en GCS. Usar este valor como GitHub Secret CORS_ORIGINS."
   value       = module.frontend_usuarios.url_web
 }
 

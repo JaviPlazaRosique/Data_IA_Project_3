@@ -1,3 +1,11 @@
+locals {
+  # Frontend bucket URL is the only allowed CORS origin for the backend API
+  cors_origins = module.frontend_usuarios.url_web
+  # Image URI computed from project ID — can be overridden via var.portal_api_image
+  # Uses a public placeholder on first apply; CI/CD replaces it with the real image on first push
+  portal_api_image = var.portal_api_image != "" ? var.portal_api_image : "us-docker.pkg.dev/cloudrun/container/hello:latest"
+}
+
 module "setup" {
   source         = "./modules/setup"
   id_proyecto    = var.id_proyecto
@@ -43,6 +51,13 @@ module "cicd_backend_portal_api" {
   nombre_pool     = module.setup.nombre_pool
   nombre_workflow = "cicd_backend_portal_api"
   depends_on      = [module.setup]
+}
+
+# Scoped write access: backend CI/CD can only create/delete objects in the frontend bucket
+resource "google_storage_bucket_iam_member" "backend_cicd_config_writer" {
+  bucket = module.frontend_usuarios.nombre_bucket
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${module.cicd_backend_portal_api.email_cuenta_servicio}"
 }
 
 module "cicd_terraform" {
@@ -122,12 +137,12 @@ module "cloud_run_portal_api" {
   source                = "./modules/cloud_run"
   id_proyecto           = var.id_proyecto
   region                = var.region
-  image                 = var.portal_api_image
+  image                 = local.portal_api_image
   service_account_email = google_service_account.portal_api_sa.email
   vpc_connector_id      = module.vpc_portal.vpc_connector_id
   db_private_ip         = module.cloudsql_portal.private_ip
   db_name               = module.cloudsql_portal.database_name
   db_user               = module.cloudsql_portal.db_user
-  cors_origins          = var.cors_origins
+  cors_origins          = local.cors_origins
   depends_on            = [module.cloudsql_portal, module.secrets_portal_api, google_project_iam_member.portal_api_sa_roles]
 }
