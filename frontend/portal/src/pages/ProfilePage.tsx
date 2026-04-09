@@ -39,7 +39,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">Elena Vance</h1>
+                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">Elena Vance</h1>
                   <div className="flex items-center gap-3">
                     <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-primary/30">
                       Premium Member
