@@ -8,61 +8,73 @@ variable "region" {
   type        = string
 }
 
-variable "service_name" {
+variable "nombre_servicio" {
   description = "Nombre del servicio de Cloud Run"
   type        = string
-  default     = "portal-api"
 }
 
-variable "image" {
-  description = "Imagen Docker del contenedor"
-  type        = string
-}
-
-variable "service_account_email" {
+variable "email_cuenta_servicio" {
   description = "Email de la cuenta de servicio que ejecutara el servicio Cloud Run"
   type        = string
 }
 
-variable "vpc_connector_id" {
-  description = "ID del VPC Access Connector"
+variable "id_conector_vpc" {
+  description = "ID del VPC Access Connector. Si es null, no se configura VPC access."
+  type        = string
+  default     = null
+}
+
+variable "egress_vpc" {
+  description = "Modo de egress del VPC connector"
+  type        = string
+  default     = "PRIVATE_RANGES_ONLY"
+}
+
+variable "variables_entorno" {
+  description = "Variables de entorno en texto plano para el contenedor"
+  type        = map(string)
+  default     = {}
+}
+
+variable "secretos_entorno" {
+  description = "Variables de entorno cuyo valor proviene de Secret Manager"
+  type = map(object({
+    secret  = string
+    version = string
+  }))
+  default = {}
+}
+
+variable "cpu" {
+  description = "Limite de CPU para el contenedor"
+  type        = string
+  default     = "1"
+}
+
+variable "memoria" {
+  description = "Limite de memoria para el contenedor"
+  type        = string
+  default     = "512Mi"
+}
+
+variable "proteccion_borrado" {
+  description = "Habilita proteccion contra borrado del servicio"
+  type        = bool
+  default     = false
+}
+
+variable "acceso_publico" {
+  description = "Permite invocacion publica del servicio (allUsers)"
+  type        = bool
+  default     = true
+}
+
+variable "ruta_contexto_docker" {
+  description = "Ruta al contexto de build de Docker para el primer push"
   type        = string
 }
 
-variable "db_private_ip" {
-  description = "IP privada de CloudSQL"
+variable "nombre_repo_artifact" {
+  description = "Nombre del repositorio donde se guardan las imagenes de Docker en Artifact Registry"
   type        = string
-}
-
-variable "db_name" {
-  description = "Nombre de la base de datos"
-  type        = string
-}
-
-variable "db_user" {
-  description = "Usuario de la base de datos"
-  type        = string
-}
-
-variable "db_password_secret_id" {
-  description = "ID del secreto de Secret Manager con la contrasena de la BD"
-  type        = string
-  default     = "portal-api-db-password"
-}
-
-variable "jwt_secret_key_secret_id" {
-  description = "ID del secreto de Secret Manager con la clave JWT"
-  type        = string
-  default     = "portal-api-jwt-secret-key"
-}
-
-variable "cors_origins" {
-  description = "Origenes permitidos para CORS (separados por comas)"
-  type        = string
-}
-
-variable "environment" {
-  description = "Entorno de ejecucion (development/production)"
-  type        = string
-  default     = "production"
 }

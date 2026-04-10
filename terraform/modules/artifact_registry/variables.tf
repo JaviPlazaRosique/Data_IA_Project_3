@@ -9,7 +9,7 @@ variable "region" {
   default     = "europe-west1"
 }
 
-variable "id_repo_artifact" {
+variable "id_repositorio" {
   description = "ID del repositorio de Artifact Registry"
   type        = string
 }

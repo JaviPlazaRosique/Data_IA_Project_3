@@ -16,27 +16,15 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  REGION: europe-west1
+  SERVICE: portal-api
+  REPO: repo-data-ia-project3
+
 jobs:
   ci:
-    name: Build
+    name: Build y push
     runs-on: ubuntu-latest
-
-    steps:
-      - name: Cargar repo
-        uses: actions/checkout@v4
-
-      - name: Build imagen Docker
-        run: docker build -t portal-api:ci backend/portal-api/
-
-  cd:
-    if: github.ref == 'refs/heads/main'
-    name: Despliegue
-    runs-on: ubuntu-latest
-    needs: ci
-
-    env:
-      IMAGE: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/repo-data-ia-project3/portal-api:latest
-      PROJECT: ${{ secrets.GCP_PROJECT_ID }}
 
     steps:
       - name: Cargar repo
@@ -48,34 +36,38 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.BACKEND_PORTAL_API_CUENTA_SERVICIO }}
 
-      - name: Inicio Cloud SDK
+      - name: Configurar Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configurar Docker para Artifact Registry
-        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: Build y push imagen
         run: |
-          docker build -t "$IMAGE" backend/portal-api/
-          docker push "$IMAGE"
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}"
+          docker build -t "${IMAGE}:latest" backend/${{ env.SERVICE }}/
+          docker push "${IMAGE}:latest"
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Despliegue
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.BACKEND_PORTAL_API_CUENTA_SERVICIO }}
+
+      - name: Configurar Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Desplegar en Cloud Run
-        env:
-          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
         run: |
-          gcloud run services update portal-api \
-            --image="$IMAGE" \
-            --region=europe-west1 \
-            --project="$PROJECT" \
-            --update-env-vars "CORS_ORIGINS=$CORS_ORIGINS"
-
-      - name: Actualizar public-config.json en el bucket del frontend
-        env:
-          BUCKET: ${{ secrets.BUCKET_FRONTEND_USUARIOS }}
-        run: |
-          BACKEND_URL=$(gcloud run services describe portal-api \
-            --region=europe-west1 \
-            --project="$PROJECT" \
-            --format='value(status.url)')
-          echo "{\"backendUrl\": \"$BACKEND_URL\"}" > public-config.json
-          gsutil -h "Cache-Control:no-cache" cp public-config.json gs://$BUCKET/public-config.json
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}"
+          gcloud run services update ${{ env.SERVICE }} \
+            --image="${IMAGE}:latest" \
+            --region=${{ env.REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }}

@@ -1,9 +1,5 @@
 locals {
-  # Frontend bucket URL is the only allowed CORS origin for the backend API
   cors_origins = module.frontend_usuarios.url_web
-  # Image URI computed from project ID — can be overridden via var.portal_api_image
-  # Uses a public placeholder on first apply; CI/CD replaces it with the real image on first push
-  portal_api_image = var.portal_api_image != "" ? var.portal_api_image : "us-docker.pkg.dev/cloudrun/container/hello:latest"
 }
 
 module "setup" {
@@ -24,10 +20,10 @@ module "frontend_usuarios" {
 }
 
 module "cicd_frontend_usuarios" {
-  source                = "./modules/wif_workflow"
-  id_proyecto           = var.id_proyecto
-  id_cuenta_servicio    = "cicd-frontend-usuarios"
-  nombre_despliege      = "Cuenta de servicio para el CI/CD del frontend de la web de los usuarios"
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-frontend-usuarios"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del frontend de la web de los usuarios"
   cuenta_servicio_roles = [
     "roles/storage.admin"
   ]
@@ -50,10 +46,11 @@ module "cicd_backend_portal_api" {
   ]
   nombre_pool     = module.setup.nombre_pool
   nombre_workflow = "cicd_backend_portal_api"
-  depends_on      = [module.setup]
+  depends_on = [
+    module.setup
+  ]
 }
 
-# Scoped write access: backend CI/CD can only create/delete objects in the frontend bucket
 resource "google_storage_bucket_iam_member" "backend_cicd_config_writer" {
   bucket = module.frontend_usuarios.nombre_bucket
   role   = "roles/storage.objectAdmin"
@@ -71,78 +68,112 @@ module "cicd_terraform" {
   ]
   nombre_pool     = module.setup.nombre_pool
   nombre_workflow = "cicd_terraform"
-  depends_on      = [module.setup]
-}
-
-module "repo_artifact" {
-  source           = "./modules/artifact_registry"
-  id_proyecto      = var.id_proyecto
-  id_repo_artifact = "repo-data-ia-project3"
   depends_on = [
     module.setup
   ]
 }
 
-# ── Backend infrastructure ────────────────────────────────────────────────────
+module "repo_artifact" {
+  source         = "./modules/artifact_registry"
+  id_proyecto    = var.id_proyecto
+  id_repositorio = "repo-data-ia-project3"
+  depends_on = [
+    module.setup
+  ]
+}
 
 module "vpc_portal" {
   source      = "./modules/vpc"
   id_proyecto = var.id_proyecto
   region      = var.region
-  depends_on  = [module.setup]
+  depends_on = [
+    module.setup
+  ]
 }
 
 module "cloudsql_portal" {
   source                 = "./modules/cloudsql"
   id_proyecto            = var.id_proyecto
   region                 = var.region
-  network_id             = module.vpc_portal.network_id
-  private_vpc_connection = module.vpc_portal.private_vpc_connection
-  db_tier                = var.db_tier
-  db_availability_type   = var.db_availability_type
-  deletion_protection    = var.deletion_protection
-  db_password            = var.db_password
-  depends_on             = [module.vpc_portal]
+  id_red                 = module.vpc_portal.network_id
+  conexion_vpc_privada   = module.vpc_portal.private_vpc_connection
+  nombre_instancia_bd    = "portal-api-db"
+  nombre_base_datos      = "portal_api"
+  usuario_bd             = "api_user"
+  nivel_bd               = var.nivel_bd
+  tipo_disponibilidad_bd = var.tipo_disponibilidad_bd
+  proteccion_borrado     = var.proteccion_borrado
+  contrasena_bd          = var.contrasena_bd
+  depends_on = [
+    module.vpc_portal
+  ]
 }
 
-# Service account for Cloud Run — created independently so its email
-# can be passed to both secrets and cloud_run without circular deps.
-resource "google_service_account" "portal_api_sa" {
-  account_id   = "portal-api-sa"
-  display_name = "Cuenta de servicio del Portal API en Cloud Run"
-  project      = var.id_proyecto
-  depends_on   = [module.setup]
-}
-
-resource "google_project_iam_member" "portal_api_sa_roles" {
-  for_each = toset([
+module "portal_api_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "portal-api-sa"
+  nombre_despliege   = "Cuenta de servicio del Portal API en Cloud Run"
+  cuenta_servicio_roles = [
     "roles/cloudsql.client",
     "roles/secretmanager.secretAccessor",
-  ])
-  project = var.id_proyecto
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.portal_api_sa.email}"
+  ]
+  depends_on = [
+    module.setup
+  ]
 }
 
 module "secrets_portal_api" {
-  source             = "./modules/secret_manager"
-  id_proyecto        = var.id_proyecto
-  db_password        = var.db_password
-  jwt_secret_key     = var.jwt_secret_key
-  cloud_run_sa_email = google_service_account.portal_api_sa.email
-  depends_on         = [module.setup, google_service_account.portal_api_sa]
+  source      = "./modules/secret_manager"
+  id_proyecto = var.id_proyecto
+  secretos = {
+    "portal-api-db-password"    = var.contrasena_bd
+    "portal-api-jwt-secret-key" = var.clave_jwt
+  }
+  cuentas_servicio_acceso = [
+    module.portal_api_sa.email_cuenta_servicio
+  ]
+  nombres_cuentas_servicio = [
+    "portal-api-sa"
+  ]
+  depends_on = [
+    module.setup, 
+    module.portal_api_sa
+  ]
 }
 
 module "cloud_run_portal_api" {
   source                = "./modules/cloud_run"
   id_proyecto           = var.id_proyecto
   region                = var.region
-  image                 = local.portal_api_image
-  service_account_email = google_service_account.portal_api_sa.email
-  vpc_connector_id      = module.vpc_portal.vpc_connector_id
-  db_private_ip         = module.cloudsql_portal.private_ip
-  db_name               = module.cloudsql_portal.database_name
-  db_user               = module.cloudsql_portal.db_user
-  cors_origins          = local.cors_origins
-  depends_on            = [module.cloudsql_portal, module.secrets_portal_api, google_project_iam_member.portal_api_sa_roles]
+  nombre_servicio      = "portal-api"
+  nombre_repo_artifact = "repo-data-ia-project3"
+  ruta_contexto_docker = "${path.root}/../backend/portal-api"
+  email_cuenta_servicio = module.portal_api_sa.email_cuenta_servicio
+  id_conector_vpc       = module.vpc_portal.vpc_connector_id
+
+  variables_entorno = {
+    ENVIRONMENT  = "production"
+    CORS_ORIGINS = local.cors_origins
+    DB_HOST      = module.cloudsql_portal.private_ip
+    DB_NAME      = module.cloudsql_portal.database_name
+    DB_USER      = module.cloudsql_portal.db_user
+  }
+
+  secretos_entorno = {
+    DB_PASSWORD = {
+      secret  = module.secrets_portal_api.ids_secretos["portal-api-db-password"]
+      version = "latest"
+    }
+    JWT_SECRET_KEY = {
+      secret  = module.secrets_portal_api.ids_secretos["portal-api-jwt-secret-key"]
+      version = "latest"
+    }
+  }
+
+  depends_on = [
+    module.cloudsql_portal, 
+    module.secrets_portal_api, 
+    module.portal_api_sa
+  ]
 }

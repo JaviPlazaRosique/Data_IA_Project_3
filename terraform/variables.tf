@@ -19,38 +19,32 @@ variable "usuario_github" {
   type        = string
 }
 
-variable "db_tier" {
+variable "nivel_bd" {
   description = "Tier de la maquina de CloudSQL"
   type        = string
   default     = "db-f1-micro"
 }
 
-variable "db_availability_type" {
+variable "tipo_disponibilidad_bd" {
   description = "Tipo de disponibilidad de CloudSQL: ZONAL o REGIONAL"
   type        = string
   default     = "ZONAL"
 }
 
-variable "deletion_protection" {
+variable "proteccion_borrado" {
   description = "Proteger CloudSQL de eliminacion accidental"
   type        = bool
   default     = false
 }
 
-variable "db_password" {
+variable "contrasena_bd" {
   description = "Contrasena del usuario api_user en CloudSQL"
   type        = string
   sensitive   = true
 }
 
-variable "jwt_secret_key" {
+variable "clave_jwt" {
   description = "Clave secreta para firmar tokens JWT (minimo 32 caracteres)"
   type        = string
   sensitive   = true
-}
-
-variable "portal_api_image" {
-  description = "Override de la imagen Docker del Portal API. Si se deja vacío se calcula automáticamente desde id_proyecto."
-  type        = string
-  default     = ""
 }
