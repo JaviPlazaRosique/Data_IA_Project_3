@@ -20,5 +20,5 @@ output "database_name" {
 
 output "db_user" {
   description = "Usuario de la base de datos"
-  value       = google_sql_user.api_user.name
+  value       = google_sql_user.db_user.name
 }

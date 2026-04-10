@@ -3,19 +3,19 @@ variable "id_proyecto" {
   type        = string
 }
 
-variable "db_password" {
-  description = "Contrasena de la base de datos"
-  type        = string
-  sensitive   = true
+variable "secretos" {
+  description = "Mapa de secretos a crear: clave = secret_id, valor = contenido del secreto"
+  type        = map(string)
 }
 
-variable "jwt_secret_key" {
-  description = "Clave secreta para firmar los tokens JWT"
-  type        = string
-  sensitive   = true
+variable "cuentas_servicio_acceso" {
+  description = "Lista de emails de cuentas de servicio con acceso de lectura a todos los secretos"
+  type        = list(string)
+  default     = []
 }
 
-variable "cloud_run_sa_email" {
-  description = "Email de la cuenta de servicio de Cloud Run que necesita acceder a los secretos"
-  type        = string
+variable "nombres_cuentas_servicio" {
+  description = "Lista de identificadores estaticos de cuentas de servicio (para claves de for_each)"
+  type        = list(string)
+  default     = []
 }

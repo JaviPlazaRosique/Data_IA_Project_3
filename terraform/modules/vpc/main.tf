@@ -1,11 +1,11 @@
 resource "google_compute_network" "vpc" {
-  name                    = var.vpc_name
+  name                    = var.nombre_vpc
   project                 = var.id_proyecto
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = "${var.vpc_name}-subnet"
+  name          = "${var.nombre_vpc}-subnet"
   project       = var.id_proyecto
   region        = var.region
   network       = google_compute_network.vpc.id
@@ -13,7 +13,7 @@ resource "google_compute_subnetwork" "subnet" {
 }
 
 resource "google_compute_global_address" "private_ip_range" {
-  name          = "${var.vpc_name}-private-ip-range"
+  name          = "${var.nombre_vpc}-private-ip-range"
   project       = var.id_proyecto
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
@@ -28,10 +28,10 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 resource "google_vpc_access_connector" "connector" {
-  name          = var.connector_name
+  name          = var.nombre_conector
   project       = var.id_proyecto
   region        = var.region
-  ip_cidr_range = var.connector_cidr
+  ip_cidr_range = var.cidr_conector
   network       = google_compute_network.vpc.name
   min_instances = 2
   max_instances = 3
