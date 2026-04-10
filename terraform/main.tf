@@ -19,6 +19,15 @@ module "frontend_usuarios" {
   ]
 }
 
+resource "google_storage_bucket_object" "public_config" {
+  name         = "public-config.json"
+  bucket       = module.frontend_usuarios.nombre_bucket
+  content      = jsonencode({ backendUrl = module.cloud_run_portal_api.service_url })
+  content_type = "application/json"
+  cache_control = "no-cache"
+}
+
+
 module "cicd_frontend_usuarios" {
   source             = "./modules/wif_workflow"
   id_proyecto        = var.id_proyecto
@@ -172,8 +181,8 @@ module "cloud_run_portal_api" {
   }
 
   depends_on = [
-    module.cloudsql_portal, 
-    module.secrets_portal_api, 
+    module.cloudsql_portal,
+    module.secrets_portal_api,
     module.portal_api_sa
   ]
 }
