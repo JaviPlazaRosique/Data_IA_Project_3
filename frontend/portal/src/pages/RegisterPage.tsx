@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -111,9 +112,25 @@ export default function RegisterPage() {
             />
           </div>
 
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={privacyAccepted}
+              onChange={(e) => setPrivacyAccepted(e.target.checked)}
+              required
+              className="mt-0.5 accent-primary w-4 h-4 shrink-0"
+            />
+            <span className="text-xs text-on-surface-variant leading-relaxed">
+              I have read and agree to the{' '}
+              <Link to="/privacy" className="text-primary font-bold hover:underline" target="_blank">
+                Privacy Notice
+              </Link>
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !privacyAccepted}
             className="w-full bg-primary text-on-primary font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
             {loading ? 'Creating account…' : 'Create Account'}

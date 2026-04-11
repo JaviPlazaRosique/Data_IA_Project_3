@@ -18,6 +18,9 @@ export default function AIPlannerPage() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [showDisclosure, setShowDisclosure] = useState(
+    () => user !== null && localStorage.getItem('planner_disclosure_seen') !== '1'
+  );
   const [input, setInput] = useState('');
   const [showItinerary, setShowItinerary] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -117,6 +120,28 @@ export default function AIPlannerPage() {
             </Link>
           </div>
         </header>
+
+        {/* AI persistence disclosure banner */}
+        {showDisclosure && (
+          <div className="mx-4 md:mx-8 mt-3 flex items-start justify-between gap-4 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-sm text-on-surface-variant">
+            <span>
+              Your conversations are saved to your account so you can continue planning later.{' '}
+              <Link to="/privacy" className="text-primary font-bold hover:underline">
+                Privacy Notice
+              </Link>
+            </span>
+            <button
+              onClick={() => {
+                localStorage.setItem('planner_disclosure_seen', '1');
+                setShowDisclosure(false);
+              }}
+              className="shrink-0 text-on-surface/40 hover:text-on-surface transition-colors"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Planning Canvas */}
         <div className="flex flex-1 overflow-hidden min-w-0 w-full">
