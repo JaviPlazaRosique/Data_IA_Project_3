@@ -52,7 +52,9 @@ async def register(request: Request, body: UserCreate, db: AsyncSession = Depend
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
-    result = await db.execute(select(User).where(User.email == body.email))
+    result = await db.execute(
+        select(User).where(User.email == body.email, User.is_active == True)  # noqa: E712
+    )
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(body.password, user.hashed_password):
@@ -82,6 +84,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
 
     if (
         not user
+        or not user.is_active
         or user.refresh_token != body.refresh_token
         or not user.refresh_token_expires_at
         or user.refresh_token_expires_at < datetime.now(UTC)
