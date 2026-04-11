@@ -15,6 +15,7 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     hash_password,
+    hash_token,
     verify_password,
     decode_token,
 )
@@ -63,7 +64,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     access_token = create_access_token(str(user.id))
     refresh_token, refresh_expires = create_refresh_token(str(user.id))
 
-    user.refresh_token = refresh_token
+    user.refresh_token = hash_token(refresh_token)
     user.refresh_token_expires_at = refresh_expires
     await db.commit()
 
@@ -85,7 +86,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
     if (
         not user
         or not user.is_active
-        or user.refresh_token != body.refresh_token
+        or user.refresh_token != hash_token(body.refresh_token)
         or not user.refresh_token_expires_at
         or user.refresh_token_expires_at < datetime.now(UTC)
     ):
@@ -94,7 +95,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
     access_token = create_access_token(str(user.id))
     new_refresh_token, refresh_expires = create_refresh_token(str(user.id))
 
-    user.refresh_token = new_refresh_token
+    user.refresh_token = hash_token(new_refresh_token)
     user.refresh_token_expires_at = refresh_expires
     await db.commit()
 

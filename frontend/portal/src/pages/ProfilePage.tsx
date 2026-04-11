@@ -10,7 +10,6 @@ import {
   apiListSavedEvents,
   apiUnsaveEvent,
   apiListMyReviews,
-  apiCreateReview,
   apiUpdateReview,
   type SavedEventRead,
   type EventReviewRead,
@@ -22,8 +21,6 @@ const favoriteCategories = ['Immersive Art', 'Techno Operas', 'Speakeasies'];
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
-  const [reviewText, setReviewText] = useState('');
-  const [pendingRating, setPendingRating] = useState(0);
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
   const [myReviews, setMyReviews] = useState<EventReviewRead[]>([]);
 
@@ -48,19 +45,6 @@ export default function ProfilePage() {
     try {
       await apiUnsaveEvent(eventId);
       setSavedEvents((prev) => prev.filter((e) => e.event_id !== eventId));
-    } catch { /* silent */ }
-  }
-
-  async function handleSubmitReview(eventId: string) {
-    if (!pendingRating) return;
-    try {
-      const review = await apiCreateReview(eventId, {
-        rating: pendingRating,
-        review_text: reviewText || null,
-      });
-      setMyReviews((prev) => [...prev, review]);
-      setReviewText('');
-      setPendingRating(0);
     } catch { /* silent */ }
   }
 
