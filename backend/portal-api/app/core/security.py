@@ -1,3 +1,4 @@
+import hashlib
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -14,6 +15,16 @@ def hash_password(plain: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+
+def hash_token(token: str) -> str:
+    """SHA-256 hash a token before storing in the database.
+
+    Refresh tokens are long-lived session credentials. Hashing them means a DB
+    breach exposes only digests — an attacker cannot replay the tokens directly.
+    The original token is returned to the client and hashed again for comparison.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def create_access_token(subject: str) -> str:
