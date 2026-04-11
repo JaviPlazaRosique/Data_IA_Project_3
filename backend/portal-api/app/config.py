@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     CORS_ORIGINS: str = ""
 
+    # Firestore / Firebase — optional; empty string uses Application Default Credentials
+    GOOGLE_CLOUD_PROJECT: str = ""
+    FIREBASE_CREDENTIALS_JSON: str = ""  # path to service account JSON file
+
     @model_validator(mode="after")
     def validate_db_config(self) -> "Settings":
         has_full_url = bool(self.DATABASE_URL)

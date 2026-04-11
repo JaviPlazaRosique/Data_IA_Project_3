@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { savedEvents, historyEvents } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
-import { apiUpdateMe } from '../api';
+import {
+  apiUpdateMe,
+  apiListSavedEvents,
+  apiUnsaveEvent,
+  apiListMyReviews,
+  apiCreateReview,
+  apiUpdateReview,
+  type SavedEventRead,
+  type EventReviewRead,
+} from '../api';
 
 const budgetOptions = ['€', '€€', '€€€', '€€€€'];
 const favoriteCategories = ['Immersive Art', 'Techno Operas', 'Speakeasies'];
@@ -16,12 +24,53 @@ export default function ProfilePage() {
   const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
   const [reviewText, setReviewText] = useState('');
   const [pendingRating, setPendingRating] = useState(0);
+  const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
+  const [myReviews, setMyReviews] = useState<EventReviewRead[]>([]);
+
+  useEffect(() => {
+    Promise.all([apiListSavedEvents(), apiListMyReviews()])
+      .then(([events, reviews]) => {
+        setSavedEvents(events);
+        setMyReviews(reviews);
+      })
+      .catch(() => { /* silent */ });
+  }, []);
 
   async function handleBudgetChange(opt: string) {
     setActiveBudget(opt);
     try {
       const updated = await apiUpdateMe({ preferred_budget: opt });
       setUser(updated);
+    } catch { /* silent */ }
+  }
+
+  async function handleUnsave(eventId: string) {
+    try {
+      await apiUnsaveEvent(eventId);
+      setSavedEvents((prev) => prev.filter((e) => e.event_id !== eventId));
+    } catch { /* silent */ }
+  }
+
+  async function handleSubmitReview(eventId: string) {
+    if (!pendingRating) return;
+    try {
+      const review = await apiCreateReview(eventId, {
+        rating: pendingRating,
+        review_text: reviewText || null,
+      });
+      setMyReviews((prev) => [...prev, review]);
+      setReviewText('');
+      setPendingRating(0);
+    } catch { /* silent */ }
+  }
+
+  async function handleEditReview(reviewId: string, rating: number, text: string) {
+    try {
+      const updated = await apiUpdateReview(reviewId, {
+        rating,
+        review_text: text || null,
+      });
+      setMyReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } catch { /* silent */ }
   }
 
@@ -176,21 +225,41 @@ export default function ProfilePage() {
                   <a href="#" className="text-primary text-sm font-bold hover:underline">View All</a>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {savedEvents.length === 0 && (
+                    <p className="text-on-surface-variant/50 text-sm italic col-span-2">No saved events yet.</p>
+                  )}
                   {savedEvents.map((event) => (
                     <div key={event.id} className="bg-surface-container-high rounded-[1.5rem] overflow-hidden group hover:translate-y-[-4px] transition-transform duration-300">
                       <div className="h-48 w-full overflow-hidden relative">
-                        <img
-                          src={event.imageUrl}
-                          alt={event.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                        <div className="absolute top-4 left-4 bg-surface/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                          {event.date}
-                        </div>
+                        {event.event_image_url ? (
+                          <img
+                            src={event.event_image_url}
+                            alt={event.event_title ?? event.event_id}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-surface-container-highest flex items-center justify-center">
+                            <span className="material-symbols-outlined text-4xl text-on-surface-variant/30">event</span>
+                          </div>
+                        )}
+                        {event.event_date && (
+                          <div className="absolute top-4 left-4 bg-surface/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                            {event.event_date}
+                          </div>
+                        )}
+                        <button
+                          onClick={() => handleUnsave(event.event_id)}
+                          className="absolute top-4 right-4 w-8 h-8 bg-surface/80 backdrop-blur-md rounded-full flex items-center justify-center text-on-surface-variant hover:text-error transition-colors"
+                          title="Remove bookmark"
+                        >
+                          <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
                       </div>
                       <div className="p-6">
-                        <h3 className="text-lg font-bold mb-1">{event.title}</h3>
-                        <p className="text-on-surface-variant text-xs mb-4">{event.venue} • {event.time}</p>
+                        <h3 className="text-lg font-bold mb-1">{event.event_title ?? event.event_id}</h3>
+                        <p className="text-on-surface-variant text-xs mb-4">
+                          {[event.event_venue, event.event_time].filter(Boolean).join(' • ')}
+                        </p>
                         <button className="w-full border border-outline-variant/30 py-2.5 rounded-full text-xs font-bold hover:bg-on-surface hover:text-surface transition-colors">
                           Book Now
                         </button>
@@ -207,80 +276,47 @@ export default function ProfilePage() {
                   Experience History
                 </h2>
                 <div className="space-y-4">
-                  {historyEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className={`bg-surface-container p-6 rounded-3xl flex flex-col md:flex-row gap-6 ${
-                        event.status === 'pending' ? 'border border-primary/20 bg-gradient-to-br from-surface-container to-primary/5' : ''
-                      }`}
-                    >
-                      <div className="w-full md:w-32 h-32 rounded-2xl overflow-hidden flex-shrink-0">
-                        <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+                  {myReviews.length === 0 && (
+                    <p className="text-on-surface-variant/50 text-sm italic">No reviews yet. Rate events you've attended.</p>
+                  )}
+                  {myReviews.map((review) => (
+                    <div key={review.id} className="bg-surface-container p-6 rounded-3xl flex flex-col md:flex-row gap-6">
+                      <div className="w-full md:w-32 h-32 rounded-2xl overflow-hidden flex-shrink-0 bg-surface-container-highest flex items-center justify-center">
+                        <span className="material-symbols-outlined text-4xl text-on-surface-variant/30">event</span>
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <h3 className="font-bold text-lg">{event.title}</h3>
-                            {event.status === 'reviewed' ? (
-                              <p className="text-on-surface-variant text-sm">{event.visitedDate}</p>
-                            ) : (
-                              <p className="text-primary text-sm font-medium">Pending Review</p>
-                            )}
+                            <h3 className="font-bold text-lg">{review.event_id}</h3>
+                            <p className="text-on-surface-variant text-sm">
+                              {new Date(review.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                            </p>
                           </div>
-                          {event.status === 'reviewed' && (
-                            <div className="flex gap-1 text-tertiary">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                  key={star}
-                                  className="material-symbols-outlined"
-                                  style={star <= event.rating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                                >
-                                  star
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          <div className="flex gap-1 text-tertiary">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span
+                                key={star}
+                                className="material-symbols-outlined"
+                                style={star <= review.rating ? { fontVariationSettings: "'FILL' 1" } : {}}
+                              >
+                                star
+                              </span>
+                            ))}
+                          </div>
                         </div>
 
-                        {event.status === 'reviewed' && event.review && (
-                          <>
-                            <div className="bg-surface-container-lowest p-4 rounded-xl mb-4">
-                              <p className="text-on-surface-variant text-sm italic">{event.review}</p>
-                            </div>
-                            <button className="text-primary text-xs font-bold uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
-                              Edit Review
-                              <span className="material-symbols-outlined text-sm">chevron_right</span>
-                            </button>
-                          </>
+                        {review.review_text && (
+                          <div className="bg-surface-container-lowest p-4 rounded-xl mb-4">
+                            <p className="text-on-surface-variant text-sm italic">{review.review_text}</p>
+                          </div>
                         )}
-
-                        {event.status === 'pending' && (
-                          <>
-                            <div className="flex gap-1 mb-4">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                  key={star}
-                                  onClick={() => setPendingRating(star)}
-                                  className={`material-symbols-outlined cursor-pointer transition-colors ${
-                                    star <= pendingRating ? 'text-tertiary' : 'text-on-surface-variant/40 hover:text-tertiary'
-                                  }`}
-                                  style={star <= pendingRating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                                >
-                                  star
-                                </span>
-                              ))}
-                            </div>
-                            <textarea
-                              value={reviewText}
-                              onChange={(e) => setReviewText(e.target.value)}
-                              className="w-full bg-surface-container-lowest rounded-xl border-none text-sm text-on-surface p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-secondary/50 placeholder:text-on-surface-variant/30 min-h-[80px] resize-none"
-                              placeholder="Tell the Curator about your experience..."
-                            />
-                            <button className="bg-tertiary text-on-tertiary px-6 py-2 rounded-full text-xs font-bold hover:opacity-90 transition-opacity">
-                              Post Review
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={() => handleEditReview(review.id, review.rating, review.review_text ?? '')}
+                          className="text-primary text-xs font-bold uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all"
+                        >
+                          Edit Review
+                          <span className="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
                       </div>
                     </div>
                   ))}
