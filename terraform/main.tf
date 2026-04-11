@@ -11,7 +11,7 @@ module "setup" {
 
 module "frontend_usuarios" {
   source           = "./modules/bucket_web"
-  nombre_bucket    = "bucket-prueba-dataiaproject3-app-recomendacion-eventos"
+  nombre_bucket    = "bucket-prueba-dataiaproject3-app-recomendacion-eventos-v2"
   ruta_recurso_web = "../frontend/portal"
   id_proyecto      = var.id_proyecto
   depends_on = [
