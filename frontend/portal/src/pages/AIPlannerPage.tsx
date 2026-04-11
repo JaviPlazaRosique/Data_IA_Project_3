@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SideNav from '../components/layout/SideNav';
 import BottomNav from '../components/layout/BottomNav';
-import { chatMessages, quickActions, itineraryMapImage, userAvatarUrl } from '../data/mockData';
+import { quickActions, itineraryMapImage, userAvatarUrl } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { apiListPlans, apiCreatePlan, apiUpdatePlan } from '../api';
 
 interface Message {
   id: string;
@@ -13,10 +15,30 @@ interface Message {
 }
 
 export default function AIPlannerPage() {
-  const [messages, setMessages] = useState<Message[]>(chatMessages);
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [showItinerary, setShowItinerary] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load most recent plan on mount
+  useEffect(() => {
+    if (!user) return;
+    apiListPlans().then((plans) => {
+      if (plans.length === 0) return;
+      const latest = plans[0];
+      setActivePlanId(latest.plan_id);
+      setMessages(
+        latest.messages.map((m) => ({
+          id: `${m.timestamp}-${m.role}`,
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp,
+        }))
+      );
+    }).catch(() => { /* silent — not logged in or offline */ });
+  }, [user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,16 +46,31 @@ export default function AIPlannerPage() {
 
   const handleSend = () => {
     if (!input.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        role: 'user',
-        content: input,
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const newMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      timestamp,
+    };
+    const updated = [...messages, newMsg];
+    setMessages(updated);
     setInput('');
+
+    // Persist to backend (fire-and-forget)
+    const planMessages = updated.map((m) => ({
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp,
+    }));
+    if (activePlanId) {
+      apiUpdatePlan(activePlanId, { messages: planMessages }).catch(() => {});
+    } else {
+      apiCreatePlan({
+        title: input.slice(0, 60),
+        messages: planMessages,
+      }).then((plan) => setActivePlanId(plan.plan_id)).catch(() => {});
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

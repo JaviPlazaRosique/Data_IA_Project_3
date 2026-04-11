@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.api.v1.router import router as v1_router
 from app.config import settings
 from app.core.limiter import limiter
+from app.db.firestore import get_firestore
 from app.db.session import engine
 
 
@@ -17,6 +18,7 @@ from app.db.session import engine
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1"))
+    get_firestore()  # initialise Firebase app at startup
     yield
     await engine.dispose()
 

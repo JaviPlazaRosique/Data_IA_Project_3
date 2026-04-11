@@ -24,7 +24,42 @@ CREATE TABLE users (
     updated_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
+-- UNIQUE constraints already create unique indexes; no additional plain indexes needed
 CREATE UNIQUE INDEX uq_users_email    ON users (email);
 CREATE UNIQUE INDEX uq_users_username ON users (username);
-CREATE        INDEX idx_users_email   ON users (email);
-CREATE        INDEX idx_users_username ON users (username);
+-- Partial index for login/register queries — only indexes active (non-deleted) users
+CREATE        INDEX idx_users_active_email ON users (email) WHERE is_active = TRUE;
+
+-- ─── Saved Events ─────────────────────────────────────────────────────────────
+
+CREATE TABLE saved_events (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id        TEXT        NOT NULL,
+    event_title     TEXT,
+    event_venue     TEXT,
+    event_date      TEXT,
+    event_time      TEXT,
+    event_image_url TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX uq_saved_events_user_event ON saved_events (user_id, event_id);
+CREATE        INDEX idx_saved_events_user_id   ON saved_events (user_id);
+
+-- ─── Event Reviews ────────────────────────────────────────────────────────────
+
+CREATE TABLE event_reviews (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id    TEXT        NOT NULL,
+    rating      SMALLINT    NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    review_text TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX uq_event_reviews_user_event          ON event_reviews (user_id, event_id);
+-- Covering index: WHERE event_id = ? ORDER BY created_at DESC avoids a post-scan sort
+CREATE        INDEX idx_event_reviews_event_id_created_at ON event_reviews (event_id, created_at DESC);
+CREATE        INDEX idx_event_reviews_user_id             ON event_reviews (user_id);

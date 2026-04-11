@@ -11,6 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend" / "portal
 
 from app.db.base import Base  # noqa: E402
 import app.models.user  # noqa: E402, F401 — registers User model with Base.metadata
+import app.models.saved_event  # noqa: E402, F401
+import app.models.event_review  # noqa: E402, F401
 
 config = context.config
 
