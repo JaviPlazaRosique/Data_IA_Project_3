@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -14,6 +14,11 @@ COLLECTION = "plans"
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _expiry_iso() -> str:
+    """12-month TTL from now. Firestore TTL policy on expires_at handles auto-deletion."""
+    return (datetime.now(UTC) + timedelta(days=365)).isoformat()
 
 
 def _doc_to_plan(plan_id: str, data: dict) -> PlanRead:
@@ -56,6 +61,7 @@ async def create_plan(
         "itinerary": body.itinerary.model_dump(),
         "created_at": now,
         "updated_at": now,
+        "expires_at": _expiry_iso(),  # GDPR Art. 5(1)(e) — 12-month retention TTL
     }
     _write_result, doc_ref = await db.collection(COLLECTION).add(payload)
     return _doc_to_plan(doc_ref.id, payload)
@@ -91,7 +97,7 @@ async def update_plan(
     if data["user_id"] != str(current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your plan")
 
-    updates: dict = {"updated_at": _now_iso()}
+    updates: dict = {"updated_at": _now_iso(), "expires_at": _expiry_iso()}
     if body.title is not None:
         updates["title"] = body.title
     if body.messages is not None:
