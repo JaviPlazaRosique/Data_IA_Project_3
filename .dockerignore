@@ -1,0 +1,11 @@
+frontend/portal/node_modules
+frontend/portal/dist
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.venv
+venv
+.env
+.env.*
+terraform
+docs

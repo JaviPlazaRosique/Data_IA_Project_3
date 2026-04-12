@@ -52,3 +52,6 @@ override.tf.json
 # Variables de entorno
 .env
 .env.*local
+
+# Generated at build time
+frontend/portal/public/public-config.json
