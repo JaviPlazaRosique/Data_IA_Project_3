@@ -32,8 +32,3 @@ output "backend_portal_api_cuenta_servicio" {
   description = "Cuenta de servicio del CI/CD del backend Portal API (GitHub Secret: BACKEND_PORTAL_API_CUENTA_SERVICIO)"
   value       = module.cicd_backend_portal_api.email_cuenta_servicio
 }
-
-output "terraform_cuenta_servicio" {
-  description = "Cuenta de servicio para Terraform CI/CD (GitHub Secret: TERRAFORM_CUENTA_SERVICIO)"
-  value       = module.cicd_terraform.email_cuenta_servicio
-}
