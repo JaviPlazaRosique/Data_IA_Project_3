@@ -190,3 +190,180 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+// ─── Plan types ───────────────────────────────────────────────────────────────
+
+export interface PlanMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface PlanItinerary {
+  stops: unknown[];
+  budget: number;
+  vibe_chaos: number;
+  vibe_hidden: number;
+}
+
+export interface PlanRead {
+  plan_id: string;
+  user_id: string;
+  title: string;
+  messages: PlanMessage[];
+  itinerary: PlanItinerary;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanCreate {
+  title?: string;
+  messages?: PlanMessage[];
+  itinerary?: Partial<PlanItinerary>;
+}
+
+export interface PlanUpdate {
+  title?: string;
+  messages?: PlanMessage[];
+  itinerary?: Partial<PlanItinerary>;
+}
+
+// ─── Saved event types ────────────────────────────────────────────────────────
+
+export interface SavedEventRead {
+  id: string;
+  user_id: string;
+  event_id: string;
+  event_title: string | null;
+  event_venue: string | null;
+  event_date: string | null;
+  event_time: string | null;
+  event_image_url: string | null;
+  created_at: string;
+}
+
+export interface SavedEventCreate {
+  event_id: string;
+  event_title?: string | null;
+  event_venue?: string | null;
+  event_date?: string | null;
+  event_time?: string | null;
+  event_image_url?: string | null;
+}
+
+// ─── Review types ─────────────────────────────────────────────────────────────
+
+export interface EventReviewRead {
+  id: string;
+  user_id: string;
+  event_id: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventReviewCreate {
+  rating: number;
+  review_text?: string | null;
+}
+
+export interface EventReviewUpdate {
+  rating?: number;
+  review_text?: string | null;
+}
+
+// ─── Plans API ────────────────────────────────────────────────────────────────
+
+export async function apiListPlans(): Promise<PlanRead[]> {
+  const res = await authFetch('/api/v1/plans');
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load plans');
+  return res.json();
+}
+
+export async function apiCreatePlan(data: PlanCreate): Promise<PlanRead> {
+  const res = await authFetch('/api/v1/plans', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to create plan');
+  return res.json();
+}
+
+export async function apiGetPlan(planId: string): Promise<PlanRead> {
+  const res = await authFetch(`/api/v1/plans/${planId}`);
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load plan');
+  return res.json();
+}
+
+export async function apiUpdatePlan(planId: string, data: PlanUpdate): Promise<PlanRead> {
+  const res = await authFetch(`/api/v1/plans/${planId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to update plan');
+  return res.json();
+}
+
+export async function apiDeletePlan(planId: string): Promise<void> {
+  await authFetch(`/api/v1/plans/${planId}`, { method: 'DELETE' });
+}
+
+// ─── Saved Events API ─────────────────────────────────────────────────────────
+
+export async function apiListSavedEvents(): Promise<SavedEventRead[]> {
+  const res = await authFetch('/api/v1/users/me/saved-events');
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load saved events');
+  return res.json();
+}
+
+export async function apiSaveEvent(data: SavedEventCreate): Promise<SavedEventRead> {
+  const res = await authFetch('/api/v1/users/me/saved-events', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to save event');
+  return res.json();
+}
+
+export async function apiUnsaveEvent(eventId: string): Promise<void> {
+  await authFetch(`/api/v1/users/me/saved-events/${eventId}`, { method: 'DELETE' });
+}
+
+// ─── Reviews API ──────────────────────────────────────────────────────────────
+
+export async function apiCreateReview(
+  eventId: string,
+  data: EventReviewCreate,
+): Promise<EventReviewRead> {
+  const res = await authFetch(`/api/v1/events/${eventId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to submit review');
+  return res.json();
+}
+
+export async function apiListEventReviews(eventId: string): Promise<EventReviewRead[]> {
+  const res = await authFetch(`/api/v1/events/${eventId}/reviews`);
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load reviews');
+  return res.json();
+}
+
+export async function apiListMyReviews(): Promise<EventReviewRead[]> {
+  const res = await authFetch('/api/v1/users/me/reviews');
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load reviews');
+  return res.json();
+}
+
+export async function apiUpdateReview(
+  reviewId: string,
+  data: EventReviewUpdate,
+): Promise<EventReviewRead> {
+  const res = await authFetch(`/api/v1/users/me/reviews/${reviewId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to update review');
+  return res.json();
+}
