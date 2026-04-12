@@ -34,7 +34,8 @@ module "cicd_frontend_usuarios" {
   id_cuenta_servicio = "cicd-frontend-usuarios"
   nombre_despliege   = "Cuenta de servicio para el CI/CD del frontend de la web de los usuarios"
   cuenta_servicio_roles = [
-    "roles/storage.admin"
+    "roles/storage.objectAdmin",
+    "roles/run.viewer",
   ]
   nombre_pool     = module.setup.nombre_pool
   nombre_workflow = "cicd_frontend_usuarios"
@@ -55,28 +56,6 @@ module "cicd_backend_portal_api" {
   ]
   nombre_pool     = module.setup.nombre_pool
   nombre_workflow = "cicd_backend_portal_api"
-  depends_on = [
-    module.setup
-  ]
-}
-
-resource "google_storage_bucket_iam_member" "backend_cicd_config_writer" {
-  bucket = module.frontend_usuarios.nombre_bucket
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${module.cicd_backend_portal_api.email_cuenta_servicio}"
-}
-
-module "cicd_terraform" {
-  source             = "./modules/wif_workflow"
-  id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "cicd-terraform"
-  nombre_despliege   = "Cuenta de servicio para aplicar Terraform desde GitHub Actions"
-  cuenta_servicio_roles = [
-    "roles/editor",
-    "roles/iam.securityAdmin",
-  ]
-  nombre_pool     = module.setup.nombre_pool
-  nombre_workflow = "cicd_terraform"
   depends_on = [
     module.setup
   ]
