@@ -1,0 +1,89 @@
+services:
+
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: electric_curator
+      POSTGRES_USER: curator
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localpass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U curator -d electric_curator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── Alembic Migrations (runs once, then exits) ───────────────────────────────
+  migrate:
+    build:
+      context: ..
+      dockerfile: local/Dockerfile.migrate
+    environment:
+      DATABASE_URL: postgresql+asyncpg://curator:${POSTGRES_PASSWORD:-localpass}@db:5432/electric_curator
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # ─── Seed data (runs once after migrations, then exits) ───────────────────────
+  seed:
+    build:
+      context: ..
+      dockerfile: local/Dockerfile.seed
+    environment:
+      DATABASE_URL: postgresql+asyncpg://curator:${POSTGRES_PASSWORD:-localpass}@db:5432/electric_curator
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # ─── Firestore Emulator ───────────────────────────────────────────────────────
+  firebase:
+    image: andreysenov/firebase-tools:latest
+    command: firebase emulators:start --only firestore --project demo-local
+    volumes:
+      - ./firebase.json:/home/node/firebase.json:ro
+      - firebase_cache:/home/node/.cache/firebase/emulators
+    working_dir: /home/node
+    ports:
+      - "4000:4000"   # Emulator UI
+      - "8081:8081"   # Firestore
+
+  # ─── Backend API ──────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../backend/portal-api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://curator:${POSTGRES_PASSWORD:-localpass}@db:5432/electric_curator
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-dev-secret-change-before-prod}
+      CORS_ORIGINS: http://localhost:5173
+      ENVIRONMENT: development
+      GOOGLE_CLOUD_PROJECT: demo-local
+      FIRESTORE_EMULATOR_HOST: firebase:8081
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      firebase:
+        condition: service_started
+    restart: unless-stopped
+
+  # ─── Frontend (production build → Nginx) ─────────────────────────────────────
+  frontend:
+    build:
+      context: ..
+      dockerfile: local/Dockerfile.frontend
+      args:
+        BACKEND_URL: ${BACKEND_URL:-http://localhost:8080}
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
+  firebase_cache:
