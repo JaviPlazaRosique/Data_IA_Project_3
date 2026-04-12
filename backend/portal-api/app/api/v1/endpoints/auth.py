@@ -15,6 +15,7 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     hash_password,
+    hash_token,
     verify_password,
     decode_token,
 )
@@ -52,7 +53,9 @@ async def register(request: Request, body: UserCreate, db: AsyncSession = Depend
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
-    result = await db.execute(select(User).where(User.email == body.email))
+    result = await db.execute(
+        select(User).where(User.email == body.email, User.is_active == True)  # noqa: E712
+    )
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(body.password, user.hashed_password):
@@ -61,7 +64,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     access_token = create_access_token(str(user.id))
     refresh_token, refresh_expires = create_refresh_token(str(user.id))
 
-    user.refresh_token = refresh_token
+    user.refresh_token = hash_token(refresh_token)
     user.refresh_token_expires_at = refresh_expires
     await db.commit()
 
@@ -82,7 +85,8 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
 
     if (
         not user
-        or user.refresh_token != body.refresh_token
+        or not user.is_active
+        or user.refresh_token != hash_token(body.refresh_token)
         or not user.refresh_token_expires_at
         or user.refresh_token_expires_at < datetime.now(UTC)
     ):
@@ -91,7 +95,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
     access_token = create_access_token(str(user.id))
     new_refresh_token, refresh_expires = create_refresh_token(str(user.id))
 
-    user.refresh_token = new_refresh_token
+    user.refresh_token = hash_token(new_refresh_token)
     user.refresh_token_expires_at = refresh_expires
     await db.commit()
 
