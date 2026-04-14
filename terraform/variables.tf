@@ -38,13 +38,19 @@ variable "proteccion_borrado" {
 }
 
 variable "contrasena_bd" {
-  description = "Contrasena del usuario api_user en CloudSQL"
+  description = "Contraseña del usuario api_user en CloudSQL"
   type        = string
   sensitive   = true
 }
 
 variable "clave_jwt" {
   description = "Clave secreta para firmar tokens JWT (minimo 32 caracteres)"
+  type        = string
+  sensitive   = true
+}
+
+variable "ticketmaster_apikey" {
+  description = "API-Key de la API de TicketMaster"
   type        = string
   sensitive   = true
 }
