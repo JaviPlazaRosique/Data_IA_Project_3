@@ -1,23 +1,5 @@
 locals {
   cors_origins = module.frontend_usuarios.url_web
-
-  cuerpo_scheduler_ingestion = base64encode(jsonencode({
-    launchParameter = {
-      jobName              = "ingesta-eventos-ticketmaster"
-      containerSpecGcsPath = module.dataflow_flex_template_ingestion.uri_spec_template
-      parameters = {
-        id_proyecto = var.id_proyecto
-        bucket_gcs  = "gs://${module.bucket_eventos_raw.nombre}/raw-events"
-      }
-      environment = {
-        tempLocation        = "gs://${module.bucket_dataflow_staging.nombre}/temp"
-        stagingLocation     = "gs://${module.bucket_dataflow_staging.nombre}/staging"
-        serviceAccountEmail = module.dataflow_worker_sa.email_cuenta_servicio
-        network             = module.vpc_portal.network_name
-        subnetwork          = module.vpc_portal.subnet_self_link
-      }
-    }
-  }))
 }
 
 module "setup" {
