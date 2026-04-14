@@ -1,5 +1,23 @@
 locals {
   cors_origins = module.frontend_usuarios.url_web
+
+  cuerpo_scheduler_ingestion = base64encode(jsonencode({
+    launchParameter = {
+      jobName              = "ingesta-eventos-ticketmaster"
+      containerSpecGcsPath = module.dataflow_flex_template_ingestion.uri_spec_template
+      parameters = {
+        id_proyecto = var.id_proyecto
+        bucket_gcs  = "gs://${module.bucket_eventos_raw.nombre}/raw-events"
+      }
+      environment = {
+        tempLocation        = "gs://${module.bucket_dataflow_staging.nombre}/temp"
+        stagingLocation     = "gs://${module.bucket_dataflow_staging.nombre}/staging"
+        serviceAccountEmail = module.dataflow_worker_sa.email_cuenta_servicio
+        network             = module.vpc_portal.network_name
+        subnetwork          = module.vpc_portal.subnet_self_link
+      }
+    }
+  }))
 }
 
 module "setup" {
@@ -117,6 +135,7 @@ module "secrets_portal_api" {
   secretos = {
     "portal-api-db-password"    = var.contrasena_bd
     "portal-api-jwt-secret-key" = var.clave_jwt
+    "api-key-ticketmaster"      = var.ticketmaster_apikey
   }
   cuentas_servicio_acceso = [
     module.portal_api_sa.email_cuenta_servicio
@@ -163,5 +182,45 @@ module "cloud_run_portal_api" {
     module.cloudsql_portal,
     module.secrets_portal_api,
     module.portal_api_sa
+  ]
+}
+
+module "bucket_dataflow_staging" {
+  source      = "./modules/bucket"
+  nombre      = "dataflow-staging-${var.id_proyecto}"
+  id_proyecto = var.id_proyecto
+  ubicacion   = upper(var.region)
+
+  reglas_ciclo_vida = [
+    {
+      tipo_accion = "Delete"
+      edad_dias   = "7"
+    },
+  ]
+
+  depends_on = [module.setup]
+}
+
+module "bucket_eventos_raw" {
+  source      = "./modules/bucket"
+  nombre      = "copia-eventos-raw-${var.id_proyecto}"
+  id_proyecto = var.id_proyecto
+  ubicacion   = upper(var.region)
+
+  reglas_ciclo_vida = [
+    {
+      tipo_accion    = "SetStorageClass"
+      clase_destino  = "NEARLINE"
+      edad_dias      = "30"
+    },
+    {
+      tipo_accion    = "SetStorageClass"
+      clase_destino  = "COLDLINE"
+      edad_dias      = "90"
+    },
+  ]
+
+  depends_on = [
+    module.setup
   ]
 }
