@@ -111,23 +111,18 @@ module "portal_api_sa" {
   ]
 }
 
-module "secrets_portal_api" {
+module "secretos_proyecto" {
   source      = "./modules/secret_manager"
   id_proyecto = var.id_proyecto
   secretos = {
     "portal-api-db-password"    = var.contrasena_bd
     "portal-api-jwt-secret-key" = var.clave_jwt
     "api-key-ticketmaster"      = var.ticketmaster_apikey
+    "api-key-google-places"     = module.setup.google_places_key_string
+    "api-key-gemini"            = module.setup.gemini_key_string
   }
-  cuentas_servicio_acceso = [
-    module.portal_api_sa.email_cuenta_servicio
-  ]
-  nombres_cuentas_servicio = [
-    "portal-api-sa"
-  ]
   depends_on = [
-    module.setup, 
-    module.portal_api_sa
+    module.setup
   ]
 }
 
@@ -151,19 +146,194 @@ module "cloud_run_portal_api" {
 
   secretos_entorno = {
     DB_PASSWORD = {
-      secret  = module.secrets_portal_api.ids_secretos["portal-api-db-password"]
+      secret  = module.secretos_proyecto.ids_secretos["portal-api-db-password"]
       version = "latest"
     }
     JWT_SECRET_KEY = {
-      secret  = module.secrets_portal_api.ids_secretos["portal-api-jwt-secret-key"]
+      secret  = module.secretos_proyecto.ids_secretos["portal-api-jwt-secret-key"]
       version = "latest"
     }
   }
 
   depends_on = [
     module.cloudsql_portal,
-    module.secrets_portal_api,
+    module.secretos_proyecto,
     module.portal_api_sa
+  ]
+}
+
+module "dataflow_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "dataflow-ingestion-sa"
+  nombre_despliege   = "Cuenta de servicio para el pipeline de ingestión de Dataflow"
+  cuenta_servicio_roles = [
+    "roles/dataflow.worker",
+    "roles/storage.objectAdmin",
+    "roles/bigquery.dataEditor",
+    "roles/bigquery.jobUser",
+    "roles/datastore.user",
+    "roles/secretmanager.secretAccessor",
+    "roles/artifactregistry.reader",
+  ]
+  depends_on = [
+    module.setup,
+    module.secretos_proyecto
+  ]
+}
+
+module "firestore" {
+  source             = "./modules/firestore"
+  id_proyecto        = var.id_proyecto
+  nombre_base_datos  = "(default)"
+  ubicacion          = "eur3"
+  proteccion_borrado = var.proteccion_borrado
+
+  politicas_ttl = [
+    {
+      coleccion = "recintos", 
+      campo_expiracion = "fecha_expiracion"
+    },
+    {
+      coleccion = "eventos",  
+      campo_expiracion = "fecha_utc"
+    }
+  ]
+
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "bigquery" {
+  source             = "./modules/bigquery"
+  id_proyecto        = var.id_proyecto
+  id_dataset         = "recomendacion_planes"
+  nombre_dataset     = "Dataset analítico de la app de recomendación de planes"
+  ubicacion          = "EU"
+  proteccion_borrado = var.proteccion_borrado
+
+  tablas = [
+    {
+      id_tabla        = "eventos"
+      campo_particion = "fecha_utc"
+      schema_json     = jsonencode([
+        {
+          name = "id",
+          type = "STRING",
+          mode = "REQUIRED"
+        },
+        {
+          name = "nombre",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "url",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "fecha",
+          type = "DATE",
+          mode = "NULLABLE"
+        },
+        {
+          name = "hora",
+          type = "TIME",
+          mode = "NULLABLE"
+        },
+        {
+          name = "fecha_utc",
+          type = "TIMESTAMP",
+          mode = "NULLABLE"
+        },
+        {
+          name = "estado",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "venta_inicio",
+          type = "TIMESTAMP",
+          mode = "NULLABLE"
+        },
+        {
+          name = "venta_fin",
+          type = "TIMESTAMP",
+          mode = "NULLABLE"
+        },
+        {
+          name = "segmento",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "genero",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "subgenero",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "recinto_id",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "recinto_nombre",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "ciudad",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "direccion",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "codigo_postal",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "latitud",
+          type = "FLOAT64",
+          mode = "NULLABLE"
+        },
+        {
+          name = "longitud",
+          type = "FLOAT64",
+          mode = "NULLABLE"
+        },
+        {
+          name = "artista_id",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "artista_nombre",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "promotor",
+          type = "STRING",
+          mode = "NULLABLE"
+        }
+      ])
+    }
+  ]
+
+  depends_on = [
+    module.setup
   ]
 }
 
@@ -180,7 +350,9 @@ module "bucket_dataflow_staging" {
     },
   ]
 
-  depends_on = [module.setup]
+  depends_on = [
+    module.setup
+  ]
 }
 
 module "bucket_eventos_raw" {

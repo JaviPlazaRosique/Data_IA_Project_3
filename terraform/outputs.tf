@@ -32,3 +32,8 @@ output "backend_portal_api_cuenta_servicio" {
   description = "Cuenta de servicio del CI/CD del backend Portal API (GitHub Secret: BACKEND_PORTAL_API_CUENTA_SERVICIO)"
   value       = module.cicd_backend_portal_api.email_cuenta_servicio
 }
+
+output "dataflow_cuenta_servicio" {
+  description = "Email de la cuenta de servicio para lanzar el pipeline de Dataflow. Usar con --service_account_email al ejecutar localmente."
+  value       = module.dataflow_sa.email_cuenta_servicio
+}

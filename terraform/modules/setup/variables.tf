@@ -15,7 +15,11 @@ variable "servicios_gcp" {
     "sql-component.googleapis.com",
     "servicenetworking.googleapis.com",
     "vpcaccess.googleapis.com",
-    "cloudbuild.googleapis.com"
+    "cloudbuild.googleapis.com",
+    "firestore.googleapis.com",
+    "apikeys.googleapis.com",
+    "places.googleapis.com",
+    "generativelanguage.googleapis.com"
   ]
 } 
 
