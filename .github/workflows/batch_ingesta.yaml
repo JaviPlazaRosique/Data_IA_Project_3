@@ -1,0 +1,80 @@
+name: cicd_batch_ingesta
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ingestion/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ingestion/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: europe-west1
+  REPO: repo-recomendador-eventos
+  IMAGE_NAME: batch-ingesta
+  TEMPLATE_BUCKET_PREFIX: ejecucion-dataflow
+  TEMPLATE_PATH: templates/batch-ingesta.json
+
+jobs:
+  ci:
+    name: Build y push imagen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.BATCH_INGESTA_CUENTA_SERVICIO }}
+
+      - name: Configurar Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configurar Docker para Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build y push imagen
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE_NAME }}"
+          docker build -t "${IMAGE}:latest" ingestion/
+          docker push "${IMAGE}:latest"
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Build Flex Template
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.BATCH_INGESTA_CUENTA_SERVICIO }}
+
+      - name: Configurar Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Crear Flex Template
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE_NAME }}:latest"
+          SPEC_PATH="gs://${{ env.TEMPLATE_BUCKET_PREFIX }}-${{ secrets.GCP_PROJECT_ID }}/${{ env.TEMPLATE_PATH }}"
+          gcloud dataflow flex-template build "${SPEC_PATH}" \
+            --image "${IMAGE}" \
+            --sdk-language "PYTHON" \
+            --metadata-file "ingestion/metadata.json" \
+            --project "${{ secrets.GCP_PROJECT_ID }}"

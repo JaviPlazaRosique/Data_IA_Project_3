@@ -4,6 +4,38 @@ resource "google_project_service" "apis" {
   disable_on_destroy = false
 }
 
+resource "google_apikeys_key" "google_places" {
+  project      = var.id_proyecto
+  name         = "places-api-key"
+  display_name = "API Key para Google Places"
+
+  restrictions {
+    api_targets {
+      service = "places.googleapis.com"
+    }
+  }
+
+  depends_on = [
+    google_project_service.apis
+  ]
+}
+
+resource "google_apikeys_key" "gemini" {
+  project      = var.id_proyecto
+  name         = "gemini-api-key"
+  display_name = "API Key para Gemini"
+
+  restrictions {
+    api_targets {
+      service = "generativelanguage.googleapis.com"
+    }
+  }
+
+  depends_on = [
+    google_project_service.apis
+  ]
+}
+
 resource "google_iam_workload_identity_pool" "github_pool" {
   project                   = var.id_proyecto
   workload_identity_pool_id = "github-pool"

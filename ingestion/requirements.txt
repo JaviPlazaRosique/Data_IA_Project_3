@@ -1,0 +1,6 @@
+apache-beam[gcp]==2.72.0
+requests==2.33.1
+google-cloud-secret-manager==2.27.0
+google-cloud-firestore==2.20.2
+google-cloud-bigquery==3.31.0
+google-generativeai==0.8.5

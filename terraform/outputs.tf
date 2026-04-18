@@ -33,7 +33,22 @@ output "backend_portal_api_cuenta_servicio" {
   value       = module.cicd_backend_portal_api.email_cuenta_servicio
 }
 
-output "terraform_cuenta_servicio" {
-  description = "Cuenta de servicio para Terraform CI/CD (GitHub Secret: TERRAFORM_CUENTA_SERVICIO)"
-  value       = module.cicd_terraform.email_cuenta_servicio
+output "dataflow_cuenta_servicio" {
+  description = "Email de la cuenta de servicio para lanzar el pipeline de Dataflow. Usar con --service_account_email al ejecutar localmente."
+  value       = module.dataflow_sa.email_cuenta_servicio
+}
+
+output "batch_ingesta_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del batch de ingestión (GitHub Secret: BATCH_INGESTA_CUENTA_SERVICIO)"
+  value       = module.cicd_batch_ingesta.email_cuenta_servicio
+}
+
+output "batch_ingesta_spec_gcs" {
+  description = "Ruta GCS del spec JSON del Flex Template"
+  value       = module.batch_ingesta_template.spec_gcs_path
+}
+
+output "batch_ingesta_imagen" {
+  description = "URI de la imagen launcher del Flex Template del batch de ingestión"
+  value       = module.batch_ingesta_template.uri_imagen
 }

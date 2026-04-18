@@ -1,9 +1,4 @@
-output "db_password_secret_id" {
-  description = "ID del secreto de la contrasena de la base de datos"
-  value       = google_secret_manager_secret.db_password.secret_id
-}
-
-output "jwt_secret_key_secret_id" {
-  description = "ID del secreto de la clave JWT"
-  value       = google_secret_manager_secret.jwt_secret_key.secret_id
+output "ids_secretos" {
+  description = "Mapa de secret_id por cada secreto creado (clave = nombre usado al crear, valor = secret_id en GCP)"
+  value       = { for k, v in google_secret_manager_secret.secreto : k => v.secret_id }
 }

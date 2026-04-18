@@ -8,19 +8,19 @@ variable "region" {
   type        = string
 }
 
-variable "vpc_name" {
+variable "nombre_vpc" {
   description = "Nombre de la red VPC"
   type        = string
-  default     = "electric-curator-vpc"
+  default     = "vpc-portal"
 }
 
-variable "connector_name" {
+variable "nombre_conector" {
   description = "Nombre del VPC Access Connector para Cloud Run"
   type        = string
-  default     = "portal-api-connector"
+  default     = "vpc-connector"
 }
 
-variable "connector_cidr" {
+variable "cidr_conector" {
   description = "CIDR del rango IP del conector (debe ser /28, fuera del rango de la VPC)"
   type        = string
   default     = "10.8.0.0/28"
