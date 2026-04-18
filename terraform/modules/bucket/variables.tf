@@ -34,7 +34,7 @@ variable "versionado" {
 variable "forzar_eliminacion" {
   description = "Permite eliminar el bucket aunque contenga objetos (útil en entornos no productivos)."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "reglas_ciclo_vida" {

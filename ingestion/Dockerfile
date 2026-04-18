@@ -1,4 +1,11 @@
-FROM apache/beam_python3.12_sdk:2.72.0
+FROM gcr.io/dataflow-templates-base/python312-template-launcher-base:20260413-rc01
 
-COPY requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r /requirements.txt
+WORKDIR /dataflow/template
+
+COPY requirements.txt .
+COPY pipeline_batch_ingestion.py .
+
+ENV FLEX_TEMPLATE_PYTHON_PY_FILE="/dataflow/template/pipeline_batch_ingestion.py"
+ENV FLEX_TEMPLATE_PYTHON_REQUIREMENTS_FILE="/dataflow/template/requirements.txt"
+
+RUN pip install --no-cache-dir -r requirements.txt
