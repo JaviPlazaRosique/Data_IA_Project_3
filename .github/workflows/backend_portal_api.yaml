@@ -19,7 +19,7 @@ permissions:
 env:
   REGION: europe-west1
   SERVICE: portal-api
-  REPO: repo-data-ia-project3
+  REPO: repo-recomendador-eventos
 
 jobs:
   ci:
