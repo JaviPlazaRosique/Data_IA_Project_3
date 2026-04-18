@@ -1,63 +1,78 @@
-resource "google_cloud_run_v2_service" "portal_api" {
-  name                = var.service_name
+terraform {
+  required_providers {
+    docker = {
+      source = "kreuzwerker/docker"
+    }
+  }
+}
+
+resource "docker_image" "imagen" {
+  name  = "${var.region}-docker.pkg.dev/${var.id_proyecto}/${var.nombre_repo_artifact}/api:latest"
+  build {
+    context    = var.ruta_contexto_docker
+    dockerfile = "Dockerfile"
+    platform   = "linux/amd64"
+  }
+}
+
+resource "docker_registry_image" "push" {
+  name          = docker_image.imagen.name
+  keep_remotely = true
+
+  lifecycle {
+    ignore_changes = all
+  }
+
+  depends_on = [
+    docker_image.imagen
+  ]
+}
+
+resource "google_cloud_run_v2_service" "service" {
+  name                = var.nombre_servicio
   project             = var.id_proyecto
   location            = var.region
-  deletion_protection = false
+  deletion_protection = var.proteccion_borrado
 
   template {
-    service_account = var.service_account_email
+    service_account = var.email_cuenta_servicio
 
-    vpc_access {
-      connector = var.vpc_connector_id
-      egress    = "PRIVATE_RANGES_ONLY"
+    dynamic "vpc_access" {
+      for_each = var.id_conector_vpc != null ? [1] : []
+      content {
+        connector = var.id_conector_vpc
+        egress    = var.egress_vpc
+      }
     }
 
     containers {
-      image = var.image
+      image = docker_registry_image.push.name
 
-      env {
-        name  = "ENVIRONMENT"
-        value = var.environment
-      }
-      env {
-        name  = "CORS_ORIGINS"
-        value = var.cors_origins
-      }
-      env {
-        name  = "DB_HOST"
-        value = var.db_private_ip
-      }
-      env {
-        name  = "DB_NAME"
-        value = var.db_name
-      }
-      env {
-        name  = "DB_USER"
-        value = var.db_user
-      }
-      env {
-        name = "DB_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = var.db_password_secret_id
-            version = "latest"
-          }
+      dynamic "env" {
+        for_each = var.variables_entorno
+        content {
+          name  = env.key
+          value = env.value
         }
       }
-      env {
-        name = "JWT_SECRET_KEY"
-        value_source {
-          secret_key_ref {
-            secret  = var.jwt_secret_key_secret_id
-            version = "latest"
+
+      dynamic "env" {
+        for_each = var.secretos_entorno
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = env.value.secret
+              version = env.value.version
+            }
           }
         }
       }
 
       resources {
         limits = {
-          cpu    = "1"
-          memory = "512Mi"
+          cpu    = var.cpu
+          memory = var.memoria
         }
       }
     }
@@ -65,16 +80,16 @@ resource "google_cloud_run_v2_service" "portal_api" {
 
   lifecycle {
     ignore_changes = [
-      # Image is managed by CI/CD after initial provisioning
       template[0].containers[0].image,
     ]
   }
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
+  count    = var.acceso_publico ? 1 : 0
   project  = var.id_proyecto
   location = var.region
-  name     = google_cloud_run_v2_service.portal_api.name
+  name     = google_cloud_run_v2_service.service.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }

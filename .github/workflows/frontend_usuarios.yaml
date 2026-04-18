@@ -75,3 +75,14 @@ jobs:
 
       - name: Desplegar frontend
         run: gsutil -m rsync -r -d -j js,css,html,json,svg -x "public-config\.json" dist/ gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/
+
+      - name: Subir public-config.json
+        env:
+          BUCKET: ${{ secrets.BUCKET_FRONTEND_USUARIOS }}
+        run: |
+          BACKEND_URL=$(gcloud run services describe portal-api \
+            --region=europe-west1 \
+            --project="$PROJECT" \
+            --format='value(status.url)')
+          echo "{\"backendUrl\": \"$BACKEND_URL\"}" > public-config.json
+          gsutil -h "Cache-Control:no-cache" cp public-config.json gs://$BUCKET/public-config.json
