@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 import math
-import os
 import requests
 import argparse
 import json
@@ -530,14 +529,17 @@ def run():
 
     argumentos, pipeline_opts = parser.parse_known_args()
 
-    _requirements_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements.txt")
+    _worker_image = (
+        f"europe-west1-docker.pkg.dev/{argumentos.id_proyecto}"
+        f"/repo-recomendador-eventos/batch-ingesta:latest"
+    )
 
     configuracion_pipeline = PipelineOptions(
         pipeline_opts,
         save_main_session=True,
         streaming=False,
         project=argumentos.id_proyecto,
-        requirements_file=_requirements_path if os.path.exists(_requirements_path) else None,
+        sdk_container_image=_worker_image,
     )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
