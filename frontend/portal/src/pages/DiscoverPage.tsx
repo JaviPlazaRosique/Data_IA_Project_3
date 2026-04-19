@@ -1,12 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { featuredEvents, categories, heroEvent } from '../data/mockData';
+import { categories, heroEvent } from '../data/mockData';
+import { apiListEvents, type EventCatalogItem } from '../api';
+
+const EVENT_IMAGE_FALLBACK = 'https://picsum.photos/seed/event-placeholder/600/340';
 
 export default function DiscoverPage() {
   const [aiDismissed, setAiDismissed] = useState(false);
+  const [events, setEvents] = useState<EventCatalogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiListEvents({ limit: 6 })
+      .then((data) => setEvents(data))
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load events'))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-surface text-on-surface">
@@ -113,53 +126,87 @@ export default function DiscoverPage() {
               <h2 className="text-2xl md:text-4xl font-bold font-headline tracking-tight">Curated for Tonight</h2>
               <div className="h-[2px] flex-1 bg-outline-variant/20" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {featuredEvents.map((event) => (
-                <div key={event.id} className="bg-surface-container-high rounded-3xl overflow-hidden group">
-                  <div className="aspect-video relative overflow-hidden">
-                    <img
-                      src={event.imageUrl}
-                      alt={event.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 right-4 glass-effect px-3 py-1.5 rounded-full flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-sm ${
-                        event.weatherIcon === 'cloud' ? 'text-secondary'
-                        : event.weatherIcon === 'water_drop' ? 'text-primary'
-                        : 'text-tertiary'
-                      }`}>
-                        {event.weatherIcon}
-                      </span>
-                      <span className="text-xs font-bold text-on-surface">{event.weather}</span>
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-surface-container-high rounded-3xl overflow-hidden animate-pulse"
+                  >
+                    <div className="aspect-video bg-surface-variant/30" />
+                    <div className="p-8 space-y-4">
+                      <div className="h-6 bg-surface-variant/30 rounded w-3/4" />
+                      <div className="h-4 bg-surface-variant/30 rounded w-1/2" />
+                      <div className="h-10 bg-surface-variant/30 rounded-full" />
                     </div>
                   </div>
-                  <div className="p-8 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="text-2xl font-bold font-headline">{event.title}</h4>
-                        <p className="text-on-surface-variant font-body">{event.venue}</p>
-                      </div>
-                      <span className="text-tertiary font-bold">{event.price}</span>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {event.tags.map((tag) => (
-                        <span key={tag} className="bg-surface-variant px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase opacity-80">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <Link
-                      to="/event/1"
-                      className={`block w-full py-4 rounded-full border border-outline-variant/20 font-bold text-center hover:bg-primary hover:text-on-primary transition-all ${
-                        event.disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
-                      }`}
+                ))}
+              </div>
+            ) : error ? (
+              <div className="bg-surface-container-high rounded-3xl p-12 text-center text-on-surface-variant">
+                No pudimos cargar los eventos. Intenta recargar la página.
+              </div>
+            ) : events.length === 0 ? (
+              <div className="bg-surface-container-high rounded-3xl p-12 text-center text-on-surface-variant">
+                No hay eventos disponibles todavía. Vuelve pronto.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {events.map((event) => {
+                  const title = event.nombre ?? 'Evento';
+                  const venue = [event.recinto_nombre, event.ciudad].filter(Boolean).join(' • ');
+                  const image = event.imagen_evento ?? event.artista_imagen ?? EVENT_IMAGE_FALLBACK;
+                  const tags = [event.segmento, event.genero].filter(
+                    (t): t is string => !!t,
+                  );
+                  return (
+                    <div
+                      key={event.id}
+                      className="bg-surface-container-high rounded-3xl overflow-hidden group"
                     >
-                      {event.buttonLabel}
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
+                      <div className="aspect-video relative overflow-hidden">
+                        <img
+                          src={image}
+                          alt={title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                      <div className="p-8 space-y-4">
+                        <div>
+                          <h4 className="text-2xl font-bold font-headline">{title}</h4>
+                          {venue && (
+                            <p className="text-on-surface-variant font-body">{venue}</p>
+                          )}
+                        </div>
+                        {(event.fecha || event.hora) && (
+                          <p className="text-sm text-on-surface-variant/80 font-label">
+                            {[event.fecha, event.hora].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        {tags.length > 0 && (
+                          <div className="flex gap-2 flex-wrap">
+                            {tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="bg-surface-variant px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase opacity-80"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <Link
+                          to={`/event/${event.id}`}
+                          className="block w-full py-4 rounded-full border border-outline-variant/20 font-bold text-center hover:bg-primary hover:text-on-primary transition-all"
+                        >
+                          Ver detalles
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
       </main>
