@@ -18,9 +18,33 @@ import {
 const budgetOptions = ['€', '€€', '€€€', '€€€€'];
 const favoriteCategories = ['Immersive Art', 'Techno Operas', 'Speakeasies'];
 
+interface NominatimSuggestion {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    country?: string;
+  };
+}
+
+function shortLabel(s: NominatimSuggestion): string {
+  const city =
+    s.address?.city ?? s.address?.town ?? s.address?.village ?? s.address?.municipality;
+  const country = s.address?.country;
+  return [city, country].filter(Boolean).join(', ') || s.display_name;
+}
+
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
+  const [locationDraft, setLocationDraft] = useState(user?.preferred_location ?? '');
+  const [locationSuggestions, setLocationSuggestions] = useState<NominatimSuggestion[]>([]);
+  const [locationOpen, setLocationOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
   const [myReviews, setMyReviews] = useState<EventReviewRead[]>([]);
 
@@ -33,10 +57,64 @@ export default function ProfilePage() {
       .catch(() => { /* silent */ });
   }, []);
 
+  useEffect(() => {
+    setLocationDraft(user?.preferred_location ?? '');
+  }, [user?.preferred_location]);
+
+  useEffect(() => {
+    const query = locationDraft.trim();
+    if (query.length < 2 || query === (user?.preferred_location ?? '')) {
+      setLocationSuggestions([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1&accept-language=en`,
+        { signal: controller.signal, headers: { 'Accept-Language': 'en' } },
+      )
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data: NominatimSuggestion[]) => {
+          setLocationSuggestions(Array.isArray(data) ? data : []);
+        })
+        .catch(() => { /* aborted or network error */ });
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [locationDraft, user?.preferred_location]);
+
   async function handleBudgetChange(opt: string) {
     setActiveBudget(opt);
     try {
       const updated = await apiUpdateMe({ preferred_budget: opt });
+      setUser(updated);
+    } catch { /* silent */ }
+  }
+
+  async function selectSuggestion(s: NominatimSuggestion) {
+    const label = shortLabel(s);
+    setLocationDraft(label);
+    setLocationSuggestions([]);
+    setLocationOpen(false);
+    try {
+      const updated = await apiUpdateMe({
+        preferred_location: label,
+        preferred_location_lat: parseFloat(s.lat),
+        preferred_location_lng: parseFloat(s.lon),
+      });
+      setUser(updated);
+    } catch { /* silent */ }
+  }
+
+  async function clearLocation() {
+    setLocationDraft('');
+    setLocationSuggestions([]);
+    setLocationOpen(false);
+    try {
+      const updated = await apiUpdateMe({
+        preferred_location: null,
+        preferred_location_lat: null,
+        preferred_location_lng: null,
+      });
       setUser(updated);
     } catch { /* silent */ }
   }
@@ -113,8 +191,10 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left: Preferences */}
             <section className="lg:col-span-4 space-y-8">
-              <div className="bg-surface-container-low p-8 rounded-[2rem] relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full group-hover:bg-primary/10 transition-colors" />
+              <div className="bg-surface-container-low p-8 rounded-[2rem] relative group">
+                <div className="absolute inset-0 rounded-[2rem] overflow-hidden pointer-events-none">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full group-hover:bg-primary/10 transition-colors" />
+                </div>
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">tune</span>
                   Preferences
@@ -153,25 +233,43 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Preferred Location</label>
-                    <div className="space-y-3">
-                      {user?.preferred_location ? (
-                        <div className="bg-surface-container-lowest flex items-center justify-between p-3 rounded-xl">
-                          <div className="flex items-center gap-3">
-                            <span className="material-symbols-outlined text-secondary">location_on</span>
-                            <span className="text-sm font-medium">{user.preferred_location}</span>
-                          </div>
+                    <div className="relative">
+                      <div className="bg-surface-container-lowest flex items-center gap-3 p-3 rounded-xl">
+                        <span className="material-symbols-outlined text-secondary">location_on</span>
+                        <input
+                          type="text"
+                          value={locationDraft}
+                          onChange={(e) => { setLocationDraft(e.target.value); setLocationOpen(true); }}
+                          onFocus={() => setLocationOpen(true)}
+                          onBlur={() => setTimeout(() => setLocationOpen(false), 150)}
+                          placeholder="Type a city, then pick from the list…"
+                          className="flex-1 bg-transparent text-sm font-medium focus:outline-none placeholder:text-on-surface-variant/40"
+                        />
+                        {user?.preferred_location && (
                           <button
-                            onClick={async () => {
-                              try {
-                                const updated = await apiUpdateMe({ preferred_location: null });
-                                setUser(updated);
-                              } catch { /* silent */ }
-                            }}
+                            onMouseDown={(e) => { e.preventDefault(); clearLocation(); }}
                             className="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer hover:text-error transition-colors"
+                            title="Clear preferred location"
                           >close</button>
-                        </div>
-                      ) : (
-                        <p className="text-on-surface-variant/50 text-sm italic">No location set</p>
+                        )}
+                      </div>
+                      {locationOpen && locationSuggestions.length > 0 && (
+                        <ul className="absolute z-10 top-full left-0 right-0 mt-1 bg-surface-container-high rounded-xl border border-outline-variant/10 shadow-xl overflow-hidden">
+                          {locationSuggestions.map((s) => (
+                            <li key={s.place_id}>
+                              <button
+                                onMouseDown={(e) => { e.preventDefault(); selectSuggestion(s); }}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-variant/40 transition-colors flex items-start gap-2"
+                              >
+                                <span className="material-symbols-outlined text-secondary/70 text-base mt-0.5">location_on</span>
+                                <span className="flex-1">
+                                  <span className="block font-medium">{shortLabel(s)}</span>
+                                  <span className="block text-[11px] text-on-surface-variant/60 truncate">{s.display_name}</span>
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </div>
                   </div>
