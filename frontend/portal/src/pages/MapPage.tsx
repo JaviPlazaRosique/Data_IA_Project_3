@@ -2,10 +2,57 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import { apiListEvents, type EventCatalogItem } from '../api';
+import { useAuth } from '../context/AuthContext';
+
+const CITY_COORDS: Record<string, [number, number]> = {
+  madrid: [40.4168, -3.7038],
+  barcelona: [41.3851, 2.1734],
+  valencia: [39.4699, -0.3763],
+  sevilla: [37.3891, -5.9845],
+  seville: [37.3891, -5.9845],
+  'palma de mallorca': [39.5696, 2.6502],
+  mallorca: [39.5696, 2.6502],
+  malaga: [36.7213, -4.4214],
+  bilbao: [43.263, -2.935],
+  zaragoza: [41.6488, -0.8891],
+};
+
+const CITY_ZOOM = 12;
+
+const geocodeCache = new Map<string, [number, number] | null>();
+
+async function geocodeCity(query: string): Promise<[number, number] | null> {
+  const key = query.trim().toLowerCase();
+  if (!key) return null;
+  if (geocodeCache.has(key)) return geocodeCache.get(key) ?? null;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'en' } },
+    );
+    if (!res.ok) {
+      geocodeCache.set(key, null);
+      return null;
+    }
+    const data = (await res.json()) as Array<{ lat: string; lon: string }>;
+    if (!Array.isArray(data) || data.length === 0) {
+      geocodeCache.set(key, null);
+      return null;
+    }
+    const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    geocodeCache.set(key, coords);
+    return coords;
+  } catch {
+    return null;
+  }
+}
 
 const EVENT_IMAGE_FALLBACK = 'https://picsum.photos/seed/event-placeholder/200/200';
 
@@ -73,25 +120,90 @@ function BoundsWatcher({ onChange }: { onChange: (b: L.LatLngBounds) => void }) 
   return null;
 }
 
-function FitToEvents({
+function InitialView({
+  preferredLocation,
+  preferredLat,
+  preferredLng,
   events,
 }: {
+  preferredLocation: string | null;
+  preferredLat: number | null;
+  preferredLng: number | null;
   events: Array<{ latitud: number; longitud: number }>;
 }) {
   const map = useMap();
-  const fittedRef = useRef(false);
+  const positionedRef = useRef(false);
+  const geoAttemptedRef = useRef(false);
+
   useEffect(() => {
-    if (fittedRef.current || events.length === 0) return;
-    map.fitBounds(
-      L.latLngBounds(events.map((e) => [e.latitud, e.longitud] as [number, number])),
-      { padding: [40, 40] },
-    );
-    fittedRef.current = true;
-  }, [events, map]);
+    if (positionedRef.current) return;
+    let cancelled = false;
+
+    async function resolve() {
+      if (preferredLat != null && preferredLng != null) {
+        map.setView([preferredLat, preferredLng], CITY_ZOOM);
+        positionedRef.current = true;
+        return;
+      }
+
+      if (preferredLocation) {
+        const key = preferredLocation
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        let coords: [number, number] | null = CITY_COORDS[key] ?? null;
+        if (!coords) coords = await geocodeCity(preferredLocation);
+        if (cancelled || positionedRef.current) return;
+        if (coords) {
+          map.setView(coords, CITY_ZOOM);
+          positionedRef.current = true;
+          return;
+        }
+      }
+
+      if (!geoAttemptedRef.current && navigator.geolocation) {
+        geoAttemptedRef.current = true;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (positionedRef.current) return;
+            map.setView([pos.coords.latitude, pos.coords.longitude], CITY_ZOOM);
+            positionedRef.current = true;
+          },
+          () => {
+            if (positionedRef.current || events.length === 0) return;
+            map.fitBounds(
+              L.latLngBounds(
+                events.map((e) => [e.latitud, e.longitud] as [number, number]),
+              ),
+              { padding: [40, 40] },
+            );
+            positionedRef.current = true;
+          },
+        );
+        return;
+      }
+
+      if (events.length > 0) {
+        map.fitBounds(
+          L.latLngBounds(events.map((e) => [e.latitud, e.longitud] as [number, number])),
+          { padding: [40, 40] },
+        );
+        positionedRef.current = true;
+      }
+    }
+
+    resolve();
+    return () => {
+      cancelled = true;
+    };
+  }, [preferredLocation, preferredLat, preferredLng, events, map]);
+
   return null;
 }
 
 export default function MapPage() {
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState('Concerts');
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
@@ -99,11 +211,33 @@ export default function MapPage() {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
 
   useEffect(() => {
-    apiListEvents({ limit: 50 })
-      .then((data) => setEvents(data))
-      .catch(() => setEvents([]))
-      .finally(() => setLoading(false));
-  }, []);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      const params = bounds
+        ? {
+            limit: 100,
+            min_lat: bounds.getSouth(),
+            max_lat: bounds.getNorth(),
+            min_lng: bounds.getWest(),
+            max_lng: bounds.getEast(),
+          }
+        : { limit: 50 };
+      apiListEvents(params, { signal: ctrl.signal })
+        .then((data) => {
+          if (!ctrl.signal.aborted) setEvents(data);
+        })
+        .catch(() => {
+          /* aborted or failed — keep previous events */
+        })
+        .finally(() => {
+          if (!ctrl.signal.aborted) setLoading(false);
+        });
+    }, bounds ? 400 : 0);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [bounds]);
 
   const mappableEvents = events.filter(hasCoords);
 
@@ -179,32 +313,39 @@ export default function MapPage() {
 
               {flyTarget && <MapFlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
               <BoundsWatcher onChange={setBounds} />
-              <FitToEvents events={mappableEvents} />
+              <InitialView
+                preferredLocation={user?.preferred_location ?? null}
+                preferredLat={user?.preferred_location_lat ?? null}
+                preferredLng={user?.preferred_location_lng ?? null}
+                events={mappableEvents}
+              />
 
-              {visibleEvents.map((point) => {
-                const category = segmentoToCategory(point.segmento);
-                return (
-                  <Marker
-                    key={point.id}
-                    position={[point.latitud, point.longitud]}
-                    icon={pins[category]}
-                  >
-                    <Popup className="curator-popup">
-                      <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '180px', fontFamily: 'Manrope, sans-serif' }}>
-                        <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-                          {point.segmento ?? category}
-                        </p>
-                        <p style={{ fontSize: '14px', fontWeight: 800, marginBottom: '2px' }}>
-                          {point.nombre ?? 'Evento'}
-                        </p>
-                        <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '8px' }}>
-                          {[point.recinto_nombre, point.ciudad].filter(Boolean).join(' • ')}
-                        </p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
-              })}
+              <MarkerClusterGroup chunkedLoading>
+                {visibleEvents.map((point) => {
+                  const category = segmentoToCategory(point.segmento);
+                  return (
+                    <Marker
+                      key={point.id}
+                      position={[point.latitud, point.longitud]}
+                      icon={pins[category]}
+                    >
+                      <Popup className="curator-popup">
+                        <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '180px', fontFamily: 'Manrope, sans-serif' }}>
+                          <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
+                            {point.segmento ?? category}
+                          </p>
+                          <p style={{ fontSize: '14px', fontWeight: 800, marginBottom: '2px' }}>
+                            {point.nombre ?? 'Evento'}
+                          </p>
+                          <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '8px' }}>
+                            {[point.recinto_nombre, point.ciudad].filter(Boolean).join(' • ')}
+                          </p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MarkerClusterGroup>
             </MapContainer>
 
             {/* Filter Bar – floating over the map */}

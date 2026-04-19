@@ -28,6 +28,8 @@ export interface UserRead {
   is_verified: boolean;
   preferred_budget: string | null;
   preferred_location: string | null;
+  preferred_location_lat: number | null;
+  preferred_location_lng: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +57,8 @@ export interface UpdateMeData {
   avatar_url?: string | null;
   preferred_budget?: string | null;
   preferred_location?: string | null;
+  preferred_location_lat?: number | null;
+  preferred_location_lng?: number | null;
   password?: string | null;
 }
 
@@ -392,18 +396,30 @@ export async function apiUpdateReview(
 
 // ─── Events catalog API (public) ──────────────────────────────────────────────
 
-export async function apiListEvents(params?: {
-  ciudad?: string;
-  segmento?: string;
-  limit?: number;
-}): Promise<EventCatalogItem[]> {
+export async function apiListEvents(
+  params?: {
+    ciudad?: string;
+    segmento?: string;
+    limit?: number;
+    min_lat?: number;
+    max_lat?: number;
+    min_lng?: number;
+    max_lng?: number;
+  },
+  init?: RequestInit,
+): Promise<EventCatalogItem[]> {
   const q = new URLSearchParams();
   if (params?.ciudad) q.set('ciudad', params.ciudad);
   if (params?.segmento) q.set('segmento', params.segmento);
   if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.min_lat != null) q.set('min_lat', String(params.min_lat));
+  if (params?.max_lat != null) q.set('max_lat', String(params.max_lat));
+  if (params?.min_lng != null) q.set('min_lng', String(params.min_lng));
+  if (params?.max_lng != null) q.set('max_lng', String(params.max_lng));
   const qs = q.toString();
   const res = await fetch(
     `${getBackendUrl()}/api/v1/events${qs ? `?${qs}` : ''}`,
+    init,
   );
   if (!res.ok) throw new ApiError(res.status, 'Failed to load events');
   return res.json();
