@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -8,7 +8,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { apiListEvents, type EventCatalogItem } from '../api';
+import { apiListEvents, apiSaveEvent, type EventCatalogItem } from '../api';
 import { useAuth } from '../context/AuthContext';
 
 const CITY_COORDS: Record<string, [number, number]> = {
@@ -202,6 +202,166 @@ function InitialView({
   return null;
 }
 
+function EventDetailModal({
+  event,
+  onClose,
+  isLoggedIn,
+}: {
+  event: EventCatalogItem | null;
+  onClose: () => void;
+  isLoggedIn: boolean;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSaved(false);
+    setError(null);
+  }, [event?.id]);
+
+  useEffect(() => {
+    if (!event) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [event, onClose]);
+
+  if (!event) return null;
+
+  const title = event.nombre ?? 'Evento';
+  const image =
+    event.imagen_evento ?? event.artista_imagen ?? EVENT_IMAGE_FALLBACK;
+  const locationLine = [event.recinto_nombre, event.ciudad]
+    .filter(Boolean)
+    .join(' • ');
+  const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
+  const tags = [event.segmento, event.genero, event.subgenero].filter(Boolean);
+
+  async function onSave() {
+    if (!event) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await apiSaveEvent({
+        event_id: event.id,
+        event_title: event.nombre,
+        event_venue: event.recinto_nombre,
+        event_date: event.fecha,
+        event_time: event.hora,
+        event_image_url: event.imagen_evento ?? event.artista_imagen,
+      });
+      setSaved(true);
+    } catch {
+      setError('No se pudo guardar el evento.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-surface-container-low rounded-[1.5rem] max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-outline-variant/20 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          className="absolute top-4 right-4 z-10 bg-surface-container-high rounded-full w-9 h-9 flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <span className="material-symbols-outlined text-lg">close</span>
+        </button>
+
+        <div className="w-full h-56 overflow-hidden rounded-t-[1.5rem]">
+          <img src={image} alt={title} className="w-full h-full object-cover" />
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {tags.map((t) => (
+                  <span
+                    key={t as string}
+                    className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-primary/20"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            <h2 className="font-headline font-bold text-2xl leading-tight">{title}</h2>
+            {event.artista_nombre && (
+              <p className="text-on-surface-variant text-sm mt-1">{event.artista_nombre}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {locationLine && (
+              <div className="flex items-center gap-2 text-on-surface-variant text-sm">
+                <span className="material-symbols-outlined text-[18px] text-secondary">location_on</span>
+                <span>{locationLine}</span>
+              </div>
+            )}
+            {dateLine && (
+              <div className="flex items-center gap-2 text-on-surface-variant text-sm">
+                <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
+                <span>{dateLine}</span>
+              </div>
+            )}
+            {event.estado && (
+              <div className="flex items-center gap-2 text-on-surface-variant text-sm">
+                <span className="material-symbols-outlined text-[18px] text-primary">info</span>
+                <span>{event.estado}</span>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="bg-error/10 text-error border border-error/20 rounded-lg px-3 py-2 text-xs">
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            {event.url && (
+              <a
+                href={event.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+                Entradas
+              </a>
+            )}
+            {isLoggedIn && (
+              <button
+                onClick={onSave}
+                disabled={saving || saved}
+                className="flex-1 bg-surface-container-high text-on-surface font-bold py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-surface-variant transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {saved ? 'bookmark_added' : 'bookmark'}
+                </span>
+                {saved ? 'Guardado' : saving ? 'Guardando…' : 'Guardar'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MapPage() {
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState('Concerts');
@@ -209,34 +369,66 @@ export default function MapPage() {
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
+  const boundsRef = useRef<L.LatLngBounds | null>(null);
+  const inflightRef = useRef<AbortController | null>(null);
+  const startPollingRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
+  const fetchEvents = useCallback(() => {
+    inflightRef.current?.abort();
     const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      const params = bounds
-        ? {
-            limit: 100,
-            min_lat: bounds.getSouth(),
-            max_lat: bounds.getNorth(),
-            min_lng: bounds.getWest(),
-            max_lng: bounds.getEast(),
-          }
-        : { limit: 50 };
-      apiListEvents(params, { signal: ctrl.signal })
-        .then((data) => {
-          if (!ctrl.signal.aborted) setEvents(data);
-        })
-        .catch(() => {
-          /* aborted or failed — keep previous events */
-        })
-        .finally(() => {
-          if (!ctrl.signal.aborted) setLoading(false);
-        });
-    }, bounds ? 400 : 0);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
+    inflightRef.current = ctrl;
+    const b = boundsRef.current;
+    const params = b
+      ? {
+          limit: 100,
+          min_lat: b.getSouth(),
+          max_lat: b.getNorth(),
+          min_lng: b.getWest(),
+          max_lng: b.getEast(),
+        }
+      : { limit: 50 };
+    apiListEvents(params, { signal: ctrl.signal })
+      .then((data) => {
+        if (!ctrl.signal.aborted) setEvents(data);
+      })
+      .catch(() => {
+        /* aborted or failed — keep previous events */
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+  }, []);
+
+  // Defer first fetch until the map has positioned (bounds set by InitialView).
+  // Poll every 60s afterwards. Fallback kicks in if positioning never resolves.
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let started = false;
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      fetchEvents();
+      intervalId = setInterval(fetchEvents, 60_000);
     };
+
+    startPollingRef.current = start;
+    const fallbackId = setTimeout(start, 3000);
+
+    return () => {
+      clearTimeout(fallbackId);
+      if (intervalId) clearInterval(intervalId);
+      inflightRef.current?.abort();
+      startPollingRef.current = null;
+    };
+  }, [fetchEvents]);
+
+  // Once the map reports its first bounds (preferred location applied),
+  // kick off polling immediately so events match the viewport from the start.
+  useEffect(() => {
+    boundsRef.current = bounds;
+    if (bounds) startPollingRef.current?.();
   }, [bounds]);
 
   const mappableEvents = events.filter(hasCoords);
@@ -247,7 +439,9 @@ export default function MapPage() {
 
   const handleEventClick = (eventId: string) => {
     const point = mappableEvents.find((p) => p.id === eventId);
-    if (point) setFlyTarget({ lat: point.latitud, lng: point.longitud });
+    if (!point) return;
+    setFlyTarget({ lat: point.latitud, lng: point.longitud });
+    setSelectedEvent(point);
   };
 
   const mapCenter: [number, number] = [40.42, -3.7];
@@ -328,9 +522,12 @@ export default function MapPage() {
                       key={point.id}
                       position={[point.latitud, point.longitud]}
                       icon={pins[category]}
+                      eventHandlers={{
+                        click: () => setSelectedEvent(point),
+                      }}
                     >
                       <Popup className="curator-popup">
-                        <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '180px', fontFamily: 'Manrope, sans-serif' }}>
+                        <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '200px', fontFamily: 'Manrope, sans-serif' }}>
                           <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
                             {point.segmento ?? category}
                           </p>
@@ -340,6 +537,24 @@ export default function MapPage() {
                           <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '8px' }}>
                             {[point.recinto_nombre, point.ciudad].filter(Boolean).join(' • ')}
                           </p>
+                          <button
+                            onClick={() => setSelectedEvent(point)}
+                            style={{
+                              background: '#b6a0ff',
+                              color: '#1e1f25',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '6px 10px',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              cursor: 'pointer',
+                              width: '100%',
+                            }}
+                          >
+                            Ver detalles
+                          </button>
                         </div>
                       </Popup>
                     </Marker>
@@ -521,6 +736,12 @@ export default function MapPage() {
       </main>
 
       <BottomNav />
+
+      <EventDetailModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        isLoggedIn={!!user}
+      />
     </div>
   );
 }
