@@ -29,7 +29,7 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # ─── Seed data (runs once after migrations, then exits) ───────────────────────
+  # ─── Seed users (runs once after migrations, then exits) ──────────────────────
   seed:
     build:
       context: ..
@@ -53,6 +53,19 @@ services:
       - "4000:4000"   # Emulator UI
       - "8081:8081"   # Firestore
 
+  # ─── Seed Firestore events (runs once after emulator is up, then exits) ───────
+  seed-events:
+    build:
+      context: ..
+      dockerfile: local/Dockerfile.seed-events
+    environment:
+      FIRESTORE_EMULATOR_HOST: firebase:8081
+      GOOGLE_CLOUD_PROJECT: demo-local
+    depends_on:
+      firebase:
+        condition: service_started
+    restart: "no"
+
   # ─── Backend API ──────────────────────────────────────────────────────────────
   backend:
     build:
@@ -61,7 +74,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://curator:${POSTGRES_PASSWORD:-localpass}@db:5432/electric_curator
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-dev-secret-change-before-prod}
-      CORS_ORIGINS: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,http://localhost:5174
       ENVIRONMENT: development
       GOOGLE_CLOUD_PROJECT: demo-local
       FIRESTORE_EMULATOR_HOST: firebase:8081
@@ -75,7 +88,10 @@ services:
     restart: unless-stopped
 
   # ─── Frontend (production build → Nginx) ─────────────────────────────────────
+  # Enabled only with `--profile full`. Default stack leaves port 5173 free for
+  # Vite dev (`npm run dev` from frontend/portal/).
   frontend:
+    profiles: ["full"]
     build:
       context: ..
       dockerfile: local/Dockerfile.frontend

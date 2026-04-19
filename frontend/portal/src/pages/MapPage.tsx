@@ -1,11 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { mapEvents, friendAvatars } from '../data/mockData';
+import { apiListEvents, type EventCatalogItem } from '../api';
+
+const EVENT_IMAGE_FALLBACK = 'https://picsum.photos/seed/event-placeholder/200/200';
+
+type PinCategory = 'music' | 'food' | 'art';
+
+const segmentoToCategory = (s: string | null): PinCategory => {
+  if (s === 'Music') return 'music';
+  if (s === 'Arts & Theatre' || s === 'Film') return 'art';
+  return 'food';
+};
+
+const hasCoords = (
+  e: EventCatalogItem,
+): e is EventCatalogItem & { latitud: number; longitud: number } =>
+  e.latitud != null && e.longitud != null;
 
 // Fix default marker icon paths broken by Vite bundling
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -38,13 +53,6 @@ const pins = {
   art: makePin('#8a99fe'),
 };
 
-// Map points with coords near Berlin Mitte
-const mapPoints = [
-  { id: '1', lat: 52.523, lng: 13.413, category: 'music' as const, title: 'Neon Dreams: Synthwave Night', price: '$25', venue: 'The Void Social Club' },
-  { id: '2', lat: 52.514, lng: 13.390, category: 'food' as const, title: 'Umami Underground Tasting', price: '$$$', venue: 'Orizuru Vault' },
-  { id: '3', lat: 52.531, lng: 13.400, category: 'art' as const, title: 'Midnight Gallery Tour', price: 'Free', venue: 'Prism Museum' },
-];
-
 const categories = ['Concerts', 'Art', 'Dining'];
 
 // Fly to a location when an event is selected
@@ -54,14 +62,61 @@ function MapFlyTo({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
+function BoundsWatcher({ onChange }: { onChange: (b: L.LatLngBounds) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    onChange(map.getBounds());
+  }, [map, onChange]);
+  useMapEvents({
+    moveend: () => onChange(map.getBounds()),
+  });
+  return null;
+}
+
+function FitToEvents({
+  events,
+}: {
+  events: Array<{ latitud: number; longitud: number }>;
+}) {
+  const map = useMap();
+  const fittedRef = useRef(false);
+  useEffect(() => {
+    if (fittedRef.current || events.length === 0) return;
+    map.fitBounds(
+      L.latLngBounds(events.map((e) => [e.latitud, e.longitud] as [number, number])),
+      { padding: [40, 40] },
+    );
+    fittedRef.current = true;
+  }, [events, map]);
+  return null;
+}
+
 export default function MapPage() {
   const [activeCategory, setActiveCategory] = useState('Concerts');
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
+  const [events, setEvents] = useState<EventCatalogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
+
+  useEffect(() => {
+    apiListEvents({ limit: 50 })
+      .then((data) => setEvents(data))
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const mappableEvents = events.filter(hasCoords);
+
+  const visibleEvents = bounds
+    ? mappableEvents.filter((e) => bounds.contains([e.latitud, e.longitud]))
+    : mappableEvents;
 
   const handleEventClick = (eventId: string) => {
-    const point = mapPoints.find((p) => p.id === eventId);
-    if (point) setFlyTarget({ lat: point.lat, lng: point.lng });
+    const point = mappableEvents.find((p) => p.id === eventId);
+    if (point) setFlyTarget({ lat: point.latitud, lng: point.longitud });
   };
+
+  const mapCenter: [number, number] = [40.42, -3.7];
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -111,7 +166,7 @@ export default function MapPage() {
           {/* ── Real Leaflet Map ── */}
           <div className="h-[55vh] md:h-auto md:flex-1 relative">
             <MapContainer
-              center={[52.520, 13.405]}
+              center={mapCenter}
               zoom={13}
               style={{ width: '100%', height: '100%' }}
               zoomControl={false}
@@ -123,23 +178,33 @@ export default function MapPage() {
               />
 
               {flyTarget && <MapFlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
+              <BoundsWatcher onChange={setBounds} />
+              <FitToEvents events={mappableEvents} />
 
-              {mapPoints.map((point) => (
-                <Marker key={point.id} position={[point.lat, point.lng]} icon={pins[point.category]}>
-                  <Popup className="curator-popup">
-                    <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '180px', fontFamily: 'Manrope, sans-serif' }}>
-                      <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-                        {point.category}
-                      </p>
-                      <p style={{ fontSize: '14px', fontWeight: 800, marginBottom: '2px' }}>{point.title}</p>
-                      <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '8px' }}>{point.venue}</p>
-                      <span style={{ background: '#ff946e', color: '#320a00', padding: '2px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700 }}>
-                        {point.price}
-                      </span>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+              {visibleEvents.map((point) => {
+                const category = segmentoToCategory(point.segmento);
+                return (
+                  <Marker
+                    key={point.id}
+                    position={[point.latitud, point.longitud]}
+                    icon={pins[category]}
+                  >
+                    <Popup className="curator-popup">
+                      <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '180px', fontFamily: 'Manrope, sans-serif' }}>
+                        <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
+                          {point.segmento ?? category}
+                        </p>
+                        <p style={{ fontSize: '14px', fontWeight: 800, marginBottom: '2px' }}>
+                          {point.nombre ?? 'Evento'}
+                        </p>
+                        <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '8px' }}>
+                          {[point.recinto_nombre, point.ciudad].filter(Boolean).join(' • ')}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
             </MapContainer>
 
             {/* Filter Bar – floating over the map */}
@@ -215,74 +280,88 @@ export default function MapPage() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-headline font-bold">Nearby Experiences</h2>
                 <span className="bg-secondary/10 text-secondary px-3 py-1 rounded-full text-xs font-bold border border-secondary/20">
-                  {mapEvents.length} Active Now
+                  {visibleEvents.length} Active Now
                 </span>
               </div>
 
-              {mapEvents.map((event) => (
-                <button
-                  key={event.id}
-                  onClick={() => handleEventClick(event.id)}
-                  className={`w-full text-left group bg-surface-container-high rounded-xl p-4 mb-4 hover:bg-surface-variant transition-colors cursor-pointer ${
-                    event.id === '1' ? 'border-l-4 border-primary' : ''
-                  }`}
-                >
-                  <div className="flex gap-4">
-                    <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                      <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-headline font-bold text-sm leading-tight group-hover:text-primary transition-colors truncate pr-2">
-                          {event.title}
-                        </h3>
-                        <span className="text-tertiary font-bold text-xs shrink-0">{event.price}</span>
+              {loading ? (
+                [0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-surface-container-high rounded-xl p-4 mb-4 animate-pulse"
+                  >
+                    <div className="flex gap-4">
+                      <div className="w-24 h-24 rounded-lg bg-surface-variant/30 flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-surface-variant/30 rounded w-3/4" />
+                        <div className="h-3 bg-surface-variant/30 rounded w-1/2" />
+                        <div className="h-3 bg-surface-variant/30 rounded w-1/3" />
                       </div>
-                      <div className="flex items-center gap-1 text-on-surface-variant text-[11px] mb-2">
-                        <span className="material-symbols-outlined text-[14px]">location_on</span>
-                        <span>{event.venue} • {event.distance}</span>
-                      </div>
-                      {event.isLive && (
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1 bg-surface-container-lowest px-2 py-0.5 rounded text-[10px] text-primary-fixed">
-                            <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
-                            LIVE
-                          </span>
-                          <span className="text-[10px] text-on-surface-variant font-medium">Starts {event.startTime}</span>
-                        </div>
-                      )}
-                      {event.friends && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="flex -space-x-2">
-                            {friendAvatars.map((av, i) => (
-                              <img key={i} src={av} alt="" className="w-5 h-5 rounded-full border border-surface-container-high object-cover" />
-                            ))}
-                          </div>
-                          <span className="text-[10px] text-on-surface-variant">{event.friends} friends attending</span>
-                        </div>
-                      )}
                     </div>
                   </div>
-                </button>
-              ))}
-
-              {/* AI Suggestion */}
-              <div className="mt-2 p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 relative overflow-hidden group">
-                <div className="absolute -top-4 -right-4 w-16 h-16 bg-primary/20 rounded-full blur-2xl group-hover:bg-primary/40 transition-all" />
-                <div className="flex gap-4 items-start relative z-10">
-                  <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                  <div>
-                    <h4 className="font-headline font-bold text-sm mb-1">Curator's Choice</h4>
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      Based on your mood and the snowfall, I recommend the{' '}
-                      <span className="text-secondary font-bold">Midnight Gallery Tour</span> — warm, cozy, and only 400m away.
-                    </p>
-                    <button className="mt-3 text-xs font-bold text-primary hover:underline flex items-center gap-1">
-                      Take me there <span className="material-symbols-outlined text-xs">arrow_forward</span>
-                    </button>
-                  </div>
+                ))
+              ) : events.length === 0 ? (
+                <div className="bg-surface-container-high rounded-xl p-6 text-center text-on-surface-variant text-sm">
+                  No hay eventos disponibles todavía.
                 </div>
-              </div>
+              ) : visibleEvents.length === 0 ? (
+                <div className="bg-surface-container-high rounded-xl p-6 text-center text-on-surface-variant text-sm">
+                  No hay eventos en esta zona. Aleja el zoom o mueve el mapa.
+                </div>
+              ) : (
+                visibleEvents.map((event) => {
+                  const title = event.nombre ?? 'Evento';
+                  const image =
+                    event.imagen_evento ?? event.artista_imagen ?? EVENT_IMAGE_FALLBACK;
+                  const locationLine = [event.recinto_nombre, event.ciudad]
+                    .filter(Boolean)
+                    .join(' • ');
+                  const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
+                  return (
+                    <button
+                      key={event.id}
+                      onClick={() => handleEventClick(event.id)}
+                      className="w-full text-left group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant cursor-pointer"
+                    >
+                      <div className="flex gap-4">
+                        <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                          <img
+                            src={image}
+                            alt={title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-headline font-bold text-sm leading-tight group-hover:text-primary transition-colors truncate mb-1">
+                            {title}
+                          </h3>
+                          {locationLine && (
+                            <div className="flex items-center gap-1 text-on-surface-variant text-[11px] mb-1">
+                              <span className="material-symbols-outlined text-[14px]">
+                                location_on
+                              </span>
+                              <span className="truncate">{locationLine}</span>
+                            </div>
+                          )}
+                          {dateLine && (
+                            <div className="flex items-center gap-1 text-on-surface-variant text-[11px]">
+                              <span className="material-symbols-outlined text-[14px]">
+                                event
+                              </span>
+                              <span>{dateLine}</span>
+                            </div>
+                          )}
+                          {event.segmento && (
+                            <span className="inline-block mt-2 bg-surface-container-lowest px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                              {event.segmento}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
 
             <div className="mt-auto p-8 border-t border-outline-variant/10">
