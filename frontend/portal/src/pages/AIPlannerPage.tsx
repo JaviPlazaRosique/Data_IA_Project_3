@@ -85,19 +85,19 @@ export default function AIPlannerPage() {
 
   return (
     <div className="flex overflow-hidden h-screen bg-surface">
-      <SideNav activeItem="AI Assistant" />
+      <SideNav activeItem="AI Chat" />
 
       <main className="flex-1 min-w-0 md:ml-64 flex flex-col h-full bg-surface overflow-hidden relative">
         {/* Top Nav */}
         <header className="flex justify-between items-center w-full px-4 md:px-8 py-4 bg-surface z-40 border-b border-outline-variant/10">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">The Electric Curator</h1>
+            <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">NextPlan</h1>
             <nav className="hidden lg:flex items-center gap-6">
               {[
-                { label: 'Discover', path: '/' },
-                { label: 'Map', path: '/map' },
-                { label: 'Planner', path: '/planner', active: true },
-                { label: 'Dashboard', path: '/profile' },
+                { label: 'Home', path: '/', active: false },
+                { label: 'AI Chat', path: '/planner', active: true },
+                { label: 'Explore', path: '/map', active: false },
+                { label: 'Profile', path: '/profile', active: false },
               ].map((link) => (
                 <Link
                   key={link.path}
@@ -360,7 +360,7 @@ export default function AIPlannerPage() {
 
         <footer className="hidden md:flex w-full py-6 border-t border-outline-variant/20 bg-surface">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-8 w-full">
-            <p className="text-xs font-medium text-on-surface/40">© 2024 The Electric Curator. Powered by Neon Nocturne.</p>
+            <p className="text-xs font-medium text-on-surface/40">© 2024 NextPlan. Powered by Neon Nocturne.</p>
             <div className="flex gap-6">
               {['Privacy Policy', 'Terms of Service', 'Open-Meteo Data', 'Contact'].map((link) => (
                 <a key={link} href="#" className="text-xs font-medium text-on-surface/40 hover:text-primary transition-opacity">
