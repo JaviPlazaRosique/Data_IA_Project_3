@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-surface text-on-surface">
       <header className="border-b border-outline-variant/20 px-4 md:px-8 py-5 flex items-center justify-between">
         <Link to="/" className="text-xl font-extrabold tracking-tighter font-headline text-on-surface">
-          The Electric Curator
+          NextPlan
         </Link>
         <Link to="/" className="text-sm text-primary font-bold hover:underline">
           ← Back
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold">1. Who we are</h2>
           <p className="text-on-surface-variant leading-relaxed">
-            The Electric Curator is operated by <strong>[Organisation Name]</strong>, located at{' '}
+            NextPlan is operated by <strong>[Organisation Name]</strong>, located at{' '}
             <strong>[Address]</strong>, Spain. For data protection enquiries contact us at{' '}
             <strong>[privacy@yourdomain.com]</strong>.
           </p>

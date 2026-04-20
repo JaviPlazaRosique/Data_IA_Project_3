@@ -11,7 +11,7 @@ function StorageNotice() {
   );
   if (dismissed) return null;
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-between gap-4 bg-surface-container border-t border-outline-variant/20 px-4 py-3 text-xs text-on-surface-variant">
+    <div className="fixed bottom-20 md:bottom-0 inset-x-0 z-40 flex items-center justify-between gap-4 bg-surface-container border-t border-outline-variant/20 px-4 py-3 text-xs text-on-surface-variant">
       <span>
         This site uses session storage for authentication only. No tracking cookies.{' '}
         <Link to="/privacy" className="text-primary font-bold hover:underline">Privacy Notice</Link>

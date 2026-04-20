@@ -37,6 +37,8 @@ class UserRead(BaseModel):
     is_verified: bool
     preferred_budget: str | None
     preferred_location: str | None
+    preferred_location_lat: float | None
+    preferred_location_lng: float | None
     created_at: datetime
     updated_at: datetime
 
@@ -48,6 +50,8 @@ class UserUpdate(BaseModel):
     avatar_url: str | None = None
     preferred_budget: str | None = None
     preferred_location: str | None = None
+    preferred_location_lat: float | None = None
+    preferred_location_lng: float | None = None
     password: str | None = None
 
     @field_validator("password")
