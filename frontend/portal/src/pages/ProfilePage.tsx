@@ -139,7 +139,7 @@ export default function ProfilePage() {
   return (
     <div className="bg-surface text-on-surface min-h-screen">
       <TopNav />
-      <SideNav activeItem="Settings" />
+      <SideNav activeItem="Profile" />
 
       <main className="lg:ml-64 pt-6 pb-24 px-4 md:px-12">
         <div className="max-w-6xl mx-auto">

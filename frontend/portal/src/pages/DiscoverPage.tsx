@@ -15,7 +15,7 @@ export default function DiscoverPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiListEvents({ limit: 6 })
+    apiListEvents({ limit: 10 })
       .then((data) => setEvents(data))
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load events'))
       .finally(() => setLoading(false));
@@ -35,8 +35,8 @@ export default function DiscoverPage() {
                   The Digital Concierge
                 </span>
                 <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-headline leading-[0.9] tracking-tighter text-on-surface">
-                  Curation <br />
-                  <span className="text-primary">Evolved.</span>
+                  Next <br />
+                  <span className="text-primary">Plan.</span>
                 </h1>
                 <p className="text-on-surface-variant text-lg max-w-md font-body leading-relaxed">
                   A late-night portal to the city's most exclusive happenings. Managed by AI, refined by your taste.
@@ -98,7 +98,7 @@ export default function DiscoverPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:h-[600px]">
-              {categories.map((cat, i) => (
+              {categories.slice(0, 5).map((cat, i) => (
                 <div
                   key={cat.id}
                   className={`${i === 0 || i === 3 ? 'md:col-span-2' : ''} group relative rounded-3xl overflow-hidden bg-surface-container cursor-pointer min-h-[240px]`}

@@ -23,7 +23,7 @@ async def list_events(
     max_lat: float | None = None,
     min_lng: float | None = None,
     max_lng: float | None = None,
-    limit: int = Query(50, ge=1, le=200),
+    limit: int | None = Query(None, ge=1),
 ) -> list[EventRead]:
     db = get_firestore()
     query = db.collection(COLLECTION)
@@ -40,10 +40,12 @@ async def list_events(
             query.where("latitud", ">=", min_lat)
             .where("latitud", "<=", max_lat)
             .order_by("latitud")
-            .limit(min(limit * 3, 600))
         )
+        if limit is not None:
+            query = query.limit(limit * 3)
     else:
-        query = query.order_by("fecha_utc").limit(limit)
+        effective_limit = limit if limit is not None else 50
+        query = query.order_by("fecha_utc").limit(effective_limit)
 
     docs = await query.get()
     items = [_doc_to_event(doc.id, doc.to_dict()) for doc in docs]
@@ -51,7 +53,9 @@ async def list_events(
         items = [
             e for e in items
             if e.longitud is not None and min_lng <= e.longitud <= max_lng
-        ][:limit]
+        ]
+        if limit is not None:
+            items = items[:limit]
     return items
 
 
