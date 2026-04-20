@@ -1,6 +1,6 @@
-# The Electric Curator — Frontend Portal
+# NextPlan — Frontend Portal
 
-React + TypeScript + Vite frontend for The Electric Curator, an AI-powered event curation platform.
+React + TypeScript + Vite frontend for NextPlan, an AI-powered event curation platform.
 
 ## Getting started
 

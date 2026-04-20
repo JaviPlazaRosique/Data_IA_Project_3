@@ -381,7 +381,6 @@ export default function MapPage() {
     const b = boundsRef.current;
     const params = b
       ? {
-          limit: 100,
           min_lat: b.getSouth(),
           max_lat: b.getNorth(),
           min_lng: b.getWest(),
@@ -424,12 +423,14 @@ export default function MapPage() {
     };
   }, [fetchEvents]);
 
-  // Once the map reports its first bounds (preferred location applied),
-  // kick off polling immediately so events match the viewport from the start.
+  // Refetch events whenever the map viewport changes (debounced).
   useEffect(() => {
     boundsRef.current = bounds;
-    if (bounds) startPollingRef.current?.();
-  }, [bounds]);
+    if (!bounds) return;
+    startPollingRef.current?.();
+    const debounceId = setTimeout(fetchEvents, 300);
+    return () => clearTimeout(debounceId);
+  }, [bounds, fetchEvents]);
 
   const mappableEvents = events.filter(hasCoords);
 
@@ -448,19 +449,19 @@ export default function MapPage() {
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
-      <SideNav activeItem="Map View" />
+      <SideNav activeItem="Explore" />
 
       <main className="md:ml-64 relative min-h-screen flex flex-col overflow-hidden">
         {/* Top Nav */}
         <header className="bg-surface flex justify-between items-center w-full px-4 md:px-8 py-4 z-50 border-b border-outline-variant/10">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">The Electric Curator</h1>
+            <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">NextPlan</h1>
             <nav className="hidden lg:flex gap-6 items-center">
               {[
-                { label: 'Discover', path: '/' },
-                { label: 'Map', path: '/map', active: true },
-                { label: 'Planner', path: '/planner' },
-                { label: 'Dashboard', path: '/profile' },
+                { label: 'Home', path: '/', active: false },
+                { label: 'AI Chat', path: '/planner', active: false },
+                { label: 'Explore', path: '/map', active: true },
+                { label: 'Profile', path: '/profile', active: false },
               ].map((link) => (
                 <Link
                   key={link.path}
