@@ -74,5 +74,5 @@ jobs:
           path: dist/
 
       - name: Desplegar frontend
-        run: gsutil -m rsync -r -d -j js,css,html,json,svg -x "public-config\.json" dist/ gs://${{ secrets.BUCKET_FRONTEND_USUARIOS }}/
+        run: gsutil -m rsync -r -d -j js,css,html,json,svg -x "public-config\.json" dist/ gs://${{ secrets.BUCKET_FRONTEND_USUARIOS_URL }}/
 
