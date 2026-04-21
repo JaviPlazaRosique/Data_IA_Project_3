@@ -108,6 +108,7 @@ def transformar_evento(evento_raw: dict) -> dict:
     inicio        = (evento_raw.get("dates") or {}).get("start") or {}
     venta         = ((evento_raw.get("sales") or {}).get("public")) or {}
     ubicacion     = venue.get("location") or {}
+    precio        = (evento_raw.get("priceRanges") or [{}])[0]
 
     evento = {
         "id":               evento_raw.get("id"),
@@ -135,6 +136,9 @@ def transformar_evento(evento_raw: dict) -> dict:
         "artista_imagen":   sacar_mejor_imagen(atraccion.get("images") or [], ratio="3_2", min_ancho=300),
         "imagen_evento":    sacar_mejor_imagen(evento_raw.get("images") or [], ratio="16_9", min_ancho=1000),
         "promotor":         (evento_raw.get("promoter") or {}).get("name"),
+        "precio_min":       float(precio["min"]) if precio.get("min") is not None else None,
+        "precio_max":       float(precio["max"]) if precio.get("max") is not None else None,
+        "moneda":           precio.get("currency"),
     }
 
     logging.debug(f"[Ticketmaster] Evento procesado: id = {evento["id"]}")
@@ -249,6 +253,21 @@ schema_bq = {
         },
         {
             "name": "promotor",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "precio_min",
+            "type": "FLOAT64",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "precio_max",
+            "type": "FLOAT64",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "moneda",
             "type": "STRING",
             "mode": "NULLABLE"
         },

@@ -53,7 +53,6 @@ resource "google_storage_bucket_object" "public_config" {
   cache_control = "no-cache"
 }
 
-
 module "cicd_frontend_usuarios" {
   source             = "./modules/wif_workflow"
   id_proyecto        = var.id_proyecto
@@ -351,6 +350,21 @@ module "bigquery" {
         },
         {
           name = "promotor",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "precio_min",
+          type = "FLOAT64",
+          mode = "NULLABLE"
+        },
+        {
+          name = "precio_max",
+          type = "FLOAT64",
+          mode = "NULLABLE"
+        },
+        {
+          name = "moneda",
           type = "STRING",
           mode = "NULLABLE"
         }
