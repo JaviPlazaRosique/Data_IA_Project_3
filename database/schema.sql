@@ -20,6 +20,8 @@ CREATE TABLE users (
     refresh_token_expires_at TIMESTAMPTZ,
     preferred_budget         VARCHAR(10),
     preferred_location       VARCHAR(255),
+    preferred_location_lat   DOUBLE PRECISION,
+    preferred_location_lng   DOUBLE PRECISION,
     created_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );

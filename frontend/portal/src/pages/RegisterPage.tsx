@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../api';
+import TopNav from '../components/layout/TopNav';
+import BottomNav from '../components/layout/BottomNav';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -30,14 +32,16 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center px-4 py-12">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
+    <div className="h-screen bg-surface flex flex-col overflow-hidden">
+      <TopNav />
+      <main className="flex-1 relative flex items-center justify-center px-4 overflow-y-auto pb-24 md:pb-4">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
 
-      <div className="relative w-full max-w-sm">
+        <div className="relative w-full max-w-sm my-4">
         {/* Logo */}
         <div className="text-center mb-10">
           <Link to="/" className="text-2xl font-extrabold tracking-tighter text-on-surface font-headline">
-            The Electric Curator
+            NextPlan
           </Link>
           <p className="text-on-surface-variant text-sm mt-2">Create your account</p>
         </div>
@@ -143,7 +147,9 @@ export default function RegisterPage() {
             </Link>
           </p>
         </form>
-      </div>
+        </div>
+      </main>
+      <BottomNav />
     </div>
   );
 }

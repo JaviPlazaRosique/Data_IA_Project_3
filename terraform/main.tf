@@ -86,6 +86,12 @@ module "cicd_backend_portal_api" {
   ]
 }
 
+resource "google_storage_bucket_iam_member" "cicd_backend_public_config" {
+  bucket = module.frontend_usuarios.nombre_bucket
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${module.cicd_backend_portal_api.email_cuenta_servicio}"
+}
+
 module "repo_artifact" {
   source         = "./modules/artifact_registry"
   id_proyecto    = var.id_proyecto
@@ -130,6 +136,7 @@ module "portal_api_sa" {
   cuenta_servicio_roles = [
     "roles/cloudsql.client",
     "roles/secretmanager.secretAccessor",
+    "roles/datastore.user",
   ]
   depends_on = [
     module.setup

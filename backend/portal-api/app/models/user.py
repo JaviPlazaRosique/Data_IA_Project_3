@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,6 +26,8 @@ class User(Base):
     # MVP preference fields (populated via profile update)
     preferred_budget: Mapped[str | None] = mapped_column(String(10))
     preferred_location: Mapped[str | None] = mapped_column(String(255))
+    preferred_location_lat: Mapped[float | None] = mapped_column(Float)
+    preferred_location_lng: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

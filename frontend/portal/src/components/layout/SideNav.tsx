@@ -6,10 +6,9 @@ interface SideNavProps {
 
 const navItems = [
   { icon: 'explore', label: 'Home', path: '/' },
-  { icon: 'event_note', label: 'My Events', path: '/profile' },
-  { icon: 'map', label: 'Map View', path: '/map' },
-  { icon: 'smart_toy', label: 'AI Assistant', path: '/planner' },
-  { icon: 'settings', label: 'Settings', path: '/profile' },
+  { icon: 'auto_awesome', label: 'AI Chat', path: '/planner' },
+  { icon: 'map', label: 'Explore', path: '/map' },
+  { icon: 'person', label: 'Profile', path: '/profile' },
 ];
 
 export default function SideNav({ activeItem }: SideNavProps) {
@@ -18,7 +17,7 @@ export default function SideNav({ activeItem }: SideNavProps) {
   return (
     <aside className="hidden md:flex h-screen w-64 fixed left-0 top-0 bg-surface-container-low flex-col py-6 pl-4 z-50">
       <Link to="/" className="text-xl font-black text-on-surface mb-8 font-headline tracking-tighter">
-        Curator
+        NextPlan
       </Link>
       <nav className="flex-1 space-y-2">
         {navItems.map((item) => {
