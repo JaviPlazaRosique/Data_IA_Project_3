@@ -1,16 +1,37 @@
 from datetime import datetime, timedelta, timezone
 import math
+import random
+import time
 import requests
 import argparse
 import json
 import logging
 
-from google.cloud import secretmanager, firestore, bigquery
+from google.cloud import secretmanager, firestore
 import google.generativeai as genai
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io import WriteToText
-from apache_beam.io.gcp.bigquery import WriteToBigQuery, BigQueryDisposition
+from apache_beam.io.gcp.bigquery import WriteToBigQuery, BigQueryDisposition, ReadFromBigQuery
+
+
+def reintentos_peticiones(fn, max_intentos: int = 4, espera_base: float = 1.0):
+    for intento in range(max_intentos):
+        try:
+            return fn()
+        except Exception as e:
+            es_rate_limit = (
+                isinstance(e, requests.exceptions.HTTPError)
+                and e.response is not None
+                and e.response.status_code == 429
+            ) or any(t in str(e).lower() for t in ("429", "quota", "resource exhausted"))
+
+            if es_rate_limit and intento < max_intentos - 1:
+                espera = espera_base * (2 ** intento) + random.uniform(0, 1)
+                logging.warning("[Reintentos] Cuota excedida — esperando %.1fs (intento %d/%d)", espera, intento + 1, max_intentos)
+                time.sleep(espera)
+            else:
+                raise
 
 
 def obtener_secreto(id_proyecto: str, id_secreto: str, version: str = "latest") -> str:
@@ -47,7 +68,9 @@ def obtener_eventos_ticketmaster(api_key: str) -> list[dict]:
             "page": pagina,
         }
 
-        respuesta = requests.get(url_base_ticketmaster, params=params, timeout=30)
+        respuesta = reintentos_peticiones(
+            lambda p=params: requests.get(url_base_ticketmaster, params=p, timeout=30)
+        )
         respuesta.raise_for_status()
         datos = respuesta.json()
 
@@ -237,31 +260,34 @@ def limpiar_datos_bq(evento: dict) -> dict:
     return {campo: evento.get(campo) for campo in campos_bq}
 
 
-class FiltrarEventosNuevos(beam.DoFn):
-    def __init__(self, id_proyecto: str, dataset: str, tabla: str):
+class ObtenerEventosTicketmaster(beam.DoFn):
+    def __init__(self, id_proyecto: str, id_secreto: str):
         self.id_proyecto = id_proyecto
-        self.dataset     = dataset
-        self.tabla       = tabla
+        self.id_secreto  = id_secreto
 
     def setup(self):
-        logging.info(f"[BigQuery] Cargando IDs existentes de {self.id_proyecto}.{self.dataset}.{self.tabla}")
-        cliente = bigquery.Client(project=self.id_proyecto)
-        try:
-            resultado = cliente.query(
-                f"SELECT id FROM `{self.id_proyecto}.{self.dataset}.{self.tabla}`"
-            ).result()
-            self.ids_existentes = {row.id for row in resultado}
-            logging.info(f"[BigQuery] {len(self.ids_existentes)} IDs existentes cargados")
-        except Exception as e:
-            self.ids_existentes = set()
-            logging.warning(f"[BigQuery] Tabla no encontrada, se asume primera ejecución. Detalle: {e}")
+        self.api_key = obtener_secreto(self.id_proyecto, self.id_secreto)
+        logging.info("[ObtenerEventosTicketmaster] Worker inicializado")
 
-    def process(self, evento: dict):
-        if evento["id"] not in self.ids_existentes:
-            logging.debug(f"[BigQuery] Evento nuevo — id={evento['id']} | nombre={evento.get('nombre')}")
-            yield evento
-        else:
-            logging.debug(f"[BigQuery] Evento ya existente, descartado — id={evento['id']}")
+    def process(self, _):
+        yield from obtener_eventos_ticketmaster(self.api_key)
+
+
+ETIQUETA_ERRORES = "errores"
+
+
+class TransformarEvento(beam.DoFn):
+    def process(self, evento_raw: dict):
+        try:
+            yield transformar_evento(evento_raw)
+        except Exception as e:
+            logging.warning("[TransformarEvento] Error — id=%s | %s", evento_raw.get("id"), e)
+            yield beam.pvalue.TaggedOutput(ETIQUETA_ERRORES, json.dumps({
+                "id":        evento_raw.get("id"),
+                "error":     str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "raw":       evento_raw,
+            }, default=str))
 
 
 class EscribirEnFirestore(beam.DoFn):
@@ -298,7 +324,7 @@ def calcular_radio_metros(lat1: float, lon1: float, lat2: float, lon2: float) ->
     return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 
-def _buscar_places(api_key: str, lat: float, lng: float, tipos: list[str], radio_metros: int) -> list[dict]:
+def buscar_google_places(api_key: str, lat: float, lng: float, tipos: list[str], radio_metros: int) -> list[dict]:
     url = "https://places.googleapis.com/v1/places:searchNearby"
     headers = {
         "X-Goog-Api-Key":   api_key,
@@ -316,16 +342,18 @@ def _buscar_places(api_key: str, lat: float, lng: float, tipos: list[str], radio
         },
     }
     logging.debug(f"[Places] Buscando tipos={tipos} en radio={radio_metros}m | lat={lat:.5f} lng={lng:.5f}")
-    respuesta = requests.post(url, headers=headers, json=body, timeout=30)
+    respuesta = reintentos_peticiones(
+        lambda: requests.post(url, headers=headers, json=body, timeout=30)
+    )
     respuesta.raise_for_status()
     lugares = respuesta.json().get("places", [])
     logging.debug(f"[Places] {len(lugares)} resultados para tipos={tipos}")
     return lugares
 
 
-def _consultar_google_places(api_key: str, lat: float, lng: float) -> tuple[list[dict], list[dict]]:
-    lugares_restaurantes = _buscar_places(api_key, lat, lng, tipos=["restaurant"], radio_metros=1000)
-    lugares_alojamientos = _buscar_places(api_key, lat, lng, tipos=["hotel", "motel", "hostel", "lodging"], radio_metros=5000)
+def consultar_google_places(api_key: str, lat: float, lng: float) -> tuple[list[dict], list[dict]]:
+    lugares_restaurantes = buscar_google_places(api_key, lat, lng, tipos=["restaurant"], radio_metros=1000)
+    lugares_alojamientos = buscar_google_places(api_key, lat, lng, tipos=["hotel", "motel", "hostel", "lodging"], radio_metros=5000)
 
     restaurantes = []
     for lugar in lugares_restaurantes:
@@ -389,7 +417,7 @@ class EnriquecerConRecinto(beam.DoFn):
             logging.info(f"[EnriquecerConRecinto] Caché HIT — recinto_id={recinto_id} | nombre={datos_recinto.get('nombre')}")
         else:
             logging.info(f"[EnriquecerConRecinto] Caché MISS — recinto_id={recinto_id} | consultando Google Places...")
-            restaurantes, alojamientos = _consultar_google_places(self.api_key, lat, lng)
+            restaurantes, alojamientos = consultar_google_places(self.api_key, lat, lng)
             ahora = datetime.now(timezone.utc)
             datos_recinto = {
                 "id":                   recinto_id,
@@ -460,7 +488,7 @@ Restaurantes a menos de 1 km: {len(restaurantes)}
 Alojamientos a menos de 5 km: {len(alojamientos)}"""
 
         try:
-            respuesta = self.modelo.generate_content(prompt)
+            respuesta = reintentos_peticiones(lambda: self.modelo.generate_content(prompt))
             antelacion = json.loads(respuesta.text)
             logging.info("[Gemini] Antelación generada — id=%s | %d min | motivo: %s", evento.get("id"), antelacion.get("minutos_antelacion"), antelacion.get("motivo"))
         except Exception as e:
@@ -529,27 +557,34 @@ def run():
 
     argumentos, pipeline_opts = parser.parse_known_args()
 
+    _worker_image = (
+        f"europe-west1-docker.pkg.dev/{argumentos.id_proyecto}"
+        f"/repo-recomendador-eventos/batch-ingesta:latest"
+    )
+
     configuracion_pipeline = PipelineOptions(
         pipeline_opts,
         save_main_session=True,
         streaming=False,
         project=argumentos.id_proyecto,
+        sdk_container_image=_worker_image,
     )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     ruta_destino_gcs_eventos = f"{argumentos.bucket_gcs}/ticketmaster_{timestamp}"
     logging.info(f"[Pipeline] Ruta destino GCS: {ruta_destino_gcs_eventos}")
 
+    ref_tabla_bq = f"{argumentos.id_proyecto}.{argumentos.dataset_bigquery}.{argumentos.tabla_eventos_bigquery}"
+
     with beam.Pipeline(options=configuracion_pipeline) as p:
 
         eventos_ticketmaster = (
             p
-            | "ObtenerEventosTicketMaster" >> beam.Create(
-                obtener_eventos_ticketmaster(
-                    obtener_secreto(
-                        argumentos.id_proyecto, 
-                        argumentos.id_secreto_ticketmaster
-                    )
+            | "IniciarPipeline" >> beam.Create([None])
+            | "ObtenerEventosTicketMaster" >> beam.ParDo(
+                ObtenerEventosTicketmaster(
+                    argumentos.id_proyecto,
+                    argumentos.id_secreto_ticketmaster,
                 )
             )
         )
@@ -565,9 +600,23 @@ def run():
             )
         )
 
-        eventos_enriquecidos = (
+        resultado_transformacion = (
             eventos_ticketmaster
-            | "TransformarEventos" >> beam.Map(transformar_evento)
+            | "TransformarEventos" >> beam.ParDo(TransformarEvento()).with_outputs(ETIQUETA_ERRORES, main="validos")
+        )
+
+        _ = (
+            resultado_transformacion[ETIQUETA_ERRORES]
+            | "GuardarErroresGCS" >> WriteToText(
+                f"{argumentos.bucket_gcs}/errores/transformacion_{timestamp}",
+                file_name_suffix=".json",
+                shard_name_template="",
+                num_shards=1,
+            )
+        )
+
+        eventos_enriquecidos = (
+            resultado_transformacion.validos
             | "EnriquecerConRecinto" >> beam.ParDo(
                 EnriquecerConRecinto(
                     argumentos.id_proyecto,
@@ -587,16 +636,22 @@ def run():
             )
         )
 
+        ids_existentes = (
+            p
+            | "LeerIDsExistentes" >> ReadFromBigQuery(
+                query=f"SELECT id FROM `{ref_tabla_bq}`",
+                use_standard_sql=True,
+            )
+            | "ExtraerIDs" >> beam.Map(lambda row: row["id"])
+        )
+
         tabla_bq = f"{argumentos.id_proyecto}:{argumentos.dataset_bigquery}.{argumentos.tabla_eventos_bigquery}"
         _ = (
             eventos_enriquecidos
             | "LimpiarParaBigQuery" >> beam.Map(limpiar_datos_bq)
-            | "FiltrarEventosNuevos" >> beam.ParDo(
-                FiltrarEventosNuevos(
-                    argumentos.id_proyecto,
-                    argumentos.dataset_bigquery,
-                    argumentos.tabla_eventos_bigquery,
-                )
+            | "FiltrarEventosNuevos" >> beam.Filter(
+                lambda evento, ids: evento["id"] not in ids,
+                ids=beam.pvalue.AsSet(ids_existentes),
             )
             | "GuardarEventosBigQuery" >> WriteToBigQuery(
                 tabla_bq,
