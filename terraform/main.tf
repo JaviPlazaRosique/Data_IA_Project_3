@@ -137,6 +137,7 @@ module "portal_api_sa" {
   cuenta_servicio_roles = [
     "roles/cloudsql.client",
     "roles/secretmanager.secretAccessor",
+    "roles/datastore.user",
   ]
   depends_on = [
     module.setup
