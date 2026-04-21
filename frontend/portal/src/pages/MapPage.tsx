@@ -8,7 +8,12 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { apiListEvents, apiSaveEvent, type EventCatalogItem } from '../api';
+import {
+  apiListEventCategories,
+  apiListEvents,
+  apiSaveEvent,
+  type EventCatalogItem,
+} from '../api';
 import { useAuth } from '../context/AuthContext';
 
 const CITY_COORDS: Record<string, [number, number]> = {
@@ -100,7 +105,7 @@ const pins = {
   art: makePin('#8a99fe'),
 };
 
-const categories = ['Concerts', 'Art', 'Dining'];
+const ALL_CATEGORIES = 'All';
 
 const todayIso = () => {
   const d = new Date();
@@ -372,7 +377,10 @@ function EventDetailModal({
 
 export default function MapPage() {
   const { user } = useAuth();
-  const [activeCategory, setActiveCategory] = useState('Concerts');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const categoryMenuRef = useRef<HTMLDivElement | null>(null);
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -381,6 +389,7 @@ export default function MapPage() {
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const boundsRef = useRef<L.LatLngBounds | null>(null);
   const dateRef = useRef<string>(todayIso());
+  const segmentosRef = useRef<string[]>([]);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const inflightRef = useRef<AbortController | null>(null);
   const startPollingRef = useRef<(() => void) | null>(null);
@@ -391,6 +400,7 @@ export default function MapPage() {
     inflightRef.current = ctrl;
     const b = boundsRef.current;
     const fecha = dateRef.current || undefined;
+    const segmentos = segmentosRef.current.length ? segmentosRef.current : undefined;
     const params: NonNullable<Parameters<typeof apiListEvents>[0]> = b
       ? {
           min_lat: b.getSouth(),
@@ -400,6 +410,7 @@ export default function MapPage() {
         }
       : { limit: 50 };
     if (fecha) params.fecha = fecha;
+    if (segmentos) params.segmento = segmentos;
     apiListEvents(params, { signal: ctrl.signal })
       .then((data) => {
         if (!ctrl.signal.aborted) setEvents(data);
@@ -451,6 +462,78 @@ export default function MapPage() {
     if (!startPollingRef.current) return;
     fetchEvents();
   }, [selectedDate, fetchEvents]);
+
+  // Refetch when selected categories change.
+  useEffect(() => {
+    segmentosRef.current = selectedCategories;
+    if (!startPollingRef.current) return;
+    fetchEvents();
+  }, [selectedCategories, fetchEvents]);
+
+  const toggleCategory = useCallback((cat: string) => {
+    if (cat === ALL_CATEGORIES) {
+      setSelectedCategories([]);
+      return;
+    }
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+    );
+  }, []);
+
+  // Refetch available categories whenever the viewport / date changes, so
+  // the filter only offers categories actually present in the current view.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const debounceId = setTimeout(() => {
+      const params: Parameters<typeof apiListEventCategories>[0] = bounds
+        ? {
+            min_lat: bounds.getSouth(),
+            max_lat: bounds.getNorth(),
+            min_lng: bounds.getWest(),
+            max_lng: bounds.getEast(),
+          }
+        : {};
+      if (selectedDate) params.fecha = selectedDate;
+      apiListEventCategories(params, { signal: ctrl.signal })
+        .then(setCategoryOptions)
+        .catch(() => {
+          /* leave previous options on failure */
+        });
+    }, 300);
+    return () => {
+      clearTimeout(debounceId);
+      ctrl.abort();
+    };
+  }, [bounds, selectedDate]);
+
+  // Drop any selected categories that are no longer present in the viewport.
+  useEffect(() => {
+    if (!categoryOptions.length || !selectedCategories.length) return;
+    const still = selectedCategories.filter((c) => categoryOptions.includes(c));
+    if (still.length !== selectedCategories.length) setSelectedCategories(still);
+  }, [categoryOptions, selectedCategories]);
+
+  // Close category menu on outside click / Escape.
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (
+        categoryMenuRef.current &&
+        !categoryMenuRef.current.contains(e.target as Node)
+      ) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCategoryMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [categoryMenuOpen]);
 
   const mappableEvents = events.filter(hasCoords);
 
@@ -614,23 +697,63 @@ export default function MapPage() {
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-3 border-r border-outline-variant/20 pr-6">
-                  <span className="material-symbols-outlined text-secondary text-lg">filter_alt</span>
-                  <div className="flex gap-2">
-                    {categories.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setActiveCategory(cat)}
-                        className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                          activeCategory === cat
-                            ? 'bg-surface-container-high border border-primary/20 text-primary'
-                            : 'bg-surface-container-high text-on-surface-variant hover:text-on-surface'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
+                <div
+                  ref={categoryMenuRef}
+                  className="relative flex items-center gap-3 border-r border-outline-variant/20 pr-6"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCategoryMenuOpen((v) => !v)}
+                    className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+                    aria-haspopup="listbox"
+                    aria-expanded={categoryMenuOpen}
+                  >
+                    <span className="material-symbols-outlined text-secondary text-lg">
+                      filter_alt
+                    </span>
+                    <span className="font-label text-sm font-semibold">
+                      {selectedCategories.length === 0
+                        ? ALL_CATEGORIES
+                        : selectedCategories.length === 1
+                        ? selectedCategories[0]
+                        : `${selectedCategories.length} categories`}
+                    </span>
+                    <span className="material-symbols-outlined text-on-surface-variant text-sm">
+                      {categoryMenuOpen ? 'expand_less' : 'expand_more'}
+                    </span>
+                  </button>
+                  {categoryMenuOpen && (
+                    <div
+                      role="listbox"
+                      aria-multiselectable="true"
+                      className="absolute top-full left-0 mt-2 z-[500] bg-surface-container-high rounded-2xl border border-outline-variant/20 shadow-2xl min-w-[200px] max-h-[260px] overflow-y-auto py-2"
+                    >
+                      {[ALL_CATEGORIES, ...categoryOptions].map((cat) => {
+                        const isAll = cat === ALL_CATEGORIES;
+                        const selected = isAll
+                          ? selectedCategories.length === 0
+                          : selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            role="option"
+                            aria-selected={selected}
+                            onClick={() => toggleCategory(cat)}
+                            className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors flex items-center gap-2 ${
+                              selected
+                                ? 'text-primary bg-primary/10'
+                                : 'text-on-surface hover:bg-surface-variant/50'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-base">
+                              {selected ? 'check_box' : 'check_box_outline_blank'}
+                            </span>
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-tertiary text-lg">payments</span>
