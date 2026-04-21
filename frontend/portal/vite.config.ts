@@ -5,7 +5,7 @@ import { compression } from 'vite-plugin-compression2'
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), compression()],
-  base: process.env.VITE_BASE ?? '/',
+  base: './',
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/test-setup.ts'],
