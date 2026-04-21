@@ -639,24 +639,6 @@ export default function MapPage() {
               </div>
             </div>
 
-            {/* Weather Overlay – bottom-left corner of the map */}
-            <div className="absolute bottom-6 left-6 z-[400]">
-              <div className="bg-surface-container-high/90 backdrop-blur-xl p-4 rounded-xl border border-outline-variant/15 flex items-center gap-4 shadow-xl">
-                <div className="flex flex-col">
-                  <span className="text-xs text-on-surface-variant font-medium uppercase tracking-widest">Berlin Mitte</span>
-                  <span className="text-2xl font-headline font-bold">2°C</span>
-                </div>
-                <div className="h-10 w-px bg-outline-variant/20" />
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-3xl">cloudy_snowing</span>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold">Light Snow</span>
-                    <span className="text-[10px] text-on-surface-variant">Wind: 12 km/h</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Legend */}
             <div className="absolute bottom-6 right-6 z-[400]">
               <div className="bg-surface-container-high/90 backdrop-blur-xl px-5 py-3 rounded-xl border border-outline-variant/15 flex flex-col gap-2 shadow-xl">
