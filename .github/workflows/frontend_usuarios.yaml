@@ -41,12 +41,8 @@ jobs:
         working-directory: frontend/portal
 
       - name: Build
+        run: npm run build
         working-directory: frontend/portal
-        env:
-          BUCKET: ${{ secrets.BUCKET_FRONTEND_USUARIOS }}
-        run: |
-          export VITE_BASE="/${BUCKET#gs://}/"
-          npm run build
 
       - name: Guardar dist
         uses: actions/upload-artifact@v4
