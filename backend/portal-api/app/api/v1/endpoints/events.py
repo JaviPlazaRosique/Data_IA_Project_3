@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db.firestore import get_firestore
@@ -8,11 +10,21 @@ router = APIRouter(prefix="/events", tags=["events"])
 COLLECTION = "eventos"
 
 
+def _coerce(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _coerce(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_coerce(v) for v in value]
+    return value
+
+
 def _doc_to_event(doc_id: str, data: dict) -> EventRead:
     # Firestore documents may carry an `id` field (ingestion pipeline writes it
     # alongside the doc key); `doc_id` from the document path is authoritative.
     data.pop("id", None)
-    return EventRead(id=doc_id, **data)
+    return EventRead(id=doc_id, **_coerce(data))
 
 
 @router.get("", response_model=list[EventRead])
