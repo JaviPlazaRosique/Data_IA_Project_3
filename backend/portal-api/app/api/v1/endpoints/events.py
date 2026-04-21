@@ -18,7 +18,8 @@ def _doc_to_event(doc_id: str, data: dict) -> EventRead:
 @router.get("", response_model=list[EventRead])
 async def list_events(
     ciudad: str | None = None,
-    segmento: str | None = None,
+    segmento: list[str] | None = Query(None),
+    fecha: str | None = None,
     min_lat: float | None = None,
     max_lat: float | None = None,
     min_lng: float | None = None,
@@ -30,7 +31,13 @@ async def list_events(
     if ciudad:
         query = query.where("ciudad", "==", ciudad)
     if segmento:
-        query = query.where("segmento", "==", segmento)
+        # Firestore `in` accepts up to 30 values.
+        if len(segmento) == 1:
+            query = query.where("segmento", "==", segmento[0])
+        else:
+            query = query.where("segmento", "in", segmento[:30])
+    if fecha:
+        query = query.where("fecha", "==", fecha)
 
     bbox = all(v is not None for v in (min_lat, max_lat, min_lng, max_lng))
     if bbox:
@@ -57,6 +64,47 @@ async def list_events(
         if limit is not None:
             items = items[:limit]
     return items
+
+
+@router.get("/categories", response_model=list[str])
+async def list_categories(
+    ciudad: str | None = None,
+    fecha: str | None = None,
+    min_lat: float | None = None,
+    max_lat: float | None = None,
+    min_lng: float | None = None,
+    max_lng: float | None = None,
+) -> list[str]:
+    """Return distinct `segmento` values for events matching the given
+    viewport / date filters — so the UI only offers categories that are
+    actually represented on the current map view."""
+    db = get_firestore()
+    query = db.collection(COLLECTION)
+    if ciudad:
+        query = query.where("ciudad", "==", ciudad)
+    if fecha:
+        query = query.where("fecha", "==", fecha)
+
+    bbox = all(v is not None for v in (min_lat, max_lat, min_lng, max_lng))
+    if bbox:
+        query = (
+            query.where("latitud", ">=", min_lat)
+            .where("latitud", "<=", max_lat)
+            .order_by("latitud")
+        )
+
+    docs = await query.get()
+    segmentos: set[str] = set()
+    for doc in docs:
+        data = doc.to_dict()
+        if bbox:
+            lng = data.get("longitud")
+            if lng is None or lng < min_lng or lng > max_lng:
+                continue
+        seg = data.get("segmento")
+        if seg:
+            segmentos.add(seg)
+    return sorted(segmentos)
 
 
 @router.get("/{event_id}", response_model=EventRead)
