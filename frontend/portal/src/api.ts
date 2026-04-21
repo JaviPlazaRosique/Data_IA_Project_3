@@ -399,7 +399,7 @@ export async function apiUpdateReview(
 export async function apiListEvents(
   params?: {
     ciudad?: string;
-    segmento?: string;
+    segmento?: string | string[];
     fecha?: string;
     limit?: number;
     min_lat?: number;
@@ -411,7 +411,10 @@ export async function apiListEvents(
 ): Promise<EventCatalogItem[]> {
   const q = new URLSearchParams();
   if (params?.ciudad) q.set('ciudad', params.ciudad);
-  if (params?.segmento) q.set('segmento', params.segmento);
+  if (params?.segmento) {
+    const segs = Array.isArray(params.segmento) ? params.segmento : [params.segmento];
+    for (const s of segs) q.append('segmento', s);
+  }
   if (params?.fecha) q.set('fecha', params.fecha);
   if (params?.limit != null) q.set('limit', String(params.limit));
   if (params?.min_lat != null) q.set('min_lat', String(params.min_lat));
@@ -424,6 +427,33 @@ export async function apiListEvents(
     init,
   );
   if (!res.ok) throw new ApiError(res.status, 'Failed to load events');
+  return res.json();
+}
+
+export async function apiListEventCategories(
+  params?: {
+    ciudad?: string;
+    fecha?: string;
+    min_lat?: number;
+    max_lat?: number;
+    min_lng?: number;
+    max_lng?: number;
+  },
+  init?: RequestInit,
+): Promise<string[]> {
+  const q = new URLSearchParams();
+  if (params?.ciudad) q.set('ciudad', params.ciudad);
+  if (params?.fecha) q.set('fecha', params.fecha);
+  if (params?.min_lat != null) q.set('min_lat', String(params.min_lat));
+  if (params?.max_lat != null) q.set('max_lat', String(params.max_lat));
+  if (params?.min_lng != null) q.set('min_lng', String(params.min_lng));
+  if (params?.max_lng != null) q.set('max_lng', String(params.max_lng));
+  const qs = q.toString();
+  const res = await fetch(
+    `${getBackendUrl()}/api/v1/events/categories${qs ? `?${qs}` : ''}`,
+    init,
+  );
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load categories');
   return res.json();
 }
 
