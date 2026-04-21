@@ -1,5 +1,5 @@
 locals {
-  cors_origins = module.frontend_usuarios.url_web
+  cors_origins = "https://storage.googleapis.com,${module.frontend_usuarios.url_web}"
 
   flex_template_launch_url = "https://dataflow.googleapis.com/v1b3/projects/${var.id_proyecto}/locations/${var.region}/flexTemplates:launch"
 
