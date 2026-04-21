@@ -102,6 +102,14 @@ const pins = {
 
 const categories = ['Concerts', 'Art', 'Dining'];
 
+const todayIso = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 // Fly to a location when an event is selected
 function MapFlyTo({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
@@ -370,7 +378,10 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const boundsRef = useRef<L.LatLngBounds | null>(null);
+  const dateRef = useRef<string>(todayIso());
+  const dateInputRef = useRef<HTMLInputElement | null>(null);
   const inflightRef = useRef<AbortController | null>(null);
   const startPollingRef = useRef<(() => void) | null>(null);
 
@@ -379,7 +390,8 @@ export default function MapPage() {
     const ctrl = new AbortController();
     inflightRef.current = ctrl;
     const b = boundsRef.current;
-    const params = b
+    const fecha = dateRef.current || undefined;
+    const params: NonNullable<Parameters<typeof apiListEvents>[0]> = b
       ? {
           min_lat: b.getSouth(),
           max_lat: b.getNorth(),
@@ -387,6 +399,7 @@ export default function MapPage() {
           max_lng: b.getEast(),
         }
       : { limit: 50 };
+    if (fecha) params.fecha = fecha;
     apiListEvents(params, { signal: ctrl.signal })
       .then((data) => {
         if (!ctrl.signal.aborted) setEvents(data);
@@ -431,6 +444,13 @@ export default function MapPage() {
     const debounceId = setTimeout(fetchEvents, 300);
     return () => clearTimeout(debounceId);
   }, [bounds, fetchEvents]);
+
+  // Refetch when selected date changes.
+  useEffect(() => {
+    dateRef.current = selectedDate;
+    if (!startPollingRef.current) return;
+    fetchEvents();
+  }, [selectedDate, fetchEvents]);
 
   const mappableEvents = events.filter(hasCoords);
 
@@ -568,8 +588,31 @@ export default function MapPage() {
             <div className="absolute top-6 left-6 z-[400] pointer-events-auto">
               <div className="bg-surface-variant/80 backdrop-blur-3xl rounded-full px-6 py-3 flex flex-wrap items-center gap-4 shadow-2xl border border-outline-variant/20">
                 <div className="flex items-center gap-3 border-r border-outline-variant/20 pr-6">
-                  <span className="material-symbols-outlined text-primary text-lg">calendar_today</span>
-                  <span className="font-label text-sm font-semibold">Tonight, Dec 14</span>
+                  <button
+                    type="button"
+                    onClick={() => dateInputRef.current?.showPicker?.()}
+                    className="material-symbols-outlined text-primary text-lg hover:opacity-80 transition-opacity cursor-pointer"
+                    aria-label="Open date picker"
+                  >
+                    calendar_today
+                  </button>
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-transparent border-none outline-none font-label text-sm font-semibold text-on-surface [color-scheme:dark] cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                  />
+                  {selectedDate && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDate('')}
+                      className="material-symbols-outlined text-on-surface-variant text-sm hover:text-on-surface transition-colors"
+                      aria-label="Clear date filter"
+                    >
+                      close
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 border-r border-outline-variant/20 pr-6">
                   <span className="material-symbols-outlined text-secondary text-lg">filter_alt</span>

@@ -19,6 +19,7 @@ def _doc_to_event(doc_id: str, data: dict) -> EventRead:
 async def list_events(
     ciudad: str | None = None,
     segmento: str | None = None,
+    fecha: str | None = None,
     min_lat: float | None = None,
     max_lat: float | None = None,
     min_lng: float | None = None,
@@ -31,6 +32,8 @@ async def list_events(
         query = query.where("ciudad", "==", ciudad)
     if segmento:
         query = query.where("segmento", "==", segmento)
+    if fecha:
+        query = query.where("fecha", "==", fecha)
 
     bbox = all(v is not None for v in (min_lat, max_lat, min_lng, max_lng))
     if bbox:

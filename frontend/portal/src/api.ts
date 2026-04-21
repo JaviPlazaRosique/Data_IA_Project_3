@@ -400,6 +400,7 @@ export async function apiListEvents(
   params?: {
     ciudad?: string;
     segmento?: string;
+    fecha?: string;
     limit?: number;
     min_lat?: number;
     max_lat?: number;
@@ -411,6 +412,7 @@ export async function apiListEvents(
   const q = new URLSearchParams();
   if (params?.ciudad) q.set('ciudad', params.ciudad);
   if (params?.segmento) q.set('segmento', params.segmento);
+  if (params?.fecha) q.set('fecha', params.fecha);
   if (params?.limit != null) q.set('limit', String(params.limit));
   if (params?.min_lat != null) q.set('min_lat', String(params.min_lat));
   if (params?.max_lat != null) q.set('max_lat', String(params.max_lat));
