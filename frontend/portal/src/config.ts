@@ -7,7 +7,7 @@ let serverAvailable = true;
 
 export async function loadConfig(): Promise<void> {
   try {
-    const res = await fetch('/public-config.json');
+    const res = await fetch(`${import.meta.env.BASE_URL}public-config.json`);
     if (res.ok) {
       config = await res.json();
     } else {
