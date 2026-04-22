@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import math
 import random
+import threading
 import time
 import requests
 import argparse
@@ -8,27 +9,34 @@ import json
 import logging
 
 from google.cloud import secretmanager, firestore
-import google.generativeai as genai
+import vertexai
+from vertexai.generative_models import GenerativeModel, GenerationConfig
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io import WriteToText
 from apache_beam.io.gcp.bigquery import WriteToBigQuery, BigQueryDisposition, ReadFromBigQuery
 
 
+codigos_api_reintentar = {429, 500, 502, 503, 504}
+
 def reintentos_peticiones(fn, max_intentos: int = 4, espera_base: float = 1.0):
     for intento in range(max_intentos):
         try:
             return fn()
         except Exception as e:
-            es_rate_limit = (
-                isinstance(e, requests.exceptions.HTTPError)
-                and e.response is not None
-                and e.response.status_code == 429
-            ) or any(t in str(e).lower() for t in ("429", "quota", "resource exhausted"))
+            codigo = None
+            if isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
+                codigo = e.response.status_code
 
-            if es_rate_limit and intento < max_intentos - 1:
+            es_reintentable = (
+                codigo in codigos_api_reintentar
+                or isinstance(e, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+                or any(t in str(e).lower() for t in ("429", "quota", "resource exhausted"))
+            )
+
+            if es_reintentable and intento < max_intentos - 1:
                 espera = espera_base * (2 ** intento) + random.uniform(0, 1)
-                logging.warning("[Reintentos] Cuota excedida — esperando %.1fs (intento %d/%d)", espera, intento + 1, max_intentos)
+                logging.warning("[Reintentos] Error transitorio (%s) — esperando %.1fs (intento %d/%d)", e, espera, intento + 1, max_intentos)
                 time.sleep(espera)
             else:
                 raise
@@ -39,7 +47,6 @@ def obtener_secreto(id_proyecto: str, id_secreto: str, version: str = "latest") 
     cliente = secretmanager.SecretManagerServiceClient()
     ubicacion_secreto = f"projects/{id_proyecto}/secrets/{id_secreto}/versions/{version}"
     respuesta = cliente.access_secret_version(request={"name": ubicacion_secreto})
-    logging.info("[SecretManager] Secreto '%s' obtenido correctamente", id_secreto)
     logging.info(f"[SecretManager] Secreto con id = {id_secreto} obtenido correctamente")
     return respuesta.payload.data.decode("UTF-8")
 
@@ -141,7 +148,7 @@ def transformar_evento(evento_raw: dict) -> dict:
         "moneda":           precio.get("currency"),
     }
 
-    logging.debug(f"[Ticketmaster] Evento procesado: id = {evento["id"]}")
+    logging.debug(f"[Ticketmaster] Evento procesado: id = {evento['id']}")
     return evento
 
 schema_bq = {
@@ -271,6 +278,19 @@ schema_bq = {
             "type": "STRING",
             "mode": "NULLABLE"
         },
+        {
+            "name": "tiempo",
+            "type": "RECORD",
+            "mode": "NULLABLE",
+            "fields": [
+                {"name": "temp_max",         "type": "FLOAT64", "mode": "NULLABLE"},
+                {"name": "temp_min",         "type": "FLOAT64", "mode": "NULLABLE"},
+                {"name": "precipitacion_mm", "type": "FLOAT64", "mode": "NULLABLE"},
+                {"name": "codigo_wmo",       "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "descripcion",      "type": "STRING",  "mode": "NULLABLE"},
+                {"name": "viento_max_kmh",   "type": "FLOAT64", "mode": "NULLABLE"},
+            ],
+        },
     ]
 }
 
@@ -321,7 +341,6 @@ class EscribirEnFirestore(beam.DoFn):
     def process(self, evento: dict):
         self.cliente.collection(self.coleccion).document(evento["id"]).set(evento, merge=True)
         logging.debug(f"[Firestore] Evento guardado — id={evento['id']} | nombre={evento.get('nombre')}")
-        yield evento
 
 
 precios_rest_alojamiento = {
@@ -431,10 +450,19 @@ class EnriquecerConRecinto(beam.DoFn):
         ref_recinto = self.db.collection(self.coleccion_recintos).document(recinto_id)
         doc_recinto = ref_recinto.get()
 
+        cache_valida = False
         if doc_recinto.exists:
             datos_recinto = doc_recinto.to_dict()
-            logging.info(f"[EnriquecerConRecinto] Caché HIT — recinto_id={recinto_id} | nombre={datos_recinto.get('nombre')}")
-        else:
+            expiracion_str = datos_recinto.get("fecha_expiracion")
+            if expiracion_str:
+                expiracion = datetime.fromisoformat(expiracion_str)
+                cache_valida = datetime.now(timezone.utc) < expiracion
+            if cache_valida:
+                logging.info(f"[EnriquecerConRecinto] Caché HIT — recinto_id={recinto_id} | nombre={datos_recinto.get('nombre')}")
+            else:
+                logging.info(f"[EnriquecerConRecinto] Caché EXPIRADA — recinto_id={recinto_id} | reconsultando Places...")
+
+        if not cache_valida:
             logging.info(f"[EnriquecerConRecinto] Caché MISS — recinto_id={recinto_id} | consultando Google Places...")
             restaurantes, alojamientos = consultar_google_places(self.api_key, lat, lng)
             ahora = datetime.now(timezone.utc)
@@ -474,23 +502,23 @@ schema_salida_enriquecimiento_gemini = {
     "required": ["minutos_antelacion", "motivo"],
 }
 
+gemini_semaforo = threading.Semaphore(2)
 
 class EnriquecerConGemini(beam.DoFn):
-    def __init__(self, id_proyecto: str, id_secreto_gemini: str):
-        self.id_proyecto       = id_proyecto
-        self.id_secreto_gemini = id_secreto_gemini
+    def __init__(self, id_proyecto: str, region: str = "europe-west1"):
+        self.id_proyecto = id_proyecto
+        self.region      = region
 
     def setup(self):
-        api_key = obtener_secreto(self.id_proyecto, self.id_secreto_gemini)
-        genai.configure(api_key=api_key)
-        self.modelo = genai.GenerativeModel(
+        vertexai.init(project=self.id_proyecto, location=self.region)
+        self.modelo = GenerativeModel(
             model_name="gemini-2.5-flash",
-            generation_config=genai.GenerationConfig(
+            generation_config=GenerationConfig(
                 response_mime_type="application/json",
                 response_schema=schema_salida_enriquecimiento_gemini,
             ),
         )
-        logging.info("[Gemini] Worker inicializado — modelo: gemini-2.5-flash")
+        logging.info("[Gemini] Worker inicializado — modelo: gemini-2.5-flash (Vertex AI, proyecto=%s)", self.id_proyecto)
 
     def process(self, evento: dict):
         restaurantes = evento.get("restaurantes_cercanos") or []
@@ -507,7 +535,12 @@ Restaurantes a menos de 1 km: {len(restaurantes)}
 Alojamientos a menos de 5 km: {len(alojamientos)}"""
 
         try:
-            respuesta = reintentos_peticiones(lambda: self.modelo.generate_content(prompt))
+            with gemini_semaforo:
+                respuesta = reintentos_peticiones(
+                    lambda: self.modelo.generate_content(prompt),
+                    max_intentos=8,
+                    espera_base=5.0,
+                )
             antelacion = json.loads(respuesta.text)
             logging.info("[Gemini] Antelación generada — id=%s | %d min | motivo: %s", evento.get("id"), antelacion.get("minutos_antelacion"), antelacion.get("motivo"))
         except Exception as e:
@@ -515,6 +548,93 @@ Alojamientos a menos de 5 km: {len(alojamientos)}"""
             logging.error("[Gemini] Error al generar antelación — id=%s | error: %s", evento.get("id"), e, exc_info=True)
 
         yield {**evento, "antelacion_recomendada": antelacion}
+
+
+WMO_DESCRIPCIONES = {
+    0:  "Despejado",
+    1:  "Principalmente despejado",
+    2:  "Parcialmente nublado",
+    3:  "Nublado",
+    45: "Niebla",
+    48: "Niebla con escarcha",
+    51: "Llovizna ligera",
+    53: "Llovizna moderada",
+    55: "Llovizna densa",
+    61: "Lluvia ligera",
+    63: "Lluvia moderada",
+    65: "Lluvia fuerte",
+    71: "Nevada ligera",
+    73: "Nevada moderada",
+    75: "Nevada intensa",
+    77: "Granizo",
+    80: "Chubascos ligeros",
+    81: "Chubascos moderados",
+    82: "Chubascos violentos",
+    85: "Chubascos de nieve ligeros",
+    86: "Chubascos de nieve intensos",
+    95: "Tormenta",
+    96: "Tormenta con granizo ligero",
+    99: "Tormenta con granizo intenso",
+}
+
+
+def consultar_tiempo_evento(lat: float, lng: float, fecha: str) -> dict | None:
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude":   round(lat, 4),
+        "longitude":  round(lng, 4),
+        "daily":      "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max",
+        "timezone":   "Europe/Madrid",
+        "start_date": fecha,
+        "end_date":   fecha,
+    }
+    respuesta = reintentos_peticiones(
+        lambda: requests.get(url, params=params, timeout=30)
+    )
+    respuesta.raise_for_status()
+    daily = respuesta.json().get("daily", {})
+    if not daily.get("time"):
+        return None
+    codigo_wmo = daily.get("weather_code", [None])[0]
+    return {
+        "temp_max":         daily.get("temperature_2m_max",    [None])[0],
+        "temp_min":         daily.get("temperature_2m_min",    [None])[0],
+        "precipitacion_mm": daily.get("precipitation_sum",     [None])[0],
+        "codigo_wmo":       codigo_wmo,
+        "descripcion":      WMO_DESCRIPCIONES.get(codigo_wmo),
+        "viento_max_kmh":   daily.get("wind_speed_10m_max",    [None])[0],
+    }
+
+
+class EnriquecerConTiempo(beam.DoFn):
+    def setup(self):
+        self._cache: dict[tuple, dict | None] = {}
+        logging.info("[Tiempo] Worker inicializado")
+
+    def process(self, evento: dict):
+        lat   = evento.get("latitud")
+        lng   = evento.get("longitud")
+        fecha = evento.get("fecha")
+
+        if lat is None or lng is None or not fecha:
+            logging.warning(f"[Tiempo] Evento sin coordenadas o fecha — id={evento.get('id')}")
+            yield {**evento, "tiempo": None}
+            return
+
+        clave = (round(lat, 3), round(lng, 3), fecha)
+        if clave not in self._cache:
+            try:
+                self._cache[clave] = consultar_tiempo_evento(lat, lng, fecha)
+                t = self._cache[clave]
+                logging.info(
+                    f"[Tiempo] Consultado — id={evento.get('id')} | fecha={fecha} | "
+                    f"{t.get('descripcion')} | {t.get('temp_min')}–{t.get('temp_max')}°C"
+                )
+            except Exception as e:
+                logging.error(f"[Tiempo] Error — id={evento.get('id')} | {e}", exc_info=True)
+                self._cache[clave] = None
+
+        yield {**evento, "tiempo": self._cache[clave]}
 
 
 def run():
@@ -568,15 +688,9 @@ def run():
         help = "ID del secreto en Secret Manager para la API key de Google Places"
     )
 
-    parser.add_argument(
-        "--id_secreto_gemini",
-        required = True,
-        help = "ID del secreto en Secret Manager para la API key de Gemini"
-    )
-
     argumentos, pipeline_opts = parser.parse_known_args()
 
-    _worker_image = (
+    worker_image = (
         f"europe-west1-docker.pkg.dev/{argumentos.id_proyecto}"
         f"/repo-recomendador-eventos/batch-ingesta:latest"
     )
@@ -586,7 +700,7 @@ def run():
         save_main_session=True,
         streaming=False,
         project=argumentos.id_proyecto,
-        sdk_container_image=_worker_image,
+        sdk_container_image=worker_image,
     )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -636,6 +750,7 @@ def run():
 
         eventos_enriquecidos = (
             resultado_transformacion.validos
+            | "FiltrarEventosTest" >> beam.Filter(lambda e: not e.get("es_test"))
             | "EnriquecerConRecinto" >> beam.ParDo(
                 EnriquecerConRecinto(
                     argumentos.id_proyecto,
@@ -644,8 +759,9 @@ def run():
                 )
             )
             | "EnriquecerConGemini" >> beam.ParDo(
-                EnriquecerConGemini(argumentos.id_proyecto, argumentos.id_secreto_gemini)
+                EnriquecerConGemini(argumentos.id_proyecto)
             )
+            | "EnriquecerConTiempo" >> beam.ParDo(EnriquecerConTiempo())
         )
 
         _ = (
@@ -669,8 +785,8 @@ def run():
             eventos_enriquecidos
             | "LimpiarParaBigQuery" >> beam.Map(limpiar_datos_bq)
             | "FiltrarEventosNuevos" >> beam.Filter(
-                lambda evento, ids: evento["id"] not in ids,
-                ids=beam.pvalue.AsSet(ids_existentes),
+                lambda evento, ids: evento["id"] not in set(ids),
+                ids=beam.pvalue.AsList(ids_existentes),
             )
             | "GuardarEventosBigQuery" >> WriteToBigQuery(
                 tabla_bq,
