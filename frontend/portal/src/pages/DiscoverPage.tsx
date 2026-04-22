@@ -32,22 +32,30 @@ function groupEvents(events: EventCatalogItem[]): EventGroup[] {
   return Array.from(map.values());
 }
 
-function buildSchedule(items: EventCatalogItem[]): string[] {
-  const byDate = new Map<string, Set<string>>();
+type ScheduleEntry = {
+  date: string;
+  slots: { time: string; url: string | null }[];
+};
+
+function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
+  const byDate = new Map<string, Map<string, string | null>>();
   for (const ev of items) {
-    const date = (ev.fecha ?? '').trim();
+    const date = (ev.fecha ?? '').trim() || '—';
     const time = (ev.hora ?? '').trim();
     if (!date && !time) continue;
-    const key = date || '—';
-    if (!byDate.has(key)) byDate.set(key, new Set());
-    if (time) byDate.get(key)!.add(time);
+    if (!byDate.has(date)) byDate.set(date, new Map());
+    if (time && !byDate.get(date)!.has(time)) {
+      byDate.get(date)!.set(time, ev.url ?? null);
+    }
   }
   return Array.from(byDate.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, times]) => {
-      const hours = Array.from(times).sort();
-      return hours.length ? `${date} · ${hours.join(', ')}` : date;
-    });
+    .map(([date, times]) => ({
+      date,
+      slots: Array.from(times.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([time, url]) => ({ time, url })),
+    }));
 }
 
 export default function DiscoverPage() {
@@ -202,7 +210,7 @@ export default function DiscoverPage() {
                   const tags = [first.segmento, first.genero].filter(
                     (t): t is string => !!t,
                   );
-                  const schedule = buildSchedule(group.items);
+                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <div
                       key={group.key}
@@ -224,13 +232,34 @@ export default function DiscoverPage() {
                         </div>
                         {schedule.length > 0 && (
                           <ul className="space-y-1">
-                            {schedule.map((line) => (
+                            {schedule.map((entry) => (
                               <li
-                                key={line}
-                                className="text-sm text-on-surface-variant/80 font-label flex items-center gap-2"
+                                key={entry.date}
+                                className="text-sm text-on-surface-variant/80 font-label flex items-start gap-2"
                               >
                                 <span className="material-symbols-outlined text-sm">event</span>
-                                {line}
+                                <span className="flex flex-wrap items-center gap-x-1">
+                                  <span>{entry.date}</span>
+                                  {entry.slots.length > 0 && <span>·</span>}
+                                  {entry.slots.map((slot, idx) => (
+                                    <span key={slot.time}>
+                                      {slot.url ? (
+                                        <a
+                                          href={slot.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-primary hover:underline"
+                                        >
+                                          {slot.time}
+                                        </a>
+                                      ) : (
+                                        <span>{slot.time}</span>
+                                      )}
+                                      {idx < entry.slots.length - 1 && ', '}
+                                    </span>
+                                  ))}
+                                </span>
                               </li>
                             ))}
                           </ul>

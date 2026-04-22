@@ -19,22 +19,30 @@ const heroImg = 'https://picsum.photos/seed/festival-night/1400/700';
 const mapImg = 'https://picsum.photos/seed/city-map/800/500';
 const reviewerAvatarImg = 'https://picsum.photos/seed/avatar-club/80/80';
 
-function buildSchedule(items: EventCatalogItem[]): string[] {
-  const byDate = new Map<string, Set<string>>();
+type ScheduleEntry = {
+  date: string;
+  slots: { time: string; url: string | null }[];
+};
+
+function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
+  const byDate = new Map<string, Map<string, string | null>>();
   for (const ev of items) {
-    const date = (ev.fecha ?? '').trim();
+    const date = (ev.fecha ?? '').trim() || '—';
     const time = (ev.hora ?? '').trim();
     if (!date && !time) continue;
-    const key = date || '—';
-    if (!byDate.has(key)) byDate.set(key, new Set());
-    if (time) byDate.get(key)!.add(time);
+    if (!byDate.has(date)) byDate.set(date, new Map());
+    if (time && !byDate.get(date)!.has(time)) {
+      byDate.get(date)!.set(time, ev.url ?? null);
+    }
   }
   return Array.from(byDate.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, times]) => {
-      const hours = Array.from(times).sort();
-      return hours.length ? `${date} · ${hours.join(', ')}` : date;
-    });
+    .map(([date, times]) => ({
+      date,
+      slots: Array.from(times.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([time, url]) => ({ time, url })),
+    }));
 }
 
 const weatherMetrics = [
@@ -101,7 +109,7 @@ export default function EventDetailsPage() {
     };
   }, [routeId]);
 
-  const schedule = buildSchedule(occurrences);
+  const schedule = buildScheduleEntries(occurrences);
 
   async function handleSubmitReview() {
     if (!user) return;
@@ -140,8 +148,28 @@ export default function EventDetailsPage() {
                   <div className="flex items-start gap-2">
                     <span className="material-symbols-outlined text-primary">calendar_month</span>
                     <ul className="space-y-1">
-                      {schedule.map((line) => (
-                        <li key={line}>{line}</li>
+                      {schedule.map((entry) => (
+                        <li key={entry.date} className="flex flex-wrap items-center gap-x-1">
+                          <span>{entry.date}</span>
+                          {entry.slots.length > 0 && <span>·</span>}
+                          {entry.slots.map((slot, idx) => (
+                            <span key={slot.time}>
+                              {slot.url ? (
+                                <a
+                                  href={slot.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  {slot.time}
+                                </a>
+                              ) : (
+                                <span>{slot.time}</span>
+                              )}
+                              {idx < entry.slots.length - 1 && ', '}
+                            </span>
+                          ))}
+                        </li>
                       ))}
                     </ul>
                   </div>
