@@ -50,12 +50,6 @@
       "label": "ID del secreto de la API key de Google Places",
       "helpText": "ID del secreto en Secret Manager con la API key de Google Places.",
       "paramType": "TEXT"
-    },
-    {
-      "name": "id_secreto_gemini",
-      "label": "ID del secreto de la API key de Gemini",
-      "helpText": "ID del secreto en Secret Manager con la API key de Gemini.",
-      "paramType": "TEXT"
     }
   ]
 }
