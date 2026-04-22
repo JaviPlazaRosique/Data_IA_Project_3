@@ -12,7 +12,6 @@ locals {
     bucket_gcs                   = "${module.bucket_eventos_raw.url}/eventos"
     id_secreto_ticketmaster      = "api-key-ticketmaster"
     id_secreto_google_places     = "api-key-google-places"
-    id_secreto_gemini            = "api-key-gemini"
   }
 
   flex_template_body = {
@@ -151,7 +150,6 @@ module "secretos_proyecto" {
     "portal-api-jwt-secret-key" = var.clave_jwt
     "api-key-ticketmaster"      = var.ticketmaster_apikey
     "api-key-google-places"     = module.setup.google_places_key_string
-    "api-key-gemini"            = module.setup.gemini_key_string
   }
   depends_on = [
     module.setup
@@ -207,6 +205,7 @@ module "dataflow_sa" {
     "roles/datastore.user",
     "roles/secretmanager.secretAccessor",
     "roles/artifactregistry.reader",
+    "roles/aiplatform.user",
   ]
   depends_on = [
     module.setup,
@@ -374,6 +373,19 @@ module "bigquery" {
           name = "moneda",
           type = "STRING",
           mode = "NULLABLE"
+        },
+        {
+          name = "tiempo",
+          type = "RECORD",
+          mode = "NULLABLE",
+          fields = [
+            { name = "temp_max",         type = "FLOAT64", mode = "NULLABLE" },
+            { name = "temp_min",         type = "FLOAT64", mode = "NULLABLE" },
+            { name = "precipitacion_mm", type = "FLOAT64", mode = "NULLABLE" },
+            { name = "codigo_wmo",       type = "INTEGER", mode = "NULLABLE" },
+            { name = "descripcion",      type = "STRING",  mode = "NULLABLE" },
+            { name = "viento_max_kmh",   type = "FLOAT64", mode = "NULLABLE" },
+          ]
         }
       ])
     }
