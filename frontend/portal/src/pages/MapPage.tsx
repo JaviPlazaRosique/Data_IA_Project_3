@@ -109,22 +109,30 @@ function groupMappableEvents(events: MappableEvent[]): EventGroup[] {
   return Array.from(map.values());
 }
 
-function buildSchedule(items: EventCatalogItem[]): string[] {
-  const byDate = new Map<string, Set<string>>();
+type ScheduleEntry = {
+  date: string;
+  slots: { time: string; url: string | null }[];
+};
+
+function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
+  const byDate = new Map<string, Map<string, string | null>>();
   for (const ev of items) {
-    const date = (ev.fecha ?? '').trim();
+    const date = (ev.fecha ?? '').trim() || '—';
     const time = (ev.hora ?? '').trim();
     if (!date && !time) continue;
-    const key = date || '—';
-    if (!byDate.has(key)) byDate.set(key, new Set());
-    if (time) byDate.get(key)!.add(time);
+    if (!byDate.has(date)) byDate.set(date, new Map());
+    if (time && !byDate.get(date)!.has(time)) {
+      byDate.get(date)!.set(time, ev.url ?? null);
+    }
   }
   return Array.from(byDate.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, times]) => {
-      const hours = Array.from(times).sort();
-      return hours.length ? `${date} · ${hours.join(', ')}` : date;
-    });
+    .map(([date, times]) => ({
+      date,
+      slots: Array.from(times.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([time, url]) => ({ time, url })),
+    }));
 }
 
 // Fix default marker icon paths broken by Vite bundling
@@ -323,7 +331,7 @@ function EventDetailModal({
   const locationLine = [event.recinto_nombre, event.ciudad]
     .filter(Boolean)
     .join(' • ');
-  const schedule = buildSchedule(occurrences.length ? occurrences : [event]);
+  const schedule = buildScheduleEntries(occurrences.length ? occurrences : [event]);
   const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
   const tags = [event.segmento, event.genero, event.subgenero].filter(Boolean);
 
@@ -398,12 +406,32 @@ function EventDetailModal({
                 <span>{locationLine}</span>
               </div>
             )}
-            {schedule.length > 1 ? (
+            {schedule.length > 1 || (schedule[0]?.slots.length ?? 0) > 1 ? (
               <div className="flex items-start gap-2 text-on-surface-variant text-sm">
                 <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
                 <ul className="space-y-1">
-                  {schedule.map((line) => (
-                    <li key={line}>{line}</li>
+                  {schedule.map((entry) => (
+                    <li key={entry.date} className="flex flex-wrap items-center gap-x-1">
+                      <span>{entry.date}</span>
+                      {entry.slots.length > 0 && <span>·</span>}
+                      {entry.slots.map((slot, idx) => (
+                        <span key={slot.time}>
+                          {slot.url ? (
+                            <a
+                              href={slot.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              {slot.time}
+                            </a>
+                          ) : (
+                            <span>{slot.time}</span>
+                          )}
+                          {idx < entry.slots.length - 1 && ', '}
+                        </span>
+                      ))}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -684,7 +712,7 @@ export default function MapPage() {
                 {visibleGroups.map((group) => {
                   const point = group.primary;
                   const category = segmentoToCategory(point.segmento);
-                  const schedule = buildSchedule(group.items);
+                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <Marker
                       key={group.key}
@@ -707,8 +735,29 @@ export default function MapPage() {
                           </p>
                           {schedule.length > 0 && (
                             <ul style={{ fontSize: '11px', opacity: 0.85, marginBottom: '8px', paddingLeft: '14px' }}>
-                              {schedule.map((line) => (
-                                <li key={line}>{line}</li>
+                              {schedule.map((entry) => (
+                                <li key={entry.date}>
+                                  {entry.date}
+                                  {entry.slots.length > 0 && ' · '}
+                                  {entry.slots.map((slot, idx) => (
+                                    <span key={slot.time}>
+                                      {slot.url ? (
+                                        <a
+                                          href={slot.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          style={{ color: '#b6a0ff', textDecoration: 'underline' }}
+                                        >
+                                          {slot.time}
+                                        </a>
+                                      ) : (
+                                        <span>{slot.time}</span>
+                                      )}
+                                      {idx < entry.slots.length - 1 && ', '}
+                                    </span>
+                                  ))}
+                                </li>
                               ))}
                             </ul>
                           )}
@@ -912,7 +961,7 @@ export default function MapPage() {
                   const locationLine = [event.recinto_nombre, event.ciudad]
                     .filter(Boolean)
                     .join(' • ');
-                  const schedule = buildSchedule(group.items);
+                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <button
                       key={group.key}
@@ -941,12 +990,33 @@ export default function MapPage() {
                           )}
                           {schedule.length > 0 && (
                             <ul className="text-on-surface-variant text-[11px] space-y-0.5">
-                              {schedule.map((line) => (
-                                <li key={line} className="flex items-center gap-1">
+                              {schedule.map((entry) => (
+                                <li key={entry.date} className="flex items-start gap-1">
                                   <span className="material-symbols-outlined text-[14px]">
                                     event
                                   </span>
-                                  <span>{line}</span>
+                                  <span className="flex flex-wrap items-center gap-x-1">
+                                    <span>{entry.date}</span>
+                                    {entry.slots.length > 0 && <span>·</span>}
+                                    {entry.slots.map((slot, idx) => (
+                                      <span key={slot.time}>
+                                        {slot.url ? (
+                                          <a
+                                            href={slot.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="text-primary hover:underline"
+                                          >
+                                            {slot.time}
+                                          </a>
+                                        ) : (
+                                          <span>{slot.time}</span>
+                                        )}
+                                        {idx < entry.slots.length - 1 && ', '}
+                                      </span>
+                                    ))}
+                                  </span>
                                 </li>
                               ))}
                             </ul>
