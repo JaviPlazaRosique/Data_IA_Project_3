@@ -115,10 +115,14 @@ const todayIso = () => {
   return `${y}-${m}-${day}`;
 };
 
-// Fly to a location when an event is selected
+// Fly to a location when an event is selected. Effect runs only when
+// coordinates actually change — prevents re-centering on unrelated re-renders
+// (e.g. polling refetch).
 function MapFlyTo({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
-  map.flyTo([lat, lng], 15, { duration: 1.2 });
+  useEffect(() => {
+    map.flyTo([lat, lng], 15, { duration: 1.2 });
+  }, [lat, lng, map]);
   return null;
 }
 
@@ -147,6 +151,20 @@ function InitialView({
   const map = useMap();
   const positionedRef = useRef(false);
   const geoAttemptedRef = useRef(false);
+
+  // Lock auto-positioning once the user drags or zooms — polling refetches
+  // must not snap the map back after user interaction.
+  useEffect(() => {
+    const lock = () => {
+      positionedRef.current = true;
+    };
+    map.on('dragstart', lock);
+    map.on('zoomstart', lock);
+    return () => {
+      map.off('dragstart', lock);
+      map.off('zoomstart', lock);
+    };
+  }, [map]);
 
   useEffect(() => {
     if (positionedRef.current) return;
@@ -387,28 +405,28 @@ export default function MapPage() {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
-  const boundsRef = useRef<L.LatLngBounds | null>(null);
   const dateRef = useRef<string>(todayIso());
   const segmentosRef = useRef<string[]>([]);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const inflightRef = useRef<AbortController | null>(null);
-  const startPollingRef = useRef<(() => void) | null>(null);
+  const boundsRef = useRef<L.LatLngBounds | null>(null);
+  const initialFetchedRef = useRef(false);
 
   const fetchEvents = useCallback(() => {
     inflightRef.current?.abort();
     const ctrl = new AbortController();
     inflightRef.current = ctrl;
-    const b = boundsRef.current;
+    setLoading(true);
     const fecha = dateRef.current || undefined;
     const segmentos = segmentosRef.current.length ? segmentosRef.current : undefined;
-    const params: NonNullable<Parameters<typeof apiListEvents>[0]> = b
-      ? {
-          min_lat: b.getSouth(),
-          max_lat: b.getNorth(),
-          min_lng: b.getWest(),
-          max_lng: b.getEast(),
-        }
-      : { limit: 50 };
+    const b = boundsRef.current;
+    const params: NonNullable<Parameters<typeof apiListEvents>[0]> = { limit: 1000 };
+    if (b) {
+      params.min_lat = b.getSouth();
+      params.max_lat = b.getNorth();
+      params.min_lng = b.getWest();
+      params.max_lng = b.getEast();
+    }
     if (fecha) params.fecha = fecha;
     if (segmentos) params.segmento = segmentos;
     apiListEvents(params, { signal: ctrl.signal })
@@ -423,51 +441,34 @@ export default function MapPage() {
       });
   }, []);
 
-  // Defer first fetch until the map has positioned (bounds set by InitialView).
-  // Poll every 60s afterwards. Fallback kicks in if positioning never resolves.
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-    let started = false;
-
-    const start = () => {
-      if (started) return;
-      started = true;
-      fetchEvents();
-      intervalId = setInterval(fetchEvents, 60_000);
-    };
-
-    startPollingRef.current = start;
-    const fallbackId = setTimeout(start, 3000);
-
-    return () => {
-      clearTimeout(fallbackId);
-      if (intervalId) clearInterval(intervalId);
-      inflightRef.current?.abort();
-      startPollingRef.current = null;
-    };
-  }, [fetchEvents]);
-
-  // Refetch events whenever the map viewport changes (debounced).
+  // Track latest bounds (no auto-refetch on map move).
   useEffect(() => {
     boundsRef.current = bounds;
-    if (!bounds) return;
-    startPollingRef.current?.();
-    const debounceId = setTimeout(fetchEvents, 300);
-    return () => clearTimeout(debounceId);
+    // First fetch only fires once bounds are available, so the initial
+    // viewport constrains the query.
+    if (bounds && !initialFetchedRef.current) {
+      initialFetchedRef.current = true;
+      fetchEvents();
+    }
   }, [bounds, fetchEvents]);
 
-  // Refetch when selected date changes.
+  // Cleanup inflight on unmount.
+  useEffect(() => {
+    return () => {
+      inflightRef.current?.abort();
+    };
+  }, []);
+
+  // Refetch when selected date changes (after initial fetch).
   useEffect(() => {
     dateRef.current = selectedDate;
-    if (!startPollingRef.current) return;
-    fetchEvents();
+    if (initialFetchedRef.current) fetchEvents();
   }, [selectedDate, fetchEvents]);
 
-  // Refetch when selected categories change.
+  // Refetch when selected categories change (after initial fetch).
   useEffect(() => {
     segmentosRef.current = selectedCategories;
-    if (!startPollingRef.current) return;
-    fetchEvents();
+    if (initialFetchedRef.current) fetchEvents();
   }, [selectedCategories, fetchEvents]);
 
   const toggleCategory = useCallback((cat: string) => {
@@ -480,31 +481,18 @@ export default function MapPage() {
     );
   }, []);
 
-  // Refetch available categories whenever the viewport / date changes, so
-  // the filter only offers categories actually present in the current view.
+  // Refetch available categories when date changes.
   useEffect(() => {
     const ctrl = new AbortController();
-    const debounceId = setTimeout(() => {
-      const params: Parameters<typeof apiListEventCategories>[0] = bounds
-        ? {
-            min_lat: bounds.getSouth(),
-            max_lat: bounds.getNorth(),
-            min_lng: bounds.getWest(),
-            max_lng: bounds.getEast(),
-          }
-        : {};
-      if (selectedDate) params.fecha = selectedDate;
-      apiListEventCategories(params, { signal: ctrl.signal })
-        .then(setCategoryOptions)
-        .catch(() => {
-          /* leave previous options on failure */
-        });
-    }, 300);
-    return () => {
-      clearTimeout(debounceId);
-      ctrl.abort();
-    };
-  }, [bounds, selectedDate]);
+    const params: Parameters<typeof apiListEventCategories>[0] = {};
+    if (selectedDate) params.fecha = selectedDate;
+    apiListEventCategories(params, { signal: ctrl.signal })
+      .then(setCategoryOptions)
+      .catch(() => {
+        /* leave previous options on failure */
+      });
+    return () => ctrl.abort();
+  }, [selectedDate]);
 
   // Drop any selected categories that are no longer present in the viewport.
   useEffect(() => {
@@ -761,6 +749,25 @@ export default function MapPage() {
                 </div>
               </div>
             </div>
+
+            {/* Reload button */}
+            <button
+              type="button"
+              onClick={fetchEvents}
+              disabled={loading}
+              className="absolute top-6 right-6 z-[400] bg-surface-container-high/90 backdrop-blur-xl rounded-full px-5 h-12 flex items-center gap-2 border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors disabled:opacity-50"
+              aria-label="Reload events in this area"
+              title="Reload events in this area"
+            >
+              <span
+                className={`material-symbols-outlined text-primary text-xl ${loading ? 'animate-spin' : ''}`}
+              >
+                autorenew
+              </span>
+              <span className="font-label text-sm font-semibold text-on-surface">
+                Reload events in this area
+              </span>
+            </button>
 
             {/* Legend */}
             <div className="absolute bottom-6 right-6 z-[400]">

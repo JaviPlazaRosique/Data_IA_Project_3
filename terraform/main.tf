@@ -223,11 +223,11 @@ module "firestore" {
 
   politicas_ttl = [
     {
-      coleccion = "recintos", 
+      coleccion = "recintos",
       campo_expiracion = "fecha_expiracion"
     },
     {
-      coleccion = "eventos",  
+      coleccion = "eventos",
       campo_expiracion = "fecha_utc"
     }
   ]
