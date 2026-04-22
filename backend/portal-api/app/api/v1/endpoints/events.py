@@ -27,6 +27,13 @@ def _doc_to_event(doc_id: str, data: dict) -> EventRead:
     return EventRead(id=doc_id, **_coerce(data))
 
 
+async def _load_all(limit: int) -> list[EventRead]:
+    db = get_firestore()
+    query = db.collection(COLLECTION).order_by("fecha_utc").limit(limit)
+    docs = await query.get()
+    return [_doc_to_event(doc.id, doc.to_dict()) for doc in docs]
+
+
 @router.get("", response_model=list[EventRead])
 async def list_events(
     ciudad: str | None = None,
@@ -36,46 +43,30 @@ async def list_events(
     max_lat: float | None = None,
     min_lng: float | None = None,
     max_lng: float | None = None,
-    limit: int | None = Query(None, ge=1),
+    limit: int | None = Query(1000, ge=1, le=5000),
 ) -> list[EventRead]:
-    db = get_firestore()
-    query = db.collection(COLLECTION)
-    if ciudad:
-        query = query.where("ciudad", "==", ciudad)
-    if segmento:
-        # Firestore `in` accepts up to 30 values.
-        if len(segmento) == 1:
-            query = query.where("segmento", "==", segmento[0])
-        else:
-            query = query.where("segmento", "in", segmento[:30])
-    if fecha:
-        query = query.where("fecha", "==", fecha)
+    items = await _load_all(limit or 1000)
 
+    segmento_set = set(segmento) if segmento else None
     bbox = all(v is not None for v in (min_lat, max_lat, min_lng, max_lng))
-    if bbox:
-        # Firestore allows a range inequality on only one field per query, so
-        # we constrain latitude server-side and filter longitude in Python.
-        query = (
-            query.where("latitud", ">=", min_lat)
-            .where("latitud", "<=", max_lat)
-            .order_by("latitud")
-        )
-        if limit is not None:
-            query = query.limit(limit * 3)
-    else:
-        effective_limit = limit if limit is not None else 50
-        query = query.order_by("fecha_utc").limit(effective_limit)
 
-    docs = await query.get()
-    items = [_doc_to_event(doc.id, doc.to_dict()) for doc in docs]
-    if bbox:
-        items = [
-            e for e in items
-            if e.longitud is not None and min_lng <= e.longitud <= max_lng
-        ]
-        if limit is not None:
-            items = items[:limit]
-    return items
+    filtered = []
+    for e in items:
+        if ciudad and e.ciudad != ciudad:
+            continue
+        if segmento_set and e.segmento not in segmento_set:
+            continue
+        if fecha and e.fecha != fecha:
+            continue
+        if bbox:
+            if e.latitud is None or e.longitud is None:
+                continue
+            if not (min_lat <= e.latitud <= max_lat):
+                continue
+            if not (min_lng <= e.longitud <= max_lng):
+                continue
+        filtered.append(e)
+    return filtered
 
 
 @router.get("/categories", response_model=list[str])
@@ -87,35 +78,24 @@ async def list_categories(
     min_lng: float | None = None,
     max_lng: float | None = None,
 ) -> list[str]:
-    """Return distinct `segmento` values for events matching the given
-    viewport / date filters — so the UI only offers categories that are
-    actually represented on the current map view."""
-    db = get_firestore()
-    query = db.collection(COLLECTION)
-    if ciudad:
-        query = query.where("ciudad", "==", ciudad)
-    if fecha:
-        query = query.where("fecha", "==", fecha)
+    items = await _load_all(5000)
 
     bbox = all(v is not None for v in (min_lat, max_lat, min_lng, max_lng))
-    if bbox:
-        query = (
-            query.where("latitud", ">=", min_lat)
-            .where("latitud", "<=", max_lat)
-            .order_by("latitud")
-        )
-
-    docs = await query.get()
     segmentos: set[str] = set()
-    for doc in docs:
-        data = doc.to_dict()
+    for e in items:
+        if ciudad and e.ciudad != ciudad:
+            continue
+        if fecha and e.fecha != fecha:
+            continue
         if bbox:
-            lng = data.get("longitud")
-            if lng is None or lng < min_lng or lng > max_lng:
+            if e.latitud is None or e.longitud is None:
                 continue
-        seg = data.get("segmento")
-        if seg:
-            segmentos.add(seg)
+            if not (min_lat <= e.latitud <= max_lat):
+                continue
+            if not (min_lng <= e.longitud <= max_lng):
+                continue
+        if e.segmento:
+            segmentos.add(e.segmento)
     return sorted(segmentos)
 
 
