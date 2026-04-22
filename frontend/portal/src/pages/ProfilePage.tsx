@@ -5,6 +5,7 @@ import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import { useAuth } from '../context/AuthContext';
+import QuickMatch from '../components/QuickMatch';
 import {
   apiUpdateMe,
   apiListSavedEvents,
@@ -186,6 +187,11 @@ export default function ProfilePage() {
               </Link>
             </div>
           </header>
+
+          {/* Quick Match — Tinder-style event swipe */}
+          <section className="mb-12">
+            <QuickMatch />
+          </section>
 
           {/* Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
