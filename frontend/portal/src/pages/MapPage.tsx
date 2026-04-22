@@ -74,6 +74,67 @@ const hasCoords = (
 ): e is EventCatalogItem & { latitud: number; longitud: number } =>
   e.latitud != null && e.longitud != null;
 
+type MappableEvent = EventCatalogItem & { latitud: number; longitud: number };
+
+type EventGroup = {
+  key: string;
+  primary: MappableEvent;
+  items: MappableEvent[];
+};
+
+function groupKey(e: EventCatalogItem): string {
+  return [
+    (e.nombre ?? '').trim().toLowerCase(),
+    (e.recinto_nombre ?? '').trim().toLowerCase(),
+    (e.ciudad ?? '').trim().toLowerCase(),
+  ].join('|');
+}
+
+function groupMappableEvents(events: MappableEvent[]): EventGroup[] {
+  const map = new Map<string, EventGroup>();
+  for (const ev of events) {
+    const key = groupKey(ev);
+    const g = map.get(key);
+    if (g) g.items.push(ev);
+    else map.set(key, { key, primary: ev, items: [ev] });
+  }
+  for (const g of map.values()) {
+    g.items.sort((a, b) => {
+      const av = a.fecha_utc ?? `${a.fecha ?? ''} ${a.hora ?? ''}`;
+      const bv = b.fecha_utc ?? `${b.fecha ?? ''} ${b.hora ?? ''}`;
+      return av.localeCompare(bv);
+    });
+    g.primary = g.items[0];
+  }
+  return Array.from(map.values());
+}
+
+type ScheduleEntry = {
+  date: string;
+  slots: { time: string; url: string | null }[];
+};
+
+function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
+  const byDate = new Map<string, Map<string, string | null>>();
+  for (const ev of items) {
+    const date = (ev.fecha ?? '').trim() || '—';
+    const time = (ev.hora ?? '').trim();
+    if (!date && !time) continue;
+    if (!byDate.has(date)) byDate.set(date, new Map());
+    if (time && !byDate.get(date)!.has(time)) {
+      byDate.get(date)!.set(time, ev.url ?? null);
+    }
+  }
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, times]) => ({
+      date,
+      slots: Array.from(times.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([time, url]) => ({ time, url })),
+    }));
+}
+
 // Fix default marker icon paths broken by Vite bundling
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -235,10 +296,12 @@ function InitialView({
 
 function EventDetailModal({
   event,
+  occurrences,
   onClose,
   isLoggedIn,
 }: {
   event: EventCatalogItem | null;
+  occurrences: EventCatalogItem[];
   onClose: () => void;
   isLoggedIn: boolean;
 }) {
@@ -268,6 +331,7 @@ function EventDetailModal({
   const locationLine = [event.recinto_nombre, event.ciudad]
     .filter(Boolean)
     .join(' • ');
+  const schedule = buildScheduleEntries(occurrences.length ? occurrences : [event]);
   const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
   const tags = [event.segmento, event.genero, event.subgenero].filter(Boolean);
 
@@ -342,7 +406,36 @@ function EventDetailModal({
                 <span>{locationLine}</span>
               </div>
             )}
-            {dateLine && (
+            {schedule.length > 1 || (schedule[0]?.slots.length ?? 0) > 1 ? (
+              <div className="flex items-start gap-2 text-on-surface-variant text-sm">
+                <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
+                <ul className="space-y-1">
+                  {schedule.map((entry) => (
+                    <li key={entry.date} className="flex flex-wrap items-center gap-x-1">
+                      <span>{entry.date}</span>
+                      {entry.slots.length > 0 && <span>·</span>}
+                      {entry.slots.map((slot, idx) => (
+                        <span key={slot.time}>
+                          {slot.url ? (
+                            <a
+                              href={slot.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              {slot.time}
+                            </a>
+                          ) : (
+                            <span>{slot.time}</span>
+                          )}
+                          {idx < entry.slots.length - 1 && ', '}
+                        </span>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : dateLine && (
               <div className="flex items-center gap-2 text-on-surface-variant text-sm">
                 <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
                 <span>{dateLine}</span>
@@ -404,6 +497,7 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
+  const [selectedOccurrences, setSelectedOccurrences] = useState<EventCatalogItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const dateRef = useRef<string>(todayIso());
   const segmentosRef = useRef<string[]>([]);
@@ -524,16 +618,24 @@ export default function MapPage() {
   }, [categoryMenuOpen]);
 
   const mappableEvents = events.filter(hasCoords);
+  const groupedEvents = groupMappableEvents(mappableEvents);
 
-  const visibleEvents = bounds
-    ? mappableEvents.filter((e) => bounds.contains([e.latitud, e.longitud]))
-    : mappableEvents;
+  const visibleGroups = bounds
+    ? groupedEvents.filter((g) =>
+        bounds.contains([g.primary.latitud, g.primary.longitud]),
+      )
+    : groupedEvents;
 
-  const handleEventClick = (eventId: string) => {
-    const point = mappableEvents.find((p) => p.id === eventId);
-    if (!point) return;
-    setFlyTarget({ lat: point.latitud, lng: point.longitud });
-    setSelectedEvent(point);
+  const openGroup = (g: EventGroup) => {
+    setFlyTarget({ lat: g.primary.latitud, lng: g.primary.longitud });
+    setSelectedEvent(g.primary);
+    setSelectedOccurrences(g.items);
+  };
+
+  const handleEventClick = (groupKeyValue: string) => {
+    const g = groupedEvents.find((x) => x.key === groupKeyValue);
+    if (!g) return;
+    openGroup(g);
   };
 
   const mapCenter: [number, number] = [40.42, -3.7];
@@ -607,15 +709,17 @@ export default function MapPage() {
               />
 
               <MarkerClusterGroup chunkedLoading>
-                {visibleEvents.map((point) => {
+                {visibleGroups.map((group) => {
+                  const point = group.primary;
                   const category = segmentoToCategory(point.segmento);
+                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <Marker
-                      key={point.id}
+                      key={group.key}
                       position={[point.latitud, point.longitud]}
                       icon={pins[category]}
                       eventHandlers={{
-                        click: () => setSelectedEvent(point),
+                        click: () => openGroup(group),
                       }}
                     >
                       <Popup className="curator-popup">
@@ -626,11 +730,39 @@ export default function MapPage() {
                           <p style={{ fontSize: '14px', fontWeight: 800, marginBottom: '2px' }}>
                             {point.nombre ?? 'Evento'}
                           </p>
-                          <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '8px' }}>
+                          <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '6px' }}>
                             {[point.recinto_nombre, point.ciudad].filter(Boolean).join(' • ')}
                           </p>
+                          {schedule.length > 0 && (
+                            <ul style={{ fontSize: '11px', opacity: 0.85, marginBottom: '8px', paddingLeft: '14px' }}>
+                              {schedule.map((entry) => (
+                                <li key={entry.date}>
+                                  {entry.date}
+                                  {entry.slots.length > 0 && ' · '}
+                                  {entry.slots.map((slot, idx) => (
+                                    <span key={slot.time}>
+                                      {slot.url ? (
+                                        <a
+                                          href={slot.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          style={{ color: '#b6a0ff', textDecoration: 'underline' }}
+                                        >
+                                          {slot.time}
+                                        </a>
+                                      ) : (
+                                        <span>{slot.time}</span>
+                                      )}
+                                      {idx < entry.slots.length - 1 && ', '}
+                                    </span>
+                                  ))}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                           <button
-                            onClick={() => setSelectedEvent(point)}
+                            onClick={() => openGroup(group)}
                             style={{
                               background: '#b6a0ff',
                               color: '#1e1f25',
@@ -792,7 +924,7 @@ export default function MapPage() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-headline font-bold">Nearby Experiences</h2>
                 <span className="bg-secondary/10 text-secondary px-3 py-1 rounded-full text-xs font-bold border border-secondary/20">
-                  {visibleEvents.length} Active Now
+                  {visibleGroups.length} Active Now
                 </span>
               </div>
 
@@ -816,23 +948,24 @@ export default function MapPage() {
                 <div className="bg-surface-container-high rounded-xl p-6 text-center text-on-surface-variant text-sm">
                   No hay eventos disponibles todavía.
                 </div>
-              ) : visibleEvents.length === 0 ? (
+              ) : visibleGroups.length === 0 ? (
                 <div className="bg-surface-container-high rounded-xl p-6 text-center text-on-surface-variant text-sm">
                   No hay eventos en esta zona. Aleja el zoom o mueve el mapa.
                 </div>
               ) : (
-                visibleEvents.map((event) => {
+                visibleGroups.map((group) => {
+                  const event = group.primary;
                   const title = event.nombre ?? 'Evento';
                   const image =
                     event.imagen_evento ?? event.artista_imagen ?? EVENT_IMAGE_FALLBACK;
                   const locationLine = [event.recinto_nombre, event.ciudad]
                     .filter(Boolean)
                     .join(' • ');
-                  const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
+                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <button
-                      key={event.id}
-                      onClick={() => handleEventClick(event.id)}
+                      key={group.key}
+                      onClick={() => handleEventClick(group.key)}
                       className="w-full text-left group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant cursor-pointer"
                     >
                       <div className="flex gap-4">
@@ -855,13 +988,38 @@ export default function MapPage() {
                               <span className="truncate">{locationLine}</span>
                             </div>
                           )}
-                          {dateLine && (
-                            <div className="flex items-center gap-1 text-on-surface-variant text-[11px]">
-                              <span className="material-symbols-outlined text-[14px]">
-                                event
-                              </span>
-                              <span>{dateLine}</span>
-                            </div>
+                          {schedule.length > 0 && (
+                            <ul className="text-on-surface-variant text-[11px] space-y-0.5">
+                              {schedule.map((entry) => (
+                                <li key={entry.date} className="flex items-start gap-1">
+                                  <span className="material-symbols-outlined text-[14px]">
+                                    event
+                                  </span>
+                                  <span className="flex flex-wrap items-center gap-x-1">
+                                    <span>{entry.date}</span>
+                                    {entry.slots.length > 0 && <span>·</span>}
+                                    {entry.slots.map((slot, idx) => (
+                                      <span key={slot.time}>
+                                        {slot.url ? (
+                                          <a
+                                            href={slot.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="text-primary hover:underline"
+                                          >
+                                            {slot.time}
+                                          </a>
+                                        ) : (
+                                          <span>{slot.time}</span>
+                                        )}
+                                        {idx < entry.slots.length - 1 && ', '}
+                                      </span>
+                                    ))}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
                           )}
                           {event.segmento && (
                             <span className="inline-block mt-2 bg-surface-container-lowest px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
@@ -895,7 +1053,11 @@ export default function MapPage() {
 
       <EventDetailModal
         event={selectedEvent}
-        onClose={() => setSelectedEvent(null)}
+        occurrences={selectedOccurrences}
+        onClose={() => {
+          setSelectedEvent(null);
+          setSelectedOccurrences([]);
+        }}
         isLoggedIn={!!user}
       />
     </div>
