@@ -4,11 +4,6 @@ output "google_places_key_string" {
   sensitive   = true
 }
 
-output "gemini_key_string" {
-  description = "Valor de la API Key de Gemini. Sensible — solo usar para almacenar en Secret Manager."
-  value       = google_apikeys_key.gemini.key_string
-  sensitive   = true
-}
 
 output "nombre_pool" {
   description = "Nombre completo del pool"

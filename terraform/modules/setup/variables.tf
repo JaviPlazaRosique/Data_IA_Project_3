@@ -19,7 +19,7 @@ variable "servicios_gcp" {
     "firestore.googleapis.com",
     "apikeys.googleapis.com",
     "places.googleapis.com",
-    "generativelanguage.googleapis.com",
+    "aiplatform.googleapis.com",
     "cloudscheduler.googleapis.com"
   ]
 } 
