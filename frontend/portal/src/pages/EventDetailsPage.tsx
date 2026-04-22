@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
@@ -8,7 +8,10 @@ import {
   apiListEventReviews,
   apiCreateReview,
   apiUpdateReview,
+  apiGetEvent,
+  apiListEvents,
   type EventReviewRead,
+  type EventCatalogItem,
 } from '../api';
 
 // Seeded images specific to this event
@@ -16,8 +19,31 @@ const heroImg = 'https://picsum.photos/seed/festival-night/1400/700';
 const mapImg = 'https://picsum.photos/seed/city-map/800/500';
 const reviewerAvatarImg = 'https://picsum.photos/seed/avatar-club/80/80';
 
-// Until routing passes a real event ID via useParams, use a stable slug
-const EVENT_ID = 'midnight-pulse-festival';
+type ScheduleEntry = {
+  date: string;
+  slots: { time: string; url: string | null }[];
+};
+
+function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
+  const byDate = new Map<string, Map<string, string | null>>();
+  for (const ev of items) {
+    const date = (ev.fecha ?? '').trim() || '—';
+    const time = (ev.hora ?? '').trim();
+    if (!date && !time) continue;
+    if (!byDate.has(date)) byDate.set(date, new Map());
+    if (time && !byDate.get(date)!.has(time)) {
+      byDate.get(date)!.set(time, ev.url ?? null);
+    }
+  }
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, times]) => ({
+      date,
+      slots: Array.from(times.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([time, url]) => ({ time, url })),
+    }));
+}
 
 const weatherMetrics = [
   { label: 'Precipitation', value: '2%' },
@@ -28,10 +54,14 @@ const weatherMetrics = [
 
 export default function EventDetailsPage() {
   const { user } = useAuth();
+  const { id: routeId } = useParams<{ id: string }>();
+  const EVENT_ID = routeId ?? 'midnight-pulse-festival';
   const [rating, setRating] = useState(4);
   const [reviewText, setReviewText] = useState('');
   const [apiReviews, setApiReviews] = useState<EventReviewRead[]>([]);
   const [myReview, setMyReview] = useState<EventReviewRead | null>(null);
+  const [event, setEvent] = useState<EventCatalogItem | null>(null);
+  const [occurrences, setOccurrences] = useState<EventCatalogItem[]>([]);
 
   useEffect(() => {
     apiListEventReviews(EVENT_ID).then((data) => {
@@ -43,7 +73,43 @@ export default function EventDetailsPage() {
         setReviewText(mine.review_text ?? '');
       }
     }).catch(() => {});
-  }, [user]);
+  }, [user, EVENT_ID]);
+
+  useEffect(() => {
+    if (!routeId) return;
+    let cancelled = false;
+    apiGetEvent(routeId)
+      .then(async (ev) => {
+        if (cancelled) return;
+        setEvent(ev);
+        try {
+          const all = await apiListEvents({ limit: 500 });
+          if (cancelled) return;
+          const keyOf = (x: EventCatalogItem) =>
+            [
+              (x.nombre ?? '').trim().toLowerCase(),
+              (x.recinto_nombre ?? '').trim().toLowerCase(),
+              (x.ciudad ?? '').trim().toLowerCase(),
+            ].join('|');
+          const target = keyOf(ev);
+          const matches = all.filter((x) => keyOf(x) === target);
+          matches.sort((a, b) => {
+            const av = a.fecha_utc ?? `${a.fecha ?? ''} ${a.hora ?? ''}`;
+            const bv = b.fecha_utc ?? `${b.fecha ?? ''} ${b.hora ?? ''}`;
+            return av.localeCompare(bv);
+          });
+          setOccurrences(matches.length ? matches : [ev]);
+        } catch {
+          setOccurrences([ev]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [routeId]);
+
+  const schedule = buildScheduleEntries(occurrences);
 
   async function handleSubmitReview() {
     if (!user) return;
@@ -67,7 +133,7 @@ export default function EventDetailsPage() {
       <main className="relative min-h-screen">
         {/* Hero */}
         <section className="relative h-[60vh] w-full overflow-hidden">
-          <img src={heroImg} alt="Midnight Pulse Festival" className="w-full h-full object-cover" />
+          <img src={event?.imagen_evento ?? event?.artista_imagen ?? heroImg} alt={event?.nombre ?? 'Event'} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent" />
           <div className="absolute bottom-0 left-0 w-full px-4 md:px-8 pb-12">
             <div className="max-w-7xl mx-auto flex flex-col items-start gap-4">
@@ -75,19 +141,56 @@ export default function EventDetailsPage() {
                 Live Tonight
               </span>
               <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-headline tracking-tighter text-on-surface leading-none">
-                Midnight Pulse <br /> Festival
+                {event?.nombre ?? 'Midnight Pulse Festival'}
               </h1>
-              <div className="flex flex-wrap items-center gap-6 mt-4 text-on-surface-variant font-label text-sm">
-                {[
-                  { icon: 'calendar_month', text: 'October 24, 2024' },
-                  { icon: 'schedule', text: '20:00 – 04:00' },
-                  { icon: 'location_on', text: 'Neon Valley Arena' },
-                ].map((item) => (
-                  <div key={item.text} className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">{item.icon}</span>
-                    {item.text}
+              <div className="flex flex-wrap items-start gap-6 mt-4 text-on-surface-variant font-label text-sm">
+                {schedule.length > 0 ? (
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-primary">calendar_month</span>
+                    <ul className="space-y-1">
+                      {schedule.map((entry) => (
+                        <li key={entry.date} className="flex flex-wrap items-center gap-x-1">
+                          <span>{entry.date}</span>
+                          {entry.slots.length > 0 && <span>·</span>}
+                          {entry.slots.map((slot, idx) => (
+                            <span key={slot.time}>
+                              {slot.url ? (
+                                <a
+                                  href={slot.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  {slot.time}
+                                </a>
+                              ) : (
+                                <span>{slot.time}</span>
+                              )}
+                              {idx < entry.slots.length - 1 && ', '}
+                            </span>
+                          ))}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                ))}
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary">calendar_month</span>
+                      {event?.fecha ?? '—'}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary">schedule</span>
+                      {event?.hora ?? '—'}
+                    </div>
+                  </>
+                )}
+                {(event?.recinto_nombre || event?.ciudad) && (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">location_on</span>
+                    {[event?.recinto_nombre, event?.ciudad].filter(Boolean).join(' • ')}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -131,20 +234,30 @@ export default function EventDetailsPage() {
               <p className="text-sm text-on-surface-variant font-label leading-relaxed">
                 Experience the pulse. Choose your preferred platform for guaranteed entry.
               </p>
-              <a href="#" className="flex items-center justify-between bg-on-surface text-surface py-3 px-5 rounded-full font-bold hover:bg-tertiary transition-colors group">
-                <span className="flex items-center gap-3">
-                  <span className="material-symbols-outlined">confirmation_number</span>
-                  Ticketmaster
-                </span>
-                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-              </a>
-              <a href="#" className="flex items-center justify-between border border-outline-variant/30 text-on-surface py-3 px-5 rounded-full font-bold hover:bg-surface-container-highest transition-colors group">
-                <span className="flex items-center gap-3">
-                  <span className="material-symbols-outlined">local_activity</span>
-                  Eventbrite
-                </span>
-                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-              </a>
+              {event?.url ? (
+                <a
+                  href={event.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between bg-on-surface text-surface py-3 px-5 rounded-full font-bold hover:bg-tertiary transition-colors group"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="material-symbols-outlined">confirmation_number</span>
+                    Entradas
+                  </span>
+                  <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">open_in_new</span>
+                </a>
+              ) : (
+                <button
+                  disabled
+                  className="flex items-center justify-between bg-surface-container-highest text-on-surface/50 py-3 px-5 rounded-full font-bold cursor-not-allowed"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="material-symbols-outlined">confirmation_number</span>
+                    Entradas no disponibles
+                  </span>
+                </button>
+              )}
             </div>
             <div className="bg-surface-container rounded-xl p-6 flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">

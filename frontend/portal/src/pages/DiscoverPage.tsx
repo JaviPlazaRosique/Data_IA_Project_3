@@ -8,6 +8,56 @@ import { apiListEvents, type EventCatalogItem } from '../api';
 
 const EVENT_IMAGE_FALLBACK = 'https://picsum.photos/seed/event-placeholder/600/340';
 
+type EventGroup = { key: string; items: EventCatalogItem[] };
+
+function groupEvents(events: EventCatalogItem[]): EventGroup[] {
+  const map = new Map<string, EventGroup>();
+  for (const ev of events) {
+    const key = [
+      (ev.nombre ?? '').trim().toLowerCase(),
+      (ev.recinto_nombre ?? '').trim().toLowerCase(),
+      (ev.ciudad ?? '').trim().toLowerCase(),
+    ].join('|');
+    const existing = map.get(key);
+    if (existing) existing.items.push(ev);
+    else map.set(key, { key, items: [ev] });
+  }
+  for (const g of map.values()) {
+    g.items.sort((a, b) => {
+      const av = a.fecha_utc ?? `${a.fecha ?? ''} ${a.hora ?? ''}`;
+      const bv = b.fecha_utc ?? `${b.fecha ?? ''} ${b.hora ?? ''}`;
+      return av.localeCompare(bv);
+    });
+  }
+  return Array.from(map.values());
+}
+
+type ScheduleEntry = {
+  date: string;
+  slots: { time: string; url: string | null }[];
+};
+
+function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
+  const byDate = new Map<string, Map<string, string | null>>();
+  for (const ev of items) {
+    const date = (ev.fecha ?? '').trim() || '—';
+    const time = (ev.hora ?? '').trim();
+    if (!date && !time) continue;
+    if (!byDate.has(date)) byDate.set(date, new Map());
+    if (time && !byDate.get(date)!.has(time)) {
+      byDate.get(date)!.set(time, ev.url ?? null);
+    }
+  }
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, times]) => ({
+      date,
+      slots: Array.from(times.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([time, url]) => ({ time, url })),
+    }));
+}
+
 export default function DiscoverPage() {
   const [aiDismissed, setAiDismissed] = useState(false);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
@@ -152,16 +202,18 @@ export default function DiscoverPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {events.map((event) => {
-                  const title = event.nombre ?? 'Evento';
-                  const venue = [event.recinto_nombre, event.ciudad].filter(Boolean).join(' • ');
-                  const image = event.imagen_evento ?? event.artista_imagen ?? EVENT_IMAGE_FALLBACK;
-                  const tags = [event.segmento, event.genero].filter(
+                {groupEvents(events).map((group) => {
+                  const first = group.items[0];
+                  const title = first.nombre ?? 'Evento';
+                  const venue = [first.recinto_nombre, first.ciudad].filter(Boolean).join(' • ');
+                  const image = first.imagen_evento ?? first.artista_imagen ?? EVENT_IMAGE_FALLBACK;
+                  const tags = [first.segmento, first.genero].filter(
                     (t): t is string => !!t,
                   );
+                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <div
-                      key={event.id}
+                      key={group.key}
                       className="bg-surface-container-high rounded-3xl overflow-hidden group"
                     >
                       <div className="aspect-video relative overflow-hidden">
@@ -178,10 +230,39 @@ export default function DiscoverPage() {
                             <p className="text-on-surface-variant font-body">{venue}</p>
                           )}
                         </div>
-                        {(event.fecha || event.hora) && (
-                          <p className="text-sm text-on-surface-variant/80 font-label">
-                            {[event.fecha, event.hora].filter(Boolean).join(' · ')}
-                          </p>
+                        {schedule.length > 0 && (
+                          <ul className="space-y-1">
+                            {schedule.map((entry) => (
+                              <li
+                                key={entry.date}
+                                className="text-sm text-on-surface-variant/80 font-label flex items-start gap-2"
+                              >
+                                <span className="material-symbols-outlined text-sm">event</span>
+                                <span className="flex flex-wrap items-center gap-x-1">
+                                  <span>{entry.date}</span>
+                                  {entry.slots.length > 0 && <span>·</span>}
+                                  {entry.slots.map((slot, idx) => (
+                                    <span key={slot.time}>
+                                      {slot.url ? (
+                                        <a
+                                          href={slot.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-primary hover:underline"
+                                        >
+                                          {slot.time}
+                                        </a>
+                                      ) : (
+                                        <span>{slot.time}</span>
+                                      )}
+                                      {idx < entry.slots.length - 1 && ', '}
+                                    </span>
+                                  ))}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
                         )}
                         {tags.length > 0 && (
                           <div className="flex gap-2 flex-wrap">
@@ -196,7 +277,7 @@ export default function DiscoverPage() {
                           </div>
                         )}
                         <Link
-                          to={`/event/${event.id}`}
+                          to={`/event/${first.id}`}
                           className="block w-full py-4 rounded-full border border-outline-variant/20 font-bold text-center hover:bg-primary hover:text-on-primary transition-all"
                         >
                           Ver detalles
