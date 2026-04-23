@@ -106,21 +106,26 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
     advance('right');
   }, [current, exiting, savedIds, advance, onSaved]);
 
-  const share = useCallback(async () => {
-    if (!current) return;
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const shareData = useMemo(() => {
+    if (!current) return null;
     const title = current.nombre ?? 'Evento';
-    const text = [current.recinto_nombre, current.ciudad].filter(Boolean).join(' • ');
-    const url = current.url ?? `${window.location.origin}/events/${current.id}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, text, url });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {
-      /* user cancelled or unsupported — ignore */
-    }
+    const venue = [current.recinto_nombre, current.ciudad].filter(Boolean).join(' • ');
+    const url = `${window.location.origin}/#/event/${current.id}`;
+    const text = venue ? `${title} — ${venue}` : title;
+    return { title, text, url };
   }, [current]);
+
+  const copyLink = useCallback(async () => {
+    if (!shareData) return;
+    try {
+      await navigator.clipboard.writeText(shareData.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  }, [shareData]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -304,14 +309,81 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
               bookmark
             </span>
           </button>
-          <button
-            onClick={share}
-            className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-surface-container flex items-center justify-center text-secondary border border-secondary/20 active:scale-90 transition-transform shadow-lg"
-            aria-label="Share"
-            title="Share event"
-          >
-            <span className="material-symbols-outlined text-xl md:text-2xl">share</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShareOpen((v) => !v)}
+              className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-surface-container flex items-center justify-center text-secondary border border-secondary/20 active:scale-90 transition-transform shadow-lg"
+              aria-label="Share"
+              title="Share event"
+            >
+              <span className="material-symbols-outlined text-xl md:text-2xl">share</span>
+            </button>
+            {shareOpen && shareData && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShareOpen(false)} />
+                <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-50 bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-2xl p-3 min-w-[240px]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-2 pb-2">
+                    Share event
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(`${shareData.text} ${shareData.url}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShareOpen(false)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                      title="WhatsApp"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center text-white font-bold">W</div>
+                      <span className="text-[10px]">WhatsApp</span>
+                    </a>
+                    <a
+                      href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareData.url)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShareOpen(false)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                      title="Facebook"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center text-white font-bold">f</div>
+                      <span className="text-[10px]">Facebook</span>
+                    </a>
+                    <a
+                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareData.text)}&url=${encodeURIComponent(shareData.url)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShareOpen(false)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                      title="X / Twitter"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold">X</div>
+                      <span className="text-[10px]">X</span>
+                    </a>
+                    <a
+                      href={`https://t.me/share/url?url=${encodeURIComponent(shareData.url)}&text=${encodeURIComponent(shareData.text)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShareOpen(false)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                      title="Telegram"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#0088cc] flex items-center justify-center text-white font-bold">T</div>
+                      <span className="text-[10px]">Telegram</span>
+                    </a>
+                  </div>
+                  <button
+                    onClick={copyLink}
+                    className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-low text-sm font-medium transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {copied ? 'check_box' : 'open_in_new'}
+                    </span>
+                    {copied ? 'Link copied' : 'Copy link'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={() => advance('right')}
             className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-container-high flex items-center justify-center text-primary border border-primary/20 active:scale-90 transition-transform shadow-xl"
