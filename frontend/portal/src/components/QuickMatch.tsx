@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   apiListEvents,
   apiListSavedEvents,
   apiSaveEvent,
   type EventCatalogItem,
+  type SavedEventRead,
 } from '../api';
 
 const IMAGE_FALLBACK = 'https://picsum.photos/seed/quick-match/600/800';
@@ -23,7 +25,8 @@ function dedupe(events: EventCatalogItem[]): EventCatalogItem[] {
   return Array.from(seen.values());
 }
 
-export default function QuickMatch() {
+export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRead) => void } = {}) {
+  const navigate = useNavigate();
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -58,24 +61,11 @@ export default function QuickMatch() {
   const upcoming = useMemo(() => events.slice(index + 1, index + 3), [events, index]);
 
   const advance = useCallback(
-    async (dir: SwipeDir) => {
+    (dir: SwipeDir) => {
       if (!current || exiting) return;
       setExiting(dir);
       if (dir === 'right') {
         setLiked((prev) => [...prev, current.id]);
-        if (!savedIds.has(current.id)) {
-          setSavedIds((prev) => new Set(prev).add(current.id));
-          apiSaveEvent({
-            event_id: current.id,
-            event_title: current.nombre,
-            event_venue: current.recinto_nombre,
-            event_date: current.fecha,
-            event_time: current.hora,
-            event_image_url: current.imagen_evento ?? current.artista_imagen,
-          }).catch(() => {
-            /* network/offline — ignore */
-          });
-        }
       }
       setTimeout(() => {
         setIndex((i) => i + 1);
@@ -86,6 +76,51 @@ export default function QuickMatch() {
     },
     [current, exiting],
   );
+
+  const favorite = useCallback(() => {
+    if (!current || exiting) return;
+    const target = current;
+    if (savedIds.has(target.id)) {
+      advance('right');
+      return;
+    }
+    setSavedIds((prev) => new Set(prev).add(target.id));
+    apiSaveEvent({
+      event_id: target.id,
+      event_title: target.nombre,
+      event_venue: target.recinto_nombre,
+      event_date: target.fecha,
+      event_time: target.hora,
+      event_image_url: target.imagen_evento ?? target.artista_imagen,
+    })
+      .then((saved) => {
+        onSaved?.(saved);
+      })
+      .catch(() => {
+        setSavedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(target.id);
+          return next;
+        });
+      });
+    advance('right');
+  }, [current, exiting, savedIds, advance, onSaved]);
+
+  const share = useCallback(async () => {
+    if (!current) return;
+    const title = current.nombre ?? 'Evento';
+    const text = [current.recinto_nombre, current.ciudad].filter(Boolean).join(' • ');
+    const url = current.url ?? `${window.location.origin}/events/${current.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch {
+      /* user cancelled or unsupported — ignore */
+    }
+  }, [current]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -123,6 +158,9 @@ export default function QuickMatch() {
       advance('right');
     } else if (d.x < -threshold) {
       advance('left');
+    } else if (Math.abs(d.x) < 6 && Math.abs(d.y) < 6 && current) {
+      setDrag(null);
+      navigate(`/event/${current.id}`);
     } else {
       setDrag(null);
     }
@@ -149,7 +187,7 @@ export default function QuickMatch() {
             Quick Match
           </h2>
           <p className="text-on-surface-variant text-sm mt-1">
-            Swipe right to save, left to skip. {liked.length > 0 && `${liked.length} saved this session.`}
+            Swipe right to like, left to skip. {liked.length > 0 && `${liked.length} liked this session.`}
           </p>
         </div>
         <button
@@ -247,21 +285,38 @@ export default function QuickMatch() {
           <button
             onClick={() => advance('left')}
             className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-container-high flex items-center justify-center text-error border border-error/20 active:scale-90 transition-transform shadow-xl"
-            aria-label="Skip"
+            aria-label="Dislike"
+            title="Dislike"
           >
             <span className="material-symbols-outlined text-2xl md:text-3xl">close</span>
           </button>
           <button
-            onClick={load}
-            className="w-11 h-11 rounded-full bg-surface-container flex items-center justify-center text-secondary border border-outline-variant/10 active:scale-90 transition-transform"
-            aria-label="Reload"
+            onClick={favorite}
+            disabled={savedIds.has(current.id)}
+            className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-surface-container flex items-center justify-center text-tertiary border border-tertiary/20 active:scale-90 transition-transform shadow-lg disabled:opacity-60"
+            aria-label="Favorite"
+            title={savedIds.has(current.id) ? 'Already saved' : 'Save to favorites'}
           >
-            <span className="material-symbols-outlined">restart_alt</span>
+            <span
+              className="material-symbols-outlined text-xl md:text-2xl"
+              style={savedIds.has(current.id) ? { fontVariationSettings: "'FILL' 1" } : {}}
+            >
+              bookmark
+            </span>
+          </button>
+          <button
+            onClick={share}
+            className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-surface-container flex items-center justify-center text-secondary border border-secondary/20 active:scale-90 transition-transform shadow-lg"
+            aria-label="Share"
+            title="Share event"
+          >
+            <span className="material-symbols-outlined text-xl md:text-2xl">share</span>
           </button>
           <button
             onClick={() => advance('right')}
-            className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-container-high flex items-center justify-center text-tertiary border border-tertiary/20 active:scale-90 transition-transform shadow-xl"
-            aria-label="Save"
+            className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-container-high flex items-center justify-center text-primary border border-primary/20 active:scale-90 transition-transform shadow-xl"
+            aria-label="Like"
+            title="Like"
           >
             <span
               className="material-symbols-outlined text-2xl md:text-3xl"
@@ -319,10 +374,10 @@ function Card({
       <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/30 to-transparent" />
 
       <div
-        className="absolute top-6 left-6 border-4 border-tertiary text-tertiary px-4 py-2 rounded-xl font-black text-2xl tracking-widest uppercase rotate-[-12deg] pointer-events-none"
+        className="absolute top-6 left-6 border-4 border-primary text-primary px-4 py-2 rounded-xl font-black text-2xl tracking-widest uppercase rotate-[-12deg] pointer-events-none"
         style={{ opacity: likeOpacity }}
       >
-        Save
+        Like
       </div>
       <div
         className="absolute top-6 right-6 border-4 border-error text-error px-4 py-2 rounded-xl font-black text-2xl tracking-widest uppercase rotate-[12deg] pointer-events-none"
