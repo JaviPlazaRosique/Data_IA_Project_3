@@ -23,4 +23,4 @@ EXPOSE 8080
 
 # 1) Run Alembic migrations to ensure the DB schema is up to date
 # 2) Start the API server
-CMD ["sh", "-c", "cd /app/database && alembic upgrade head && cd /app && uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+CMD ["sh", "-c", "cd /app/database && alembic upgrade head && cd /app && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"]
