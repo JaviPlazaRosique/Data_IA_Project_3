@@ -1,23 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { useAuth } from '../context/AuthContext';
 import {
-  apiListEventReviews,
-  apiCreateReview,
-  apiUpdateReview,
   apiGetEvent,
   apiListEvents,
-  type EventReviewRead,
   type EventCatalogItem,
 } from '../api';
 
 // Seeded images specific to this event
 const heroImg = 'https://picsum.photos/seed/festival-night/1400/700';
 const mapImg = 'https://picsum.photos/seed/city-map/800/500';
-const reviewerAvatarImg = 'https://picsum.photos/seed/avatar-club/80/80';
 
 type ScheduleEntry = {
   date: string;
@@ -53,27 +47,29 @@ const weatherMetrics = [
 ];
 
 export default function EventDetailsPage() {
-  const { user } = useAuth();
   const { id: routeId } = useParams<{ id: string }>();
-  const EVENT_ID = routeId ?? 'midnight-pulse-festival';
-  const [rating, setRating] = useState(4);
-  const [reviewText, setReviewText] = useState('');
-  const [apiReviews, setApiReviews] = useState<EventReviewRead[]>([]);
-  const [myReview, setMyReview] = useState<EventReviewRead | null>(null);
   const [event, setEvent] = useState<EventCatalogItem | null>(null);
   const [occurrences, setOccurrences] = useState<EventCatalogItem[]>([]);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    apiListEventReviews(EVENT_ID).then((data) => {
-      setApiReviews(data);
-      const mine = data.find((r) => r.user_id === user?.id) ?? null;
-      setMyReview(mine);
-      if (mine) {
-        setRating(mine.rating);
-        setReviewText(mine.review_text ?? '');
-      }
-    }).catch(() => {});
-  }, [user, EVENT_ID]);
+  const shareData = useMemo(() => {
+    if (!event) return null;
+    const title = event.nombre ?? 'Evento';
+    const venue = [event.recinto_nombre, event.ciudad].filter(Boolean).join(' • ');
+    const url = `${window.location.origin}/index.html#/event/${event.id}`;
+    const text = venue ? `${title} — ${venue}` : title;
+    return { title, text, url };
+  }, [event]);
+
+  const copyLink = useCallback(async () => {
+    if (!shareData) return;
+    try {
+      await navigator.clipboard.writeText(shareData.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  }, [shareData]);
 
   useEffect(() => {
     if (!routeId) return;
@@ -110,21 +106,6 @@ export default function EventDetailsPage() {
   }, [routeId]);
 
   const schedule = buildScheduleEntries(occurrences);
-
-  async function handleSubmitReview() {
-    if (!user) return;
-    try {
-      if (myReview) {
-        const updated = await apiUpdateReview(myReview.id, { rating, review_text: reviewText || null });
-        setMyReview(updated);
-        setApiReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-      } else {
-        const created = await apiCreateReview(EVENT_ID, { rating, review_text: reviewText || null });
-        setMyReview(created);
-        setApiReviews((prev) => [created, ...prev]);
-      }
-    } catch { /* silent */ }
-  }
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -258,6 +239,89 @@ export default function EventDetailsPage() {
                   </span>
                 </button>
               )}
+
+              {/* Share */}
+              <div className="relative">
+                <button
+                  onClick={() => setShareOpen((v) => !v)}
+                  className="w-full flex items-center justify-between bg-surface-container-highest text-on-surface py-3 px-5 rounded-full font-bold hover:bg-surface-variant transition-colors group"
+                  aria-label="Share"
+                  aria-expanded={shareOpen}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="material-symbols-outlined">share</span>
+                    Compartir
+                  </span>
+                  <span className="material-symbols-outlined">
+                    {shareOpen ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+                {shareOpen && shareData && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShareOpen(false)} />
+                    <div className="absolute top-full mt-3 left-0 right-0 z-50 bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-2xl p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-2 pb-2">
+                        Share event
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(`${shareData.text} ${shareData.url}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShareOpen(false)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                          title="WhatsApp"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center text-white font-bold">W</div>
+                          <span className="text-[10px]">WhatsApp</span>
+                        </a>
+                        <a
+                          href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareData.url)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShareOpen(false)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                          title="Facebook"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center text-white font-bold">f</div>
+                          <span className="text-[10px]">Facebook</span>
+                        </a>
+                        <a
+                          href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareData.text)}&url=${encodeURIComponent(shareData.url)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShareOpen(false)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                          title="X / Twitter"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold">X</div>
+                          <span className="text-[10px]">X</span>
+                        </a>
+                        <a
+                          href={`https://t.me/share/url?url=${encodeURIComponent(shareData.url)}&text=${encodeURIComponent(shareData.text)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShareOpen(false)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-surface-container transition-colors"
+                          title="Telegram"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#0088cc] flex items-center justify-center text-white font-bold">T</div>
+                          <span className="text-[10px]">Telegram</span>
+                        </a>
+                      </div>
+                      <button
+                        onClick={copyLink}
+                        className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-low text-sm font-medium transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-base">
+                          {copied ? 'check' : 'link'}
+                        </span>
+                        {copied ? 'Link copiado' : 'Copiar link'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div className="bg-surface-container rounded-xl p-6 flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
@@ -288,73 +352,6 @@ export default function EventDetailsPage() {
             <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" />
           </div>
 
-          {/* Community Echo */}
-          <div className="md:col-span-12 lg:col-span-5 bg-surface-container-highest rounded-xl p-8 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold font-headline">Community Echo</h3>
-                <span className="bg-surface-container-lowest text-primary text-[10px] font-bold px-2 py-1 rounded">VIBE CHECK</span>
-              </div>
-              <div className="flex gap-2 mb-8">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setRating(star)}
-                    className={`material-symbols-outlined ${star <= rating ? 'text-tertiary' : 'text-on-surface-variant'}`}
-                    style={star <= rating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                  >
-                    star
-                  </button>
-                ))}
-              </div>
-              <div className="space-y-4">
-                {apiReviews.length === 0 && (
-                  <p className="text-on-surface-variant/50 text-sm italic">No community reviews yet.</p>
-                )}
-                {apiReviews.map((review) => (
-                  <div key={review.id} className="bg-surface-container-low/50 p-4 rounded-xl border border-outline-variant/10">
-                    <div className="flex gap-1 text-tertiary mb-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span
-                          key={star}
-                          className="material-symbols-outlined text-sm"
-                          style={star <= review.rating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                        >
-                          star
-                        </span>
-                      ))}
-                    </div>
-                    {review.review_text && (
-                      <p className="text-sm font-label italic text-on-surface-variant mb-3">"{review.review_text}"</p>
-                    )}
-                    <div className="flex items-center gap-3">
-                      <img src={reviewerAvatarImg} alt="reviewer" className="w-8 h-8 rounded-full object-cover border border-secondary/20" />
-                      <span className="text-xs font-bold">{review.user_id === user?.id ? 'You' : `@user_${review.user_id.slice(0, 6)}`}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="mt-8">
-              <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-3 block">
-                {myReview ? 'Update your review' : 'Rate this experience'}
-              </label>
-              <div className="flex gap-4">
-                <input
-                  value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
-                  className="flex-1 bg-surface-container-lowest border-none rounded-full px-6 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-secondary text-on-surface placeholder:text-on-surface-variant/50"
-                  placeholder="Share your pulse..."
-                />
-                <button
-                  onClick={handleSubmitReview}
-                  className="w-12 h-12 bg-primary text-on-primary rounded-full flex items-center justify-center hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined">send</span>
-                </button>
-              </div>
-            </div>
-          </div>
         </section>
       </main>
 

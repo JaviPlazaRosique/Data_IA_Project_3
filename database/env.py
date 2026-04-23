@@ -1,27 +1,23 @@
 import os
-import sys
 from logging.config import fileConfig
-from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-
-# Make backend models importable
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend" / "portal-api"))
-
-from app.db.base import Base  # noqa: E402
-import app.models.user  # noqa: E402, F401 — registers User model with Base.metadata
-import app.models.saved_event  # noqa: E402, F401
-import app.models.event_review  # noqa: E402, F401
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+target_metadata = None
 
 database_url = os.environ.get("DATABASE_URL", "")
+if not database_url:
+    db_user = os.environ.get("DB_USER", "")
+    db_password = os.environ.get("DB_PASSWORD", "")
+    db_host = os.environ.get("DB_HOST", "")
+    db_name = os.environ.get("DB_NAME", "")
+    database_url = f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}/{db_name}"
 # Alembic uses sync drivers; replace asyncpg with psycopg2 for migration runs
 sync_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
 config.set_main_option("sqlalchemy.url", sync_url)

@@ -4,6 +4,8 @@ import SideNav from '../components/layout/SideNav';
 import BottomNav from '../components/layout/BottomNav';
 import { quickActions, itineraryMapImage, userAvatarUrl } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
+import { SectionLabel } from '../components/np/Primitives';
 import { apiListPlans, apiCreatePlan, apiUpdatePlan } from '../api';
 
 interface Message {
@@ -16,6 +18,7 @@ interface Message {
 
 export default function AIPlannerPage() {
   const { user } = useAuth();
+  const { t } = useLang();
   const [messages, setMessages] = useState<Message[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(
@@ -148,6 +151,13 @@ export default function AIPlannerPage() {
           {/* Chat Panel */}
           <section className="flex-1 min-w-0 w-full flex flex-col bg-surface relative overflow-hidden">
             <div className="flex-1 overflow-y-auto overflow-x-hidden py-6 space-y-6">
+              {messages.length === 0 && (
+                <div className="px-4 md:px-8">
+                  <SectionLabel>{t.nav.planner}</SectionLabel>
+                  <h2 className="font-serif text-3xl md:text-4xl tracking-tight mt-3">{t.planner_greeting}</h2>
+                  <p className="text-on-surface-variant text-sm mt-2 max-w-xl">{t.planner_sub}</p>
+                </div>
+              )}
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -240,7 +250,7 @@ export default function AIPlannerPage() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     className="flex-1 bg-transparent border-none focus:outline-none text-sm py-4 text-on-surface placeholder:text-on-surface-variant/50"
-                    placeholder="Tell the Curator your desires..."
+                    placeholder={t.planner_placeholder}
                   />
                   <button
                     onClick={handleSend}

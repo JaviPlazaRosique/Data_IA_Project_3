@@ -5,6 +5,8 @@ import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import { categories, heroEvent } from '../data/mockData';
 import { apiListEvents, type EventCatalogItem } from '../api';
+import { useLang } from '../context/LanguageContext';
+import { SectionLabel } from '../components/np/Primitives';
 
 const EVENT_IMAGE_FALLBACK = 'https://picsum.photos/seed/event-placeholder/600/340';
 
@@ -59,6 +61,7 @@ function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
 }
 
 export default function DiscoverPage() {
+  const { t, lang } = useLang();
   const [aiDismissed, setAiDismissed] = useState(false);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,15 +84,26 @@ export default function DiscoverPage() {
           <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-8 md:gap-16">
             <div className="flex-1 space-y-8">
               <div className="space-y-4">
-                <span className="text-tertiary font-bold tracking-widest text-xs uppercase font-label">
-                  The Digital Concierge
-                </span>
-                <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-headline leading-[0.9] tracking-tighter text-on-surface">
-                  Next <br />
-                  <span className="text-primary">Plan.</span>
+                <SectionLabel>Madrid · {t.tonight}</SectionLabel>
+                <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight text-on-surface">
+                  {lang === 'es' ? (
+                    <>
+                      Planes para
+                      <br />
+                      <span className="italic text-primary">esta noche</span>,<br />
+                      afinados al clima.
+                    </>
+                  ) : (
+                    <>
+                      Plans for
+                      <br />
+                      <span className="italic text-primary">tonight</span>,<br />
+                      tuned to the weather.
+                    </>
+                  )}
                 </h1>
                 <p className="text-on-surface-variant text-lg max-w-md font-body leading-relaxed">
-                  A late-night portal to the city's most exclusive happenings. Managed by AI, refined by your taste.
+                  {t.brand_tagline}
                 </p>
               </div>
               <div className="flex flex-wrap gap-4 pt-4">
@@ -98,11 +112,14 @@ export default function DiscoverPage() {
                   className="bg-tertiary text-on-tertiary-fixed px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:scale-95 transition-transform"
                 >
                   <span className="material-symbols-outlined">auto_awesome</span>
-                  Surprise Me
+                  {t.cta_plan}
                 </Link>
-                <button className="bg-surface-container-high text-on-surface px-8 py-4 rounded-full font-bold border border-outline-variant/20 hover:bg-surface-container-highest transition-colors">
-                  Explore All
-                </button>
+                <Link
+                  to="/map"
+                  className="bg-surface-container-high text-on-surface px-8 py-4 rounded-full font-bold border border-outline-variant/20 hover:bg-surface-container-highest transition-colors"
+                >
+                  {t.cta_explore}
+                </Link>
               </div>
             </div>
 
@@ -173,7 +190,7 @@ export default function DiscoverPage() {
         <section className="py-24 px-4 md:px-8">
           <div className="max-w-7xl mx-auto space-y-12">
             <div className="flex items-center gap-4">
-              <h2 className="text-2xl md:text-4xl font-bold font-headline tracking-tight">Curated for Tonight</h2>
+              <h2 className="font-serif text-3xl md:text-4xl tracking-tight">{t.curated}</h2>
               <div className="h-[2px] flex-1 bg-outline-variant/20" />
             </div>
             {loading ? (
@@ -280,7 +297,7 @@ export default function DiscoverPage() {
                           to={`/event/${first.id}`}
                           className="block w-full py-4 rounded-full border border-outline-variant/20 font-bold text-center hover:bg-primary hover:text-on-primary transition-all"
                         >
-                          Ver detalles
+                          {t.see_details}
                         </Link>
                       </div>
                     </div>
