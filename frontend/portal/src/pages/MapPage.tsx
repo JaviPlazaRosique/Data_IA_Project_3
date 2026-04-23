@@ -5,7 +5,7 @@ import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import SideNav from '../components/layout/SideNav';
+import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import {
@@ -742,46 +742,9 @@ export default function MapPage() {
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
-      <SideNav activeItem="Explore" />
+      <TopNav />
 
-      <main className="md:ml-64 relative min-h-screen flex flex-col overflow-hidden">
-        {/* Top Nav */}
-        <header className="bg-surface flex justify-between items-center w-full px-4 md:px-8 py-4 z-50 border-b border-outline-variant/10">
-          <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">NextPlan</h1>
-            <nav className="hidden lg:flex gap-6 items-center">
-              {[
-                { label: 'Home', path: '/', active: false },
-                { label: 'AI Chat', path: '/planner', active: false },
-                { label: 'Explore', path: '/map', active: true },
-                { label: 'Profile', path: '/profile', active: false },
-              ].map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`font-label text-sm transition-colors duration-300 ${
-                    link.active ? 'text-primary border-b-2 border-primary pb-1' : 'text-on-surface/70 hover:text-tertiary'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative hidden sm:block">
-              <input
-                className="bg-surface-container-lowest border-none rounded-full px-5 py-2 text-sm w-64 focus:outline-none focus:ring-1 focus:ring-secondary text-on-surface placeholder:text-on-surface-variant/50"
-                placeholder="Search experiences..."
-              />
-              <span className="material-symbols-outlined absolute right-3 top-2 text-on-surface-variant text-sm">search</span>
-            </div>
-            <button className="text-on-surface hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications</span>
-            </button>
-          </div>
-        </header>
-
+      <main className="relative min-h-screen flex flex-col overflow-hidden">
         {/* Map + Side Panel */}
         <section className="flex-1 relative flex flex-col md:flex-row md:h-[calc(100vh-65px)]">
 
