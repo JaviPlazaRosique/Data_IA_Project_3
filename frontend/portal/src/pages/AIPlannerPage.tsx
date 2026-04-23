@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import SideNav from '../components/layout/SideNav';
+import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
-import { quickActions, itineraryMapImage, userAvatarUrl } from '../data/mockData';
+import { quickActions, itineraryMapImage } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
@@ -87,43 +87,10 @@ export default function AIPlannerPage() {
   };
 
   return (
-    <div className="flex overflow-hidden h-screen bg-surface">
-      <SideNav activeItem="AI Chat" />
+    <div className="flex flex-col overflow-hidden h-screen bg-surface">
+      <TopNav />
 
-      <main className="flex-1 min-w-0 md:ml-64 flex flex-col h-full bg-surface overflow-hidden relative">
-        {/* Top Nav */}
-        <header className="flex justify-between items-center w-full px-4 md:px-8 py-4 bg-surface z-40 border-b border-outline-variant/10">
-          <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">NextPlan</h1>
-            <nav className="hidden lg:flex items-center gap-6">
-              {[
-                { label: 'Home', path: '/', active: false },
-                { label: 'AI Chat', path: '/planner', active: true },
-                { label: 'Explore', path: '/map', active: false },
-                { label: 'Profile', path: '/profile', active: false },
-              ].map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`text-sm font-medium transition-colors duration-300 ${
-                    link.active ? 'text-primary border-b-2 border-primary pb-1' : 'text-on-surface/70 hover:text-tertiary'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="material-symbols-outlined p-2 text-on-surface/70 hover:text-tertiary transition-transform active:scale-95">
-              notifications
-            </button>
-            <Link to="/profile">
-              <img src={userAvatarUrl} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-primary/30" />
-            </Link>
-          </div>
-        </header>
-
+      <main className="flex-1 min-w-0 flex flex-col bg-surface overflow-hidden relative">
         {/* AI persistence disclosure banner */}
         {showDisclosure && (
           <div className="mx-4 md:mx-8 mt-3 flex items-start justify-between gap-4 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-sm text-on-surface-variant">

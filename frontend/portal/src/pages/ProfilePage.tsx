@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
-import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import { useAuth } from '../context/AuthContext';
@@ -155,9 +154,8 @@ export default function ProfilePage() {
   return (
     <div className="bg-surface text-on-surface min-h-screen">
       <TopNav />
-      <SideNav activeItem="Profile" />
 
-      <main className="lg:ml-64 pt-6 pb-24 px-4 md:px-12">
+      <main className="pt-6 pb-24 px-4 md:px-12">
         <div className="max-w-6xl mx-auto">
           {/* Hero Header */}
           <header className="mb-12 relative">
