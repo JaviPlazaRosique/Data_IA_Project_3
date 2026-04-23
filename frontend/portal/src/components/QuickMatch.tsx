@@ -113,7 +113,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
     if (!current) return null;
     const title = current.nombre ?? 'Evento';
     const venue = [current.recinto_nombre, current.ciudad].filter(Boolean).join(' • ');
-    const url = `${window.location.origin}/#/event/${current.id}`;
+    const url = `${window.location.origin}/index.html#/event/${current.id}`;
     const text = venue ? `${title} — ${venue}` : title;
     return { title, text, url };
   }, [current]);
