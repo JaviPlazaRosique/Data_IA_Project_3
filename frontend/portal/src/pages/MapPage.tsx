@@ -146,19 +146,20 @@ L.Icon.Default.mergeOptions({
 });
 
 // Custom colored SVG pin icons
-const makePin = (color: string) =>
+const makePin = (color: string, hovered = false) =>
   L.divIcon({
     className: '',
     html: `<div style="
-      width:36px;height:36px;
+      width:${hovered ? 52 : 36}px;height:${hovered ? 52 : 36}px;
       background:${color};
       border-radius:50% 50% 50% 0;
       transform:rotate(-45deg);
-      border:3px solid rgba(255,255,255,0.25);
-      box-shadow:0 0 18px ${color}99;
+      border:3px solid ${hovered ? '#ffffff' : 'rgba(255,255,255,0.25)'};
+      box-shadow:0 0 ${hovered ? 28 : 18}px ${color}${hovered ? 'ff' : '99'};
+      transition:all 120ms ease;
     "></div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
+    iconSize: hovered ? [52, 52] : [36, 36],
+    iconAnchor: hovered ? [26, 52] : [18, 36],
     popupAnchor: [0, -38],
   });
 
@@ -166,6 +167,12 @@ const pins = {
   music: makePin('#b6a0ff'),
   food: makePin('#ff946e'),
   art: makePin('#8a99fe'),
+};
+
+const pinsHover = {
+  music: makePin('#b6a0ff', true),
+  food: makePin('#ff946e', true),
+  art: makePin('#8a99fe', true),
 };
 
 const ALL_CATEGORIES = 'All';
@@ -573,6 +580,7 @@ export default function MapPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
   const [selectedOccurrences, setSelectedOccurrences] = useState<EventCatalogItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const dateRef = useRef<string>(todayIso());
   const segmentosRef = useRef<string[]>([]);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -754,9 +762,12 @@ export default function MapPage() {
                     <Marker
                       key={group.key}
                       position={[point.latitud, point.longitud]}
-                      icon={pins[category]}
+                      icon={hoveredKey === group.key ? pinsHover[category] : pins[category]}
+                      zIndexOffset={hoveredKey === group.key ? 1000 : 0}
                       eventHandlers={{
                         click: () => openGroup(group),
+                        mouseover: () => setHoveredKey(group.key),
+                        mouseout: () => setHoveredKey((k) => (k === group.key ? null : k)),
                       }}
                     >
                       <Popup className="curator-popup">
@@ -1002,7 +1013,11 @@ export default function MapPage() {
                   return (
                     <div
                       key={group.key}
-                      className="group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant"
+                      onMouseEnter={() => setHoveredKey(group.key)}
+                      onMouseLeave={() => setHoveredKey((k) => (k === group.key ? null : k))}
+                      className={`group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant ${
+                        hoveredKey === group.key ? 'ring-2 ring-primary' : ''
+                      }`}
                     >
                       <div
                         role="button"
