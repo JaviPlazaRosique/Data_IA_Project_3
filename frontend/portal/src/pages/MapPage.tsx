@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -62,6 +62,24 @@ async function geocodeCity(query: string): Promise<[number, number] | null> {
 }
 
 const EVENT_IMAGE_FALLBACK = 'https://picsum.photos/seed/event-placeholder/200/200';
+
+function buildEventDescription(event: EventCatalogItem): string {
+  const parts: string[] = [];
+  if (event.artista_nombre) {
+    parts.push(`Join ${event.artista_nombre} for an unforgettable live experience.`);
+  }
+  const genreBits = [event.genero, event.subgenero].filter(Boolean).join(' / ');
+  if (genreBits) parts.push(`Genre: ${genreBits}.`);
+  if (event.segmento) parts.push(`Category: ${event.segmento}.`);
+  if (event.recinto_nombre || event.ciudad || event.direccion) {
+    parts.push(
+      `Taking place at ${[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(', ')}.`,
+    );
+  }
+  return parts.length > 0
+    ? parts.join(' ')
+    : `Discover ${event.nombre ?? 'this event'} and plan your night out.`;
+}
 
 type PinCategory = 'music' | 'food' | 'art';
 
@@ -453,6 +471,10 @@ function EventDetailModal({
             )}
           </div>
 
+          <p className="text-on-surface-variant text-sm leading-relaxed">
+            {buildEventDescription(event)}
+          </p>
+
           {error && (
             <div className="bg-error/10 text-error border border-error/20 rounded-lg px-3 py-2 text-xs">
               {error}
@@ -460,12 +482,20 @@ function EventDetailModal({
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Link
+              to={`/event/${event.id}`}
+              onClick={onClose}
+              className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">info</span>
+              More info
+            </Link>
             {event.url && (
               <a
                 href={event.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                className="flex-1 bg-surface-container-high text-on-surface font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:bg-surface-variant transition-colors flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-[18px]">open_in_new</span>
                 Entradas
@@ -728,7 +758,7 @@ export default function MapPage() {
 
       <main className="relative min-h-screen flex flex-col overflow-hidden">
         {/* Map + Side Panel */}
-        <section className="relative flex flex-col md:flex-row md:h-[calc(100vh-260px)]">
+        <section className="relative flex flex-col md:flex-row md:h-[65vh]">
 
           {/* ── Real Leaflet Map ── */}
           <div className="h-[55vh] md:h-auto md:flex-1 relative">
@@ -757,7 +787,6 @@ export default function MapPage() {
                 {visibleGroups.map((group) => {
                   const point = group.primary;
                   const category = segmentoToCategory(point.segmento);
-                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <Marker
                       key={group.key}
@@ -769,67 +798,7 @@ export default function MapPage() {
                         mouseover: () => setHoveredKey(group.key),
                         mouseout: () => setHoveredKey((k) => (k === group.key ? null : k)),
                       }}
-                    >
-                      <Popup className="curator-popup">
-                        <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '200px', fontFamily: 'Manrope, sans-serif' }}>
-                          <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-                            {point.segmento ?? category}
-                          </p>
-                          <p style={{ fontSize: '14px', fontWeight: 800, marginBottom: '2px' }}>
-                            {point.nombre ?? 'Evento'}
-                          </p>
-                          <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '6px' }}>
-                            {[point.recinto_nombre, point.ciudad].filter(Boolean).join(' • ')}
-                          </p>
-                          {schedule.length > 0 && (
-                            <ul style={{ fontSize: '11px', opacity: 0.85, marginBottom: '8px', paddingLeft: '14px' }}>
-                              {schedule.map((entry) => (
-                                <li key={entry.date}>
-                                  {entry.date}
-                                  {entry.slots.length > 0 && ' · '}
-                                  {entry.slots.map((slot, idx) => (
-                                    <span key={slot.time}>
-                                      {slot.url ? (
-                                        <a
-                                          href={slot.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          style={{ color: '#b6a0ff', textDecoration: 'underline' }}
-                                        >
-                                          {slot.time}
-                                        </a>
-                                      ) : (
-                                        <span>{slot.time}</span>
-                                      )}
-                                      {idx < entry.slots.length - 1 && ', '}
-                                    </span>
-                                  ))}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          <button
-                            onClick={() => openGroup(group)}
-                            style={{
-                              background: '#b6a0ff',
-                              color: '#1e1f25',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '6px 10px',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                              cursor: 'pointer',
-                              width: '100%',
-                            }}
-                          >
-                            Ver detalles
-                          </button>
-                        </div>
-                      </Popup>
-                    </Marker>
+                    />
                   );
                 })}
               </MarkerClusterGroup>
@@ -1009,7 +978,6 @@ export default function MapPage() {
                   const locationLine = [event.recinto_nombre, event.ciudad]
                     .filter(Boolean)
                     .join(' • ');
-                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <div
                       key={group.key}
@@ -1050,6 +1018,9 @@ export default function MapPage() {
                               <span className="truncate">{locationLine}</span>
                             </div>
                           )}
+                          <p className="text-on-surface-variant text-[11px] leading-snug line-clamp-2">
+                            {buildEventDescription(event)}
+                          </p>
                           {event.segmento && (
                             <span className="inline-block mt-2 bg-surface-container-lowest px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                               {event.segmento}
@@ -1057,14 +1028,6 @@ export default function MapPage() {
                           )}
                         </div>
                       </div>
-                      {schedule.length > 0 && (
-                        <div
-                          className="mt-3"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <EventCalendar entries={schedule} />
-                        </div>
-                      )}
                     </div>
                   );
                 })
