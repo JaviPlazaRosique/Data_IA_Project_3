@@ -37,6 +37,11 @@ resource "google_cloud_run_v2_service" "service" {
   template {
     service_account = var.email_cuenta_servicio
 
+    scaling {
+      min_instance_count = var.min_instances
+      max_instance_count = var.max_instances
+    }
+
     dynamic "vpc_access" {
       for_each = var.id_conector_vpc != null ? [1] : []
       content {
