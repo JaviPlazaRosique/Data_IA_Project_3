@@ -720,7 +720,7 @@ export default function MapPage() {
 
       <main className="relative min-h-screen flex flex-col overflow-hidden">
         {/* Map + Side Panel */}
-        <section className="flex-1 relative flex flex-col md:flex-row md:h-[calc(100vh-65px)]">
+        <section className="relative flex flex-col md:flex-row md:h-[calc(100vh-260px)]">
 
           {/* ── Real Leaflet Map ── */}
           <div className="h-[55vh] md:h-auto md:flex-1 relative">
@@ -956,7 +956,7 @@ export default function MapPage() {
           </div>
 
           {/* Side Panel */}
-          <div className="w-full md:w-[380px] h-[calc(100vh-65px)] min-h-0 bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
+          <div className="w-full md:w-[380px] h-[55vh] md:h-full min-h-0 bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-serif text-xl">{t.map_title}</h2>
