@@ -177,7 +177,7 @@ export default function ProfilePage() {
 
           {/* Quick Match — Tinder-style event swipe */}
           <section className="mb-12">
-            <QuickMatch />
+            <QuickMatch onSaved={(s) => setSavedEvents((prev) => prev.some((e) => e.event_id === s.event_id) ? prev : [s, ...prev])} />
           </section>
 
           {/* Grid Layout */}
