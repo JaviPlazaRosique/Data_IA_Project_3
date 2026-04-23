@@ -1,0 +1,105 @@
+name: cicd_migrate_bd
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'database/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'database/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: europe-west1
+  REPO: repo-recomendador-eventos
+  JOB: migrate-bd
+  VPC_CONNECTOR: vpc-connector
+
+jobs:
+  ci:
+    name: Test migraciones
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Build imagen migraciones
+        run: docker build -t migrate-bd-test database/
+
+      - name: Ejecutar migraciones contra PostgreSQL de prueba
+        run: |
+          docker run --rm \
+            --network host \
+            -e DATABASE_URL="postgresql://test_user:testpass@localhost:5432/test_db" \
+            migrate-bd-test
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Build, push y despliegue
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.MIGRATE_BD_CUENTA_SERVICIO }}
+
+      - name: Configurar Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configurar Docker para Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build y push imagen migraciones
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.JOB }}"
+          docker build -t "${IMAGE}:latest" database/
+          docker push "${IMAGE}:latest"
+
+      - name: Desplegar Cloud Run Job
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.JOB }}"
+          gcloud run jobs deploy ${{ env.JOB }} \
+            --image="${IMAGE}:latest" \
+            --region=${{ env.REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --service-account=migrate-bd-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --vpc-connector=${{ env.VPC_CONNECTOR }} \
+            --set-env-vars="DB_HOST=${{ secrets.HOST_BD }},DB_NAME=${{ secrets.NOMBRE_BD }},DB_USER=${{ secrets.USUARIO_BD }}" \
+            --set-secrets="DB_PASSWORD=portal-api-db-password:latest" \
+            --max-retries=0
+
+      - name: Ejecutar migraciones
+        run: |
+          gcloud run jobs execute ${{ env.JOB }} \
+            --region=${{ env.REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --wait
