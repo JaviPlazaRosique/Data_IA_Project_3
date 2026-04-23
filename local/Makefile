@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f docker-compose.yml
 
 .PHONY: help up up-full down reset logs logs-backend logs-firebase \
-        seed-events dev frontend-config psql build ps
+        seed-events migrate dev frontend-config psql build ps
 
 help:
 	@echo "The Electric Curator — local dev targets"
@@ -16,6 +16,7 @@ help:
 	@echo "  make logs-backend    tail backend logs only"
 	@echo "  make logs-firebase   tail Firestore emulator logs"
 	@echo "  make seed-events     re-run the Firestore events fixture seed"
+	@echo "  make migrate         run Alembic migrations against the local db"
 	@echo "  make dev             run Vite dev server (frontend/portal)"
 	@echo "  make frontend-config regenerate frontend/portal/public/public-config.json"
 	@echo "  make psql            open psql inside the db container"
@@ -45,6 +46,9 @@ logs-firebase:
 
 seed-events:
 	$(COMPOSE) run --rm --build seed-events
+
+migrate:
+	$(COMPOSE) run --rm --build migrate
 
 dev:
 	cd ../frontend/portal && npm run dev

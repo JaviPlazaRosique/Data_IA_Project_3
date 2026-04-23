@@ -39,6 +39,7 @@ class UserRead(BaseModel):
     preferred_location: str | None
     preferred_location_lat: float | None
     preferred_location_lng: float | None
+    preferred_categories: list[str] | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -52,6 +53,7 @@ class UserUpdate(BaseModel):
     preferred_location: str | None = None
     preferred_location_lat: float | None = None
     preferred_location_lng: float | None = None
+    preferred_categories: list[str] | None = None
     password: str | None = None
 
     @field_validator("password")
