@@ -15,6 +15,7 @@ import {
   type EventCatalogItem,
 } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 
 const CITY_COORDS: Record<string, [number, number]> = {
   madrid: [40.4168, -3.7038],
@@ -488,6 +489,7 @@ function EventDetailModal({
 
 export default function MapPage() {
   const { user } = useAuth();
+  const { t } = useLang();
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
@@ -922,7 +924,7 @@ export default function MapPage() {
           <div className="w-full md:w-[380px] bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-headline font-bold">Nearby Experiences</h2>
+                <h2 className="font-serif text-xl">{t.map_title}</h2>
                 <span className="bg-secondary/10 text-secondary px-3 py-1 rounded-full text-xs font-bold border border-secondary/20">
                   {visibleGroups.length} Active Now
                 </span>

@@ -5,6 +5,8 @@ import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
+import { SectionLabel } from '../components/np/Primitives';
 import QuickMatch from '../components/QuickMatch';
 import {
   apiUpdateMe,
@@ -42,6 +44,7 @@ function shortLabel(s: NominatimSuggestion): string {
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
+  const { t } = useLang();
   const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
   const [locationDraft, setLocationDraft] = useState(user?.preferred_location ?? '');
   const [locationSuggestions, setLocationSuggestions] = useState<NominatimSuggestion[]>([]);
@@ -162,7 +165,8 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">
+                  <SectionLabel>{t.profile_title}</SectionLabel>
+                  <h1 className="font-serif text-3xl md:text-5xl tracking-tight text-on-surface mb-2 mt-2">
                     {user?.full_name ?? user?.username}
                   </h1>
                   <div className="flex items-center gap-3">
@@ -203,7 +207,7 @@ export default function ProfilePage() {
                 </div>
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">tune</span>
-                  Preferences
+                  {t.profile_prefs}
                 </h2>
                 <div className="space-y-6">
                   <div>
@@ -308,7 +312,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-3">
                     <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>bookmark</span>
-                    Saved Events
+                    {t.profile_saved}
                   </h2>
                   <a href="#" className="text-primary text-sm font-bold hover:underline">View All</a>
                 </div>
@@ -361,7 +365,7 @@ export default function ProfilePage() {
               <div className="space-y-6">
                 <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary">history</span>
-                  Experience History
+                  {t.profile_history}
                 </h2>
                 <div className="space-y-4">
                   {myReviews.length === 0 && (
