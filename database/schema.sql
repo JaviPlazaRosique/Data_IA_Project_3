@@ -22,6 +22,7 @@ CREATE TABLE users (
     preferred_location       VARCHAR(255),
     preferred_location_lat   DOUBLE PRECISION,
     preferred_location_lng   DOUBLE PRECISION,
+    preferred_categories     TEXT[],
     created_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
@@ -49,19 +50,3 @@ CREATE TABLE saved_events (
 CREATE UNIQUE INDEX uq_saved_events_user_event ON saved_events (user_id, event_id);
 CREATE        INDEX idx_saved_events_user_id   ON saved_events (user_id);
 
--- ─── Event Reviews ────────────────────────────────────────────────────────────
-
-CREATE TABLE event_reviews (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    event_id    TEXT        NOT NULL,
-    rating      SMALLINT    NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    review_text TEXT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX uq_event_reviews_user_event          ON event_reviews (user_id, event_id);
--- Covering index: WHERE event_id = ? ORDER BY created_at DESC avoids a post-scan sort
-CREATE        INDEX idx_event_reviews_event_id_created_at ON event_reviews (event_id, created_at DESC);
-CREATE        INDEX idx_event_reviews_user_id             ON event_reviews (user_id);

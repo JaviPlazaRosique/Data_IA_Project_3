@@ -52,3 +52,23 @@ output "batch_ingesta_imagen" {
   description = "URI de la imagen launcher del Flex Template del batch de ingestión"
   value       = module.batch_ingesta_template.uri_imagen
 }
+
+output "migrate_bd_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD de migraciones de base de datos (GitHub Secret: MIGRATE_BD_CUENTA_SERVICIO)"
+  value       = module.cicd_migrate_bd.email_cuenta_servicio
+}
+
+output "host_bd" {
+  description = "IP privada de CloudSQL (GitHub Secret: HOST_BD)"
+  value       = module.cloudsql_portal.private_ip
+}
+
+output "nombre_bd" {
+  description = "Nombre de la base de datos (GitHub Secret: NOMBRE_BD)"
+  value       = module.cloudsql_portal.database_name
+}
+
+output "usuario_bd" {
+  description = "Usuario de la base de datos (GitHub Secret: USUARIO_BD)"
+  value       = module.cloudsql_portal.db_user
+}

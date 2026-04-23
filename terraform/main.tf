@@ -85,6 +85,37 @@ module "cicd_backend_portal_api" {
   ]
 }
 
+module "migrate_bd_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "migrate-bd-sa"
+  nombre_despliege   = "Cuenta de servicio para el job de migraciones de base de datos"
+  cuenta_servicio_roles = [
+    "roles/cloudsql.client",
+    "roles/secretmanager.secretAccessor",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "cicd_migrate_bd" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-migrate-bd"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD de migraciones de base de datos"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_migrate_bd"
+  depends_on = [
+    module.setup
+  ]
+}
+
 resource "google_storage_bucket_iam_member" "cicd_backend_public_config" {
   bucket = module.frontend_usuarios.nombre_bucket
   role   = "roles/storage.objectUser"

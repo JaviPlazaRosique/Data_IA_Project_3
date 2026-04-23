@@ -5,10 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import hash_password
 from app.db.firestore import get_firestore
 from app.dependencies import get_current_user, get_db
-from app.models.event_review import EventReview
 from app.models.saved_event import SavedEvent
 from app.models.user import User
-from app.schemas.event_review import EventReviewRead
 from app.schemas.saved_event import SavedEventRead
 from app.schemas.user import UserRead, UserUpdate
 
@@ -60,7 +58,7 @@ async def erase_me(
     """GDPR Art. 17 — permanent erasure of all personal data.
 
     Requires body: {"confirm": "DELETE MY ACCOUNT"}
-    Deletes: Firestore plans, saved_events, event_reviews, and the user row.
+    Deletes: Firestore plans, saved_events, and the user row.
     ON DELETE CASCADE handles child table rows automatically.
     """
     if confirm != "DELETE MY ACCOUNT":
@@ -78,7 +76,7 @@ async def erase_me(
     for doc in plan_docs:
         await doc.reference.delete()
 
-    # Hard-delete the user row; ON DELETE CASCADE removes saved_events + event_reviews
+    # Hard-delete the user row; ON DELETE CASCADE removes saved_events
     await db.delete(current_user)
     await db.commit()
 
@@ -97,17 +95,10 @@ async def export_me(
     saved_result = await db.execute(
         select(SavedEvent).where(SavedEvent.user_id == current_user.id)
     )
-    reviews_result = await db.execute(
-        select(EventReview).where(EventReview.user_id == current_user.id)
-    )
 
     saved_events = [
         SavedEventRead.model_validate(e).model_dump(mode="json")
         for e in saved_result.scalars().all()
-    ]
-    reviews = [
-        EventReviewRead.model_validate(r).model_dump(mode="json")
-        for r in reviews_result.scalars().all()
     ]
 
     profile = UserRead.model_validate(current_user).model_dump(mode="json")
@@ -115,7 +106,6 @@ async def export_me(
     export_data = {
         "profile": profile,
         "saved_events": saved_events,
-        "reviews": reviews,
         "plans_note": "Your AI planning conversations are available at GET /api/v1/plans",
     }
 
