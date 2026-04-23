@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
@@ -10,9 +13,14 @@ import {
   type EventCatalogItem,
 } from '../api';
 
-// Seeded images specific to this event
 const heroImg = 'https://picsum.photos/seed/festival-night/1400/700';
-const mapImg = 'https://picsum.photos/seed/city-map/800/500';
+
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 type ScheduleEntry = {
   date: string;
@@ -197,35 +205,6 @@ export default function EventDetailsPage() {
                   ))}
               </div>
             )}
-            {(() => {
-              if (!event) return null;
-              const query =
-                event.latitud != null && event.longitud != null
-                  ? `${event.latitud},${event.longitud}`
-                  : [event.recinto_nombre, event.direccion, event.ciudad]
-                      .filter(Boolean)
-                      .join(', ');
-              if (!query) return null;
-              const href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
-              return (
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-secondary text-on-secondary px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
-                  >
-                    <span className="material-symbols-outlined text-base">directions</span>
-                    Get Directions
-                  </a>
-                  {(event.direccion || event.recinto_nombre) && (
-                    <span className="text-xs text-on-surface-variant">
-                      {[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(' · ')}
-                    </span>
-                  )}
-                </div>
-              );
-            })()}
           </div>
         </section>
 
@@ -275,20 +254,72 @@ export default function EventDetailsPage() {
 
           {/* Map Section */}
           <div className="md:col-span-12 lg:col-span-8 bg-surface-container-low rounded-xl overflow-hidden min-h-[400px] relative">
-            <div className="absolute top-6 left-6 z-10 glass-panel p-4 rounded-xl border border-outline-variant/20 max-w-xs">
-              <h4 className="font-bold text-lg font-headline mb-1">Neon Valley Arena</h4>
-              <p className="text-xs text-on-surface-variant font-label mb-3">404 Digital Avenue, Synth City, SC 90210</p>
-              <button className="w-full bg-secondary text-on-secondary py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-sm">directions</span>
-                Get Directions
-              </button>
-            </div>
-            <img
-              src={mapImg}
-              alt="Event location map"
-              className="w-full h-full object-cover grayscale brightness-50 contrast-125 min-h-[400px]"
-            />
-            <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" />
+            {(() => {
+              const lat = event?.latitud;
+              const lng = event?.longitud;
+              const hasCoords = lat != null && lng != null;
+              const venueName = event?.recinto_nombre ?? 'Venue';
+              const venueAddress = [event?.direccion, event?.ciudad].filter(Boolean).join(', ');
+              const destination = [event?.recinto_nombre, event?.direccion, event?.ciudad]
+                .filter(Boolean)
+                .join(', ') || (hasCoords ? `${lat},${lng}` : '');
+              const directionsHref = destination
+                ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+                : '';
+              return (
+                <>
+                  <div className="absolute top-6 left-6 z-[500] glass-panel p-4 rounded-xl border border-outline-variant/20 max-w-xs">
+                    <h4 className="font-bold text-lg font-headline mb-1">{venueName}</h4>
+                    {venueAddress && (
+                      <p className="text-xs text-on-surface-variant font-label mb-3">{venueAddress}</p>
+                    )}
+                    {directionsHref ? (
+                      <a
+                        href={directionsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full bg-secondary text-on-secondary py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                      >
+                        <span className="material-symbols-outlined text-sm">directions</span>
+                        Get Directions
+                      </a>
+                    ) : (
+                      <button
+                        disabled
+                        className="w-full bg-surface-container-highest text-on-surface/50 py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 cursor-not-allowed"
+                      >
+                        <span className="material-symbols-outlined text-sm">directions</span>
+                        Location unavailable
+                      </button>
+                    )}
+                  </div>
+                  {hasCoords ? (
+                    <MapContainer
+                      center={[lat, lng]}
+                      zoom={15}
+                      scrollWheelZoom={false}
+                      className="w-full h-full min-h-[400px]"
+                      style={{ minHeight: 400 }}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <Marker position={[lat, lng]}>
+                        <Popup>
+                          <div className="font-bold">{venueName}</div>
+                          {venueAddress && <div className="text-xs">{venueAddress}</div>}
+                        </Popup>
+                      </Marker>
+                    </MapContainer>
+                  ) : (
+                    <div className="w-full h-full min-h-[400px] flex items-center justify-center text-on-surface-variant text-sm">
+                      No coordinates available for this event.
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Booking Panel (moved next to map) */}
