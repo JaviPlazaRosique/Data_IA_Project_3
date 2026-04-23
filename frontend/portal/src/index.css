@@ -111,3 +111,24 @@
   .font-body { font-family: var(--font-body); }
   .font-label { font-family: var(--font-label); }
 }
+
+@layer base {
+  :root {
+    --np-primary: #b6a0ff;
+    --np-primary-dim: #7e51ff;
+    --np-bg: #0d0e12;
+    --np-surface: #18191e;
+    --np-surface-2: #24252b;
+    --np-line: rgba(255, 255, 255, 0.08);
+    --np-line-strong: rgba(255, 255, 255, 0.18);
+    --np-amber: #ff946e;
+    --np-blue: #8a99fe;
+    --np-fg: #faf8fe;
+    --np-fg-dim: #abaab0;
+    --np-headline: "Plus Jakarta Sans", serif;
+  }
+}
+
+@layer utilities {
+  .font-serif { font-family: var(--np-headline); letter-spacing: -0.01em; }
+}
