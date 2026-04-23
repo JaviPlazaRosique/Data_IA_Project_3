@@ -156,8 +156,52 @@ export default function EventDetailsPage() {
           </div>
         </section>
 
+        {/* Description */}
+        <section className="max-w-7xl mx-auto px-4 md:px-8 -mt-6 relative z-10 pb-6">
+          <div className="bg-surface-container-low rounded-xl p-6 md:p-8 border border-outline-variant/20">
+            <h2 className="text-xl md:text-2xl font-bold font-headline mb-3">About the event</h2>
+            <p className="text-on-surface-variant font-label leading-relaxed text-sm md:text-base">
+              {(() => {
+                if (!event) return 'Loading event details…';
+                const parts: string[] = [];
+                if (event.artista_nombre) {
+                  parts.push(`Join ${event.artista_nombre} for an unforgettable live experience.`);
+                }
+                const genreBits = [event.genero, event.subgenero].filter(Boolean).join(' / ');
+                if (genreBits) parts.push(`Genre: ${genreBits}.`);
+                if (event.segmento) parts.push(`Category: ${event.segmento}.`);
+                if (event.recinto_nombre || event.ciudad) {
+                  parts.push(
+                    `Taking place at ${[event.recinto_nombre, event.ciudad].filter(Boolean).join(', ')}.`
+                  );
+                }
+                if (schedule.length > 1) {
+                  parts.push(`Available on ${schedule.length} dates — pick one from the calendar.`);
+                }
+                return parts.length > 0
+                  ? parts.join(' ')
+                  : `Discover ${event.nombre ?? 'this event'} and plan your night out.`;
+              })()}
+            </p>
+            {(event?.genero || event?.subgenero || event?.segmento) && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {[event?.segmento, event?.genero, event?.subgenero]
+                  .filter(Boolean)
+                  .map((tag) => (
+                    <span
+                      key={tag as string}
+                      className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Bento Grid */}
-        <section className="max-w-7xl mx-auto px-4 md:px-8 -mt-10 relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 pb-24">
+        <section className="max-w-7xl mx-auto px-4 md:px-8 relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 pb-24">
           {/* Weather Panel */}
           <div
             className="md:col-span-8 glass-panel rounded-xl p-8 border border-outline-variant/20 overflow-hidden relative"
