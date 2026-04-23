@@ -199,7 +199,7 @@ module "cloud_run_portal_api" {
 
   cpu           = "1"
   memoria       = "1Gi"
-  min_instances = 1
+  min_instances = 0
   max_instances = 5
 
   variables_entorno = {
