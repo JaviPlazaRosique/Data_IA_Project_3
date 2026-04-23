@@ -279,6 +279,80 @@ schema_bq = {
             "mode": "NULLABLE"
         },
         {
+            "name": "antelacion_recomendada",
+            "type": "RECORD",
+            "mode": "NULLABLE",
+            "fields": [
+                {"name": "minutos_antelacion", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "motivo",             "type": "STRING",  "mode": "NULLABLE"},
+            ],
+        },
+        {
+            "name": "vibe",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "occasion_tags",
+            "type": "STRING",
+            "mode": "REPEATED"
+        },
+        {
+            "name": "price_band",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "indoor_outdoor",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "time_of_day_fit",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "romantic_score",
+            "type": "INTEGER",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "family_score",
+            "type": "INTEGER",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "group_score",
+            "type": "INTEGER",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "tourist_score",
+            "type": "INTEGER",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "duration_minutes_estimate",
+            "type": "INTEGER",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "plan_pairings",
+            "type": "STRING",
+            "mode": "REPEATED"
+        },
+        {
+            "name": "categoria",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "subcategoria",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
             "name": "tiempo",
             "type": "RECORD",
             "mode": "NULLABLE",
@@ -498,11 +572,197 @@ schema_salida_enriquecimiento_gemini = {
             "type": "string",
             "description": "Razón principal de la recomendación en una frase corta"
         },
+        "vibe": {
+            "type": "string",
+            "enum": ["romantico", "energetico", "tranquilo", "familiar", "premium", "alternativo"],
+            "description": "Vibra principal del evento"
+        },
+        "occasion_tags": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": ["pareja", "friends", "familia", "solo", "afterwork"],
+            },
+            "description": "Etiquetas de ocasión recomendadas"
+        },
+        "price_band": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "description": "Banda de precio inferida"
+        },
+        "indoor_outdoor": {
+            "type": "string",
+            "enum": ["indoor", "outdoor", "mixed", "unknown"],
+            "description": "Tipo de espacio del evento"
+        },
+        "time_of_day_fit": {
+            "type": "string",
+            "enum": ["morning", "afternoon", "night"],
+            "description": "Franja horaria más adecuada"
+        },
+        "romantic_score": {
+            "type": "integer",
+            "description": "Puntuación para planes románticos entre 0 y 100"
+        },
+        "family_score": {
+            "type": "integer",
+            "description": "Puntuación para planes familiares entre 0 y 100"
+        },
+        "group_score": {
+            "type": "integer",
+            "description": "Puntuación para grupos entre 0 y 100"
+        },
+        "tourist_score": {
+            "type": "integer",
+            "description": "Puntuación para turistas entre 0 y 100"
+        },
+        "duration_minutes_estimate": {
+            "type": "integer",
+            "description": "Duración estimada del evento en minutos"
+        },
+        "plan_pairings": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Etiquetas cortas de maridaje del plan en snake_case"
+        },
+        "categoria": {
+            "type": "string",
+            "enum": ["Música", "Arte y Teatro", "Deportes", "Familia y otros"],
+            "description": "Categoría principal del evento"
+        },
+        "subcategoria": {
+            "type": "string",
+            "enum": [
+                "Dance/Electrónica",
+                "Flamenco/Rumba",
+                "Hard Rock/Metal",
+                "Hip-Hop/R&B",
+                "Indie/Alternativo",
+                "Jazz/Blues",
+                "Latin",
+                "Música Clásica",
+                "Pop/Rock",
+                "Festival",
+                "Ballet/Danza",
+                "Circo",
+                "Comedia",
+                "Magia",
+                "Musical",
+                "Ópera",
+                "Baloncesto",
+                "Ciclismo",
+                "Fútbol",
+                "Motor",
+                "Tenis",
+                "Actividades en familia",
+                "Espectáculos de Magia",
+                "Parques temáticos",
+                "Teatro infantil",
+                "Visitas Guiadas/Exposiciones"
+            ],
+            "description": "Subcategoría del evento compatible con la categoría"
+        },
     },
-    "required": ["minutos_antelacion", "motivo"],
+    "required": [
+        "minutos_antelacion",
+        "motivo",
+        "vibe",
+        "occasion_tags",
+        "price_band",
+        "indoor_outdoor",
+        "time_of_day_fit",
+        "romantic_score",
+        "family_score",
+        "group_score",
+        "tourist_score",
+        "duration_minutes_estimate",
+        "plan_pairings",
+        "categoria",
+        "subcategoria",
+    ],
 }
 
 gemini_semaforo = threading.Semaphore(2)
+
+SUBCATEGORIAS_POR_CATEGORIA = {
+    "Música": [
+        "Dance/Electrónica",
+        "Flamenco/Rumba",
+        "Hard Rock/Metal",
+        "Hip-Hop/R&B",
+        "Indie/Alternativo",
+        "Jazz/Blues",
+        "Latin",
+        "Música Clásica",
+        "Pop/Rock",
+        "Festival",
+    ],
+    "Arte y Teatro": [
+        "Ballet/Danza",
+        "Circo",
+        "Comedia",
+        "Magia",
+        "Musical",
+        "Ópera",
+    ],
+    "Deportes": [
+        "Baloncesto",
+        "Ciclismo",
+        "Fútbol",
+        "Motor",
+        "Tenis",
+    ],
+    "Familia y otros": [
+        "Actividades en familia",
+        "Circo",
+        "Espectáculos de Magia",
+        "Parques temáticos",
+        "Teatro infantil",
+        "Visitas Guiadas/Exposiciones",
+    ],
+}
+
+
+def construir_prompt_enriquecimiento_gemini(evento: dict) -> str:
+    subcategorias_formateadas = "\n".join(
+        f"- {categoria}: {', '.join(subcategorias)}"
+        for categoria, subcategorias in SUBCATEGORIAS_POR_CATEGORIA.items()
+    )
+
+    return f"""Eres un clasificador semántico de eventos en España.
+Debes devolver solo JSON válido que cumpla exactamente el schema indicado.
+No inventes información fuera de lo que permitan inferir los datos.
+Si falta contexto, elige la opción más prudente y coherente.
+
+Usa únicamente estos 8 campos del evento para inferir la respuesta:
+- nombre: {evento.get("nombre")}
+- segmento: {evento.get("segmento")}
+- genero: {evento.get("genero")}
+- subgenero: {evento.get("subgenero")}
+- recinto_nombre: {evento.get("recinto_nombre")}
+- hora: {evento.get("hora")}
+- precio_min: {evento.get("precio_min")}
+- precio_max: {evento.get("precio_max")}
+
+Reglas de salida:
+- minutos_antelacion: entero razonable entre 15 y 120.
+- motivo: una frase corta en español.
+- vibe: elige exactamente una opción entre romantico, energetico, tranquilo, familiar, premium, alternativo.
+- occasion_tags: devuelve de 1 a 3 etiquetas entre pareja, friends, familia, solo, afterwork.
+- price_band: usa low si el precio_max es hasta 25, medium si está entre 26 y 60 o si no hay suficiente señal clara, high si supera 60.
+- indoor_outdoor: elige indoor, outdoor, mixed o unknown.
+- time_of_day_fit: morning para eventos de mañana, afternoon para tarde, night para noche.
+- romantic_score, family_score, group_score y tourist_score: enteros entre 0 y 100.
+- duration_minutes_estimate: duración típica estimada en minutos.
+- plan_pairings: devuelve de 1 a 3 etiquetas cortas en snake_case; prioriza valores como cena_antes, copas_despues, paseo cuando encajen.
+- categoria: elige exactamente una entre Música, Arte y Teatro, Deportes, Familia y otros.
+- subcategoria: elige exactamente una subcategoría compatible con la categoria seleccionada.
+
+Mapa obligatorio de categorías y subcategorías:
+{subcategorias_formateadas}
+"""
 
 class EnriquecerConGemini(beam.DoFn):
     def __init__(self, id_proyecto: str, region: str = "europe-west1"):
@@ -521,18 +781,7 @@ class EnriquecerConGemini(beam.DoFn):
         logging.info("[Gemini] Worker inicializado — modelo: gemini-2.5-flash (Vertex AI, proyecto=%s)", self.id_proyecto)
 
     def process(self, evento: dict):
-        restaurantes = evento.get("restaurantes_cercanos") or []
-        alojamientos = evento.get("alojamientos_cercanos") or []
-
-        prompt = f"""Eres un asistente experto en eventos en España. Dado el siguiente evento, \
-indica cuántos minutos antes del inicio se recomienda llegar y el motivo principal en una frase corta. \
-Ten en cuenta el tipo de evento, el tamaño habitual del recinto y si hay restaurantes cercanos.
-
-Evento: {evento.get("nombre")}
-Tipo: {evento.get("segmento")} — {evento.get("genero")}
-Recinto: {evento.get("recinto_nombre")} ({evento.get("ciudad")})
-Restaurantes a menos de 1 km: {len(restaurantes)}
-Alojamientos a menos de 5 km: {len(alojamientos)}"""
+        prompt = construir_prompt_enriquecimiento_gemini(evento)
 
         try:
             with gemini_semaforo:
@@ -541,13 +790,42 @@ Alojamientos a menos de 5 km: {len(alojamientos)}"""
                     max_intentos=8,
                     espera_base=5.0,
                 )
-            antelacion = json.loads(respuesta.text)
-            logging.info("[Gemini] Antelación generada — id=%s | %d min | motivo: %s", evento.get("id"), antelacion.get("minutos_antelacion"), antelacion.get("motivo"))
+            enriquecimiento = json.loads(respuesta.text)
+            logging.info(
+                "[Gemini] Enriquecimiento generado — id=%s | categoria=%s | subcategoria=%s | vibe=%s",
+                evento.get("id"),
+                enriquecimiento.get("categoria"),
+                enriquecimiento.get("subcategoria"),
+                enriquecimiento.get("vibe"),
+            )
         except Exception as e:
-            antelacion = None
-            logging.error("[Gemini] Error al generar antelación — id=%s | error: %s", evento.get("id"), e, exc_info=True)
+            enriquecimiento = None
+            logging.error("[Gemini] Error al generar enriquecimiento — id=%s | error: %s", evento.get("id"), e, exc_info=True)
 
-        yield {**evento, "antelacion_recomendada": antelacion}
+        if enriquecimiento is None:
+            yield {**evento, "antelacion_recomendada": None}
+            return
+
+        yield {
+            **evento,
+            "antelacion_recomendada": {
+                "minutos_antelacion": enriquecimiento.get("minutos_antelacion"),
+                "motivo": enriquecimiento.get("motivo"),
+            },
+            "vibe": enriquecimiento.get("vibe"),
+            "occasion_tags": enriquecimiento.get("occasion_tags", []),
+            "price_band": enriquecimiento.get("price_band"),
+            "indoor_outdoor": enriquecimiento.get("indoor_outdoor"),
+            "time_of_day_fit": enriquecimiento.get("time_of_day_fit"),
+            "romantic_score": enriquecimiento.get("romantic_score"),
+            "family_score": enriquecimiento.get("family_score"),
+            "group_score": enriquecimiento.get("group_score"),
+            "tourist_score": enriquecimiento.get("tourist_score"),
+            "duration_minutes_estimate": enriquecimiento.get("duration_minutes_estimate"),
+            "plan_pairings": enriquecimiento.get("plan_pairings", []),
+            "categoria": enriquecimiento.get("categoria"),
+            "subcategoria": enriquecimiento.get("subcategoria"),
+        }
 
 
 WMO_DESCRIPCIONES = {
