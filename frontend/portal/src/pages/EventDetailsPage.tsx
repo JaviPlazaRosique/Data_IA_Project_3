@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
+import EventCalendar from '../components/event/EventCalendar';
 import {
   apiGetEvent,
   apiListEvents,
@@ -126,33 +127,11 @@ export default function EventDetailsPage() {
               </h1>
               <div className="flex flex-wrap items-start gap-6 mt-4 text-on-surface-variant font-label text-sm">
                 {schedule.length > 0 ? (
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">calendar_month</span>
-                    <ul className="space-y-1">
-                      {schedule.map((entry) => (
-                        <li key={entry.date} className="flex flex-wrap items-center gap-x-1">
-                          <span>{entry.date}</span>
-                          {entry.slots.length > 0 && <span>·</span>}
-                          {entry.slots.map((slot, idx) => (
-                            <span key={slot.time}>
-                              {slot.url ? (
-                                <a
-                                  href={slot.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline"
-                                >
-                                  {slot.time}
-                                </a>
-                              ) : (
-                                <span>{slot.time}</span>
-                              )}
-                              {idx < entry.slots.length - 1 && ', '}
-                            </span>
-                          ))}
-                        </li>
-                      ))}
-                    </ul>
+                    <span>
+                      {schedule.length} {schedule.length === 1 ? 'date' : 'dates'} available
+                    </span>
                   </div>
                 ) : (
                   <>
@@ -208,8 +187,39 @@ export default function EventDetailsPage() {
             <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
           </div>
 
-          {/* Booking Panel */}
-          <div className="md:col-span-4 flex flex-col gap-6">
+          {/* Calendar Panel */}
+          <div className="md:col-span-4">
+            {schedule.length > 0 ? (
+              <EventCalendar entries={schedule} />
+            ) : (
+              <div className="bg-surface-container-low rounded-2xl p-6 border border-outline-variant/20 h-full flex flex-col items-center justify-center text-center gap-2">
+                <span className="material-symbols-outlined text-primary text-4xl">calendar_month</span>
+                <div className="font-bold font-headline">{event?.fecha ?? 'TBA'}</div>
+                <div className="text-sm text-on-surface-variant">{event?.hora ?? '—'}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Map Section */}
+          <div className="md:col-span-12 lg:col-span-8 bg-surface-container-low rounded-xl overflow-hidden min-h-[400px] relative">
+            <div className="absolute top-6 left-6 z-10 glass-panel p-4 rounded-xl border border-outline-variant/20 max-w-xs">
+              <h4 className="font-bold text-lg font-headline mb-1">Neon Valley Arena</h4>
+              <p className="text-xs text-on-surface-variant font-label mb-3">404 Digital Avenue, Synth City, SC 90210</p>
+              <button className="w-full bg-secondary text-on-secondary py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-sm">directions</span>
+                Get Directions
+              </button>
+            </div>
+            <img
+              src={mapImg}
+              alt="Event location map"
+              className="w-full h-full object-cover grayscale brightness-50 contrast-125 min-h-[400px]"
+            />
+            <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" />
+          </div>
+
+          {/* Booking Panel (moved next to map) */}
+          <div className="md:col-span-12 lg:col-span-4 flex flex-col gap-6">
             <div className="bg-surface-container-high p-8 rounded-xl flex flex-col gap-6 border-l-4 border-tertiary shadow-xl">
               <h3 className="text-xl font-bold font-headline">Secure Your Entry</h3>
               <p className="text-sm text-on-surface-variant font-label leading-relaxed">
@@ -332,24 +342,6 @@ export default function EventDetailsPage() {
                 <div className="text-xs text-on-surface-variant">Includes backstage tour &amp; lounge</div>
               </div>
             </div>
-          </div>
-
-          {/* Map Section */}
-          <div className="md:col-span-12 lg:col-span-7 bg-surface-container-low rounded-xl overflow-hidden min-h-[400px] relative">
-            <div className="absolute top-6 left-6 z-10 glass-panel p-4 rounded-xl border border-outline-variant/20 max-w-xs">
-              <h4 className="font-bold text-lg font-headline mb-1">Neon Valley Arena</h4>
-              <p className="text-xs text-on-surface-variant font-label mb-3">404 Digital Avenue, Synth City, SC 90210</p>
-              <button className="w-full bg-secondary text-on-secondary py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-sm">directions</span>
-                Get Directions
-              </button>
-            </div>
-            <img
-              src={mapImg}
-              alt="Event location map"
-              className="w-full h-full object-cover grayscale brightness-50 contrast-125 min-h-[400px]"
-            />
-            <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" />
           </div>
 
         </section>
