@@ -611,6 +611,7 @@ export default function MapPage() {
   const [selectedOccurrences, setSelectedOccurrences] = useState<EventCatalogItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dateRef = useRef<string>(todayIso());
   const segmentosRef = useRef<string[]>([]);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -657,6 +658,13 @@ export default function MapPage() {
       fetchEvents();
     }
   }, [bounds, fetchEvents]);
+
+  // Scroll side panel to hovered card.
+  useEffect(() => {
+    if (!hoveredKey) return;
+    const el = cardRefs.current.get(hoveredKey);
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [hoveredKey]);
 
   // Cleanup inflight on unmount.
   useEffect(() => {
@@ -981,6 +989,10 @@ export default function MapPage() {
                   return (
                     <div
                       key={group.key}
+                      ref={(el) => {
+                        if (el) cardRefs.current.set(group.key, el);
+                        else cardRefs.current.delete(group.key);
+                      }}
                       onMouseEnter={() => setHoveredKey(group.key)}
                       onMouseLeave={() => setHoveredKey((k) => (k === group.key ? null : k))}
                       className={`group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant ${
