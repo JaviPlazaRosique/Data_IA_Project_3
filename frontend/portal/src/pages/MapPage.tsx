@@ -8,6 +8,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
+import EventCalendar from '../components/event/EventCalendar';
 import {
   apiListEventCategories,
   apiListEvents,
@@ -429,35 +430,8 @@ function EventDetailModal({
                 <span>{locationLine}</span>
               </div>
             )}
-            {schedule.length > 1 || (schedule[0]?.slots.length ?? 0) > 1 ? (
-              <div className="flex items-start gap-2 text-on-surface-variant text-sm">
-                <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
-                <ul className="space-y-1">
-                  {schedule.map((entry) => (
-                    <li key={entry.date} className="flex flex-wrap items-center gap-x-1">
-                      <span>{entry.date}</span>
-                      {entry.slots.length > 0 && <span>·</span>}
-                      {entry.slots.map((slot, idx) => (
-                        <span key={slot.time}>
-                          {slot.url ? (
-                            <a
-                              href={slot.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              {slot.time}
-                            </a>
-                          ) : (
-                            <span>{slot.time}</span>
-                          )}
-                          {idx < entry.slots.length - 1 && ', '}
-                        </span>
-                      ))}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {schedule.length > 0 ? (
+              <EventCalendar entries={schedule} />
             ) : dateLine && (
               <div className="flex items-center gap-2 text-on-surface-variant text-sm">
                 <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
@@ -982,7 +956,7 @@ export default function MapPage() {
           </div>
 
           {/* Side Panel */}
-          <div className="w-full md:w-[380px] bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
+          <div className="w-full md:w-[380px] h-[calc(100vh-65px)] min-h-0 bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-serif text-xl">{t.map_title}</h2>
@@ -1026,12 +1000,22 @@ export default function MapPage() {
                     .join(' • ');
                   const schedule = buildScheduleEntries(group.items);
                   return (
-                    <button
+                    <div
                       key={group.key}
-                      onClick={() => handleEventClick(group.key)}
-                      className="w-full text-left group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant cursor-pointer"
+                      className="group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant"
                     >
-                      <div className="flex gap-4">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleEventClick(group.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleEventClick(group.key);
+                          }
+                        }}
+                        className="flex gap-4 cursor-pointer text-left"
+                      >
                         <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
                           <img
                             src={image}
@@ -1051,39 +1035,6 @@ export default function MapPage() {
                               <span className="truncate">{locationLine}</span>
                             </div>
                           )}
-                          {schedule.length > 0 && (
-                            <ul className="text-on-surface-variant text-[11px] space-y-0.5">
-                              {schedule.map((entry) => (
-                                <li key={entry.date} className="flex items-start gap-1">
-                                  <span className="material-symbols-outlined text-[14px]">
-                                    event
-                                  </span>
-                                  <span className="flex flex-wrap items-center gap-x-1">
-                                    <span>{entry.date}</span>
-                                    {entry.slots.length > 0 && <span>·</span>}
-                                    {entry.slots.map((slot, idx) => (
-                                      <span key={slot.time}>
-                                        {slot.url ? (
-                                          <a
-                                            href={slot.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="text-primary hover:underline"
-                                          >
-                                            {slot.time}
-                                          </a>
-                                        ) : (
-                                          <span>{slot.time}</span>
-                                        )}
-                                        {idx < entry.slots.length - 1 && ', '}
-                                      </span>
-                                    ))}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
                           {event.segmento && (
                             <span className="inline-block mt-2 bg-surface-container-lowest px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                               {event.segmento}
@@ -1091,7 +1042,15 @@ export default function MapPage() {
                           )}
                         </div>
                       </div>
-                    </button>
+                      {schedule.length > 0 && (
+                        <div
+                          className="mt-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <EventCalendar entries={schedule} />
+                        </div>
+                      )}
+                    </div>
                   );
                 })
               )}
