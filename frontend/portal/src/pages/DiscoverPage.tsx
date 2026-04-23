@@ -116,6 +116,8 @@ export default function DiscoverPage() {
                 </Link>
                 <Link
                   to="/map"
+                  onMouseEnter={() => { void import('./MapPage'); }}
+                  onFocus={() => { void import('./MapPage'); }}
                   className="bg-surface-container-high text-on-surface px-8 py-4 rounded-full font-bold border border-outline-variant/20 hover:bg-surface-container-highest transition-colors"
                 >
                   {t.cta_explore}
