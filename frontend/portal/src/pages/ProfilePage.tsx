@@ -48,7 +48,13 @@ export default function ProfilePage() {
   const [locationOpen, setLocationOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    user?.preferred_categories ?? [],
+  );
+
+  useEffect(() => {
+    setSelectedCategories(user?.preferred_categories ?? []);
+  }, [user?.preferred_categories]);
 
   useEffect(() => {
     apiListSavedEvents()
@@ -64,10 +70,17 @@ export default function ProfilePage() {
     return () => ctrl.abort();
   }, []);
 
-  function toggleCategory(cat: string) {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
-    );
+  async function toggleCategory(cat: string) {
+    const next = selectedCategories.includes(cat)
+      ? selectedCategories.filter((c) => c !== cat)
+      : [...selectedCategories, cat];
+    setSelectedCategories(next);
+    try {
+      const updated = await apiUpdateMe({ preferred_categories: next });
+      setUser(updated);
+    } catch {
+      setSelectedCategories(selectedCategories);
+    }
   }
 
   useEffect(() => {

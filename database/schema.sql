@@ -22,6 +22,7 @@ CREATE TABLE users (
     preferred_location       VARCHAR(255),
     preferred_location_lat   DOUBLE PRECISION,
     preferred_location_lng   DOUBLE PRECISION,
+    preferred_categories     TEXT[],
     created_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );

@@ -30,6 +30,7 @@ export interface UserRead {
   preferred_location: string | null;
   preferred_location_lat: number | null;
   preferred_location_lng: number | null;
+  preferred_categories: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +60,7 @@ export interface UpdateMeData {
   preferred_location?: string | null;
   preferred_location_lat?: number | null;
   preferred_location_lng?: number | null;
+  preferred_categories?: string[] | null;
   password?: string | null;
 }
 
