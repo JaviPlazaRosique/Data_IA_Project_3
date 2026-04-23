@@ -12,11 +12,11 @@ import {
   apiUpdateMe,
   apiListSavedEvents,
   apiUnsaveEvent,
+  apiListEventCategories,
   type SavedEventRead,
 } from '../api';
 
 const budgetOptions = ['€', '€€', '€€€', '€€€€'];
-const favoriteCategories = ['Immersive Art', 'Techno Operas', 'Speakeasies'];
 
 interface NominatimSuggestion {
   place_id: number;
@@ -47,12 +47,28 @@ export default function ProfilePage() {
   const [locationSuggestions, setLocationSuggestions] = useState<NominatimSuggestion[]>([]);
   const [locationOpen, setLocationOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   useEffect(() => {
     apiListSavedEvents()
       .then(setSavedEvents)
       .catch(() => { /* silent */ });
   }, []);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    apiListEventCategories({}, { signal: ctrl.signal })
+      .then(setCategoryOptions)
+      .catch(() => { /* silent */ });
+    return () => ctrl.abort();
+  }, []);
+
+  function toggleCategory(cat: string) {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+    );
+  }
 
   useEffect(() => {
     setLocationDraft(user?.preferred_location ?? '');
@@ -214,14 +230,26 @@ export default function ProfilePage() {
                   <div>
                     <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Favorite Categories</label>
                     <div className="flex flex-wrap gap-2">
-                      {favoriteCategories.map((cat) => (
-                        <span key={cat} className="bg-surface-container-high px-4 py-2 rounded-xl text-sm font-medium border border-outline-variant/10">
-                          {cat}
-                        </span>
-                      ))}
-                      <button className="bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-xl text-sm">
-                        <span className="material-symbols-outlined text-base align-middle">add</span>
-                      </button>
+                      {categoryOptions.length === 0 && (
+                        <span className="text-on-surface-variant/50 text-sm italic">Loading categories…</span>
+                      )}
+                      {categoryOptions.map((cat) => {
+                        const active = selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => toggleCategory(cat)}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                              active
+                                ? 'bg-primary/20 text-primary border-primary/30'
+                                : 'bg-surface-container-high border-outline-variant/10 hover:border-primary/30'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
