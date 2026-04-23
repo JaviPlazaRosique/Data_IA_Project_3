@@ -7,20 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install app dependencies (asyncpg for runtime, psycopg2-binary for Alembic sync migrations)
-COPY backend/portal-api/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir psycopg2-binary
+COPY requirements.txt .
 
-# Copy application source
-COPY backend/portal-api/app/ ./app/
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy Alembic migrations (lives outside portal-api, needs repo-root build context)
-COPY database/ ./database/
+COPY app/ ./app/
 
 ENV PORT=8080
 EXPOSE 8080
 
-# 1) Run Alembic migrations to ensure the DB schema is up to date
-# 2) Start the API server
-CMD ["sh", "-c", "cd /app/database && alembic upgrade head && cd /app && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
