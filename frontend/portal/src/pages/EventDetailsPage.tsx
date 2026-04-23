@@ -170,9 +170,9 @@ export default function EventDetailsPage() {
                 const genreBits = [event.genero, event.subgenero].filter(Boolean).join(' / ');
                 if (genreBits) parts.push(`Genre: ${genreBits}.`);
                 if (event.segmento) parts.push(`Category: ${event.segmento}.`);
-                if (event.recinto_nombre || event.ciudad) {
+                if (event.recinto_nombre || event.ciudad || event.direccion) {
                   parts.push(
-                    `Taking place at ${[event.recinto_nombre, event.ciudad].filter(Boolean).join(', ')}.`
+                    `Taking place at ${[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(', ')}.`
                   );
                 }
                 if (schedule.length > 1) {
@@ -197,6 +197,35 @@ export default function EventDetailsPage() {
                   ))}
               </div>
             )}
+            {(() => {
+              if (!event) return null;
+              const query =
+                event.latitud != null && event.longitud != null
+                  ? `${event.latitud},${event.longitud}`
+                  : [event.recinto_nombre, event.direccion, event.ciudad]
+                      .filter(Boolean)
+                      .join(', ');
+              if (!query) return null;
+              const href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
+              return (
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-secondary text-on-secondary px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
+                  >
+                    <span className="material-symbols-outlined text-base">directions</span>
+                    Get Directions
+                  </a>
+                  {(event.direccion || event.recinto_nombre) && (
+                    <span className="text-xs text-on-surface-variant">
+                      {[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </section>
 
