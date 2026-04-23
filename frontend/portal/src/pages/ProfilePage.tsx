@@ -12,10 +12,7 @@ import {
   apiUpdateMe,
   apiListSavedEvents,
   apiUnsaveEvent,
-  apiListMyReviews,
-  apiUpdateReview,
   type SavedEventRead,
-  type EventReviewRead,
 } from '../api';
 
 const budgetOptions = ['€', '€€', '€€€', '€€€€'];
@@ -50,14 +47,10 @@ export default function ProfilePage() {
   const [locationSuggestions, setLocationSuggestions] = useState<NominatimSuggestion[]>([]);
   const [locationOpen, setLocationOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
-  const [myReviews, setMyReviews] = useState<EventReviewRead[]>([]);
 
   useEffect(() => {
-    Promise.all([apiListSavedEvents(), apiListMyReviews()])
-      .then(([events, reviews]) => {
-        setSavedEvents(events);
-        setMyReviews(reviews);
-      })
+    apiListSavedEvents()
+      .then(setSavedEvents)
       .catch(() => { /* silent */ });
   }, []);
 
@@ -127,16 +120,6 @@ export default function ProfilePage() {
     try {
       await apiUnsaveEvent(eventId);
       setSavedEvents((prev) => prev.filter((e) => e.event_id !== eventId));
-    } catch { /* silent */ }
-  }
-
-  async function handleEditReview(reviewId: string, rating: number, text: string) {
-    try {
-      const updated = await apiUpdateReview(reviewId, {
-        rating,
-        review_text: text || null,
-      });
-      setMyReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } catch { /* silent */ }
   }
 
@@ -361,59 +344,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* History */}
-              <div className="space-y-6">
-                <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">history</span>
-                  {t.profile_history}
-                </h2>
-                <div className="space-y-4">
-                  {myReviews.length === 0 && (
-                    <p className="text-on-surface-variant/50 text-sm italic">No reviews yet. Rate events you've attended.</p>
-                  )}
-                  {myReviews.map((review) => (
-                    <div key={review.id} className="bg-surface-container p-6 rounded-3xl flex flex-col md:flex-row gap-6">
-                      <div className="w-full md:w-32 h-32 rounded-2xl overflow-hidden flex-shrink-0 bg-surface-container-highest flex items-center justify-center">
-                        <span className="material-symbols-outlined text-4xl text-on-surface-variant/30">event</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-bold text-lg">{review.event_id}</h3>
-                            <p className="text-on-surface-variant text-sm">
-                              {new Date(review.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                            </p>
-                          </div>
-                          <div className="flex gap-1 text-tertiary">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <span
-                                key={star}
-                                className="material-symbols-outlined"
-                                style={star <= review.rating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                              >
-                                star
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        {review.review_text && (
-                          <div className="bg-surface-container-lowest p-4 rounded-xl mb-4">
-                            <p className="text-on-surface-variant text-sm italic">{review.review_text}</p>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => handleEditReview(review.id, review.rating, review.review_text ?? '')}
-                          className="text-primary text-xs font-bold uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all"
-                        >
-                          Edit Review
-                          <span className="material-symbols-outlined text-sm">chevron_right</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </section>
           </div>
         </div>

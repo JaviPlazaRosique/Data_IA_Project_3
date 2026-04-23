@@ -3,21 +3,15 @@ import { Link, useParams } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
-import { useAuth } from '../context/AuthContext';
 import {
-  apiListEventReviews,
-  apiCreateReview,
-  apiUpdateReview,
   apiGetEvent,
   apiListEvents,
-  type EventReviewRead,
   type EventCatalogItem,
 } from '../api';
 
 // Seeded images specific to this event
 const heroImg = 'https://picsum.photos/seed/festival-night/1400/700';
 const mapImg = 'https://picsum.photos/seed/city-map/800/500';
-const reviewerAvatarImg = 'https://picsum.photos/seed/avatar-club/80/80';
 
 type ScheduleEntry = {
   date: string;
@@ -53,27 +47,9 @@ const weatherMetrics = [
 ];
 
 export default function EventDetailsPage() {
-  const { user } = useAuth();
   const { id: routeId } = useParams<{ id: string }>();
-  const EVENT_ID = routeId ?? 'midnight-pulse-festival';
-  const [rating, setRating] = useState(4);
-  const [reviewText, setReviewText] = useState('');
-  const [apiReviews, setApiReviews] = useState<EventReviewRead[]>([]);
-  const [myReview, setMyReview] = useState<EventReviewRead | null>(null);
   const [event, setEvent] = useState<EventCatalogItem | null>(null);
   const [occurrences, setOccurrences] = useState<EventCatalogItem[]>([]);
-
-  useEffect(() => {
-    apiListEventReviews(EVENT_ID).then((data) => {
-      setApiReviews(data);
-      const mine = data.find((r) => r.user_id === user?.id) ?? null;
-      setMyReview(mine);
-      if (mine) {
-        setRating(mine.rating);
-        setReviewText(mine.review_text ?? '');
-      }
-    }).catch(() => {});
-  }, [user, EVENT_ID]);
 
   useEffect(() => {
     if (!routeId) return;
@@ -110,21 +86,6 @@ export default function EventDetailsPage() {
   }, [routeId]);
 
   const schedule = buildScheduleEntries(occurrences);
-
-  async function handleSubmitReview() {
-    if (!user) return;
-    try {
-      if (myReview) {
-        const updated = await apiUpdateReview(myReview.id, { rating, review_text: reviewText || null });
-        setMyReview(updated);
-        setApiReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-      } else {
-        const created = await apiCreateReview(EVENT_ID, { rating, review_text: reviewText || null });
-        setMyReview(created);
-        setApiReviews((prev) => [created, ...prev]);
-      }
-    } catch { /* silent */ }
-  }
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -288,73 +249,6 @@ export default function EventDetailsPage() {
             <div className="absolute inset-0 bg-primary/5 mix-blend-overlay" />
           </div>
 
-          {/* Community Echo */}
-          <div className="md:col-span-12 lg:col-span-5 bg-surface-container-highest rounded-xl p-8 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold font-headline">Community Echo</h3>
-                <span className="bg-surface-container-lowest text-primary text-[10px] font-bold px-2 py-1 rounded">VIBE CHECK</span>
-              </div>
-              <div className="flex gap-2 mb-8">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setRating(star)}
-                    className={`material-symbols-outlined ${star <= rating ? 'text-tertiary' : 'text-on-surface-variant'}`}
-                    style={star <= rating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                  >
-                    star
-                  </button>
-                ))}
-              </div>
-              <div className="space-y-4">
-                {apiReviews.length === 0 && (
-                  <p className="text-on-surface-variant/50 text-sm italic">No community reviews yet.</p>
-                )}
-                {apiReviews.map((review) => (
-                  <div key={review.id} className="bg-surface-container-low/50 p-4 rounded-xl border border-outline-variant/10">
-                    <div className="flex gap-1 text-tertiary mb-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span
-                          key={star}
-                          className="material-symbols-outlined text-sm"
-                          style={star <= review.rating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                        >
-                          star
-                        </span>
-                      ))}
-                    </div>
-                    {review.review_text && (
-                      <p className="text-sm font-label italic text-on-surface-variant mb-3">"{review.review_text}"</p>
-                    )}
-                    <div className="flex items-center gap-3">
-                      <img src={reviewerAvatarImg} alt="reviewer" className="w-8 h-8 rounded-full object-cover border border-secondary/20" />
-                      <span className="text-xs font-bold">{review.user_id === user?.id ? 'You' : `@user_${review.user_id.slice(0, 6)}`}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="mt-8">
-              <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-3 block">
-                {myReview ? 'Update your review' : 'Rate this experience'}
-              </label>
-              <div className="flex gap-4">
-                <input
-                  value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
-                  className="flex-1 bg-surface-container-lowest border-none rounded-full px-6 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-secondary text-on-surface placeholder:text-on-surface-variant/50"
-                  placeholder="Share your pulse..."
-                />
-                <button
-                  onClick={handleSubmitReview}
-                  className="w-12 h-12 bg-primary text-on-primary rounded-full flex items-center justify-center hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined">send</span>
-                </button>
-              </div>
-            </div>
-          </div>
         </section>
       </main>
 
