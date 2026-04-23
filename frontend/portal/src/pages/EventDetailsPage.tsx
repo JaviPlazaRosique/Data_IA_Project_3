@@ -57,7 +57,7 @@ export default function EventDetailsPage() {
     if (!event) return null;
     const title = event.nombre ?? 'Evento';
     const venue = [event.recinto_nombre, event.ciudad].filter(Boolean).join(' • ');
-    const url = `${window.location.origin}/#/event/${event.id}`;
+    const url = `${window.location.origin}/index.html#/event/${event.id}`;
     const text = venue ? `${title} — ${venue}` : title;
     return { title, text, url };
   }, [event]);
