@@ -761,15 +761,15 @@ export default function MapPage() {
   const mapCenter: [number, number] = [40.42, -3.7];
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen">
+    <div className="bg-surface text-on-surface h-screen overflow-hidden flex flex-col">
       <TopNav />
 
-      <main className="relative min-h-screen flex flex-col overflow-hidden">
+      <main className="relative flex-1 flex flex-col">
         {/* Map + Side Panel */}
-        <section className="relative flex flex-col md:flex-row md:h-[65vh]">
+        <section className="relative flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row">
 
           {/* ── Real Leaflet Map ── */}
-          <div className="h-[55vh] md:h-auto md:flex-1 relative">
+          <div className="h-[45vh] md:h-auto md:flex-1 relative shrink-0">
             <MapContainer
               center={mapCenter}
               zoom={13}
@@ -944,7 +944,7 @@ export default function MapPage() {
           </div>
 
           {/* Side Panel */}
-          <div className="w-full md:w-[380px] h-[55vh] md:h-full min-h-0 bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
+          <div className="w-full md:w-[380px] flex-1 md:flex-none md:h-full min-h-0 bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-serif text-xl">{t.map_title}</h2>
@@ -1046,20 +1046,11 @@ export default function MapPage() {
               )}
             </div>
 
-            <div className="mt-auto p-8 border-t border-outline-variant/10">
-              <Link
-                to="/planner"
-                className="w-full bg-tertiary text-on-tertiary font-black py-4 rounded-xl text-sm uppercase tracking-widest hover:scale-[0.98] active:opacity-80 transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(255,148,110,0.3)]"
-              >
-                <span className="material-symbols-outlined">casino</span>
-                Surprise Me
-              </Link>
-            </div>
           </div>
         </section>
-
-        <Footer />
       </main>
+
+      <Footer />
 
       <BottomNav />
 
