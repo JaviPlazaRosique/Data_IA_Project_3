@@ -5,19 +5,18 @@ import SideNav from '../components/layout/SideNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
+import { SectionLabel } from '../components/np/Primitives';
 import QuickMatch from '../components/QuickMatch';
 import {
   apiUpdateMe,
   apiListSavedEvents,
   apiUnsaveEvent,
-  apiListMyReviews,
-  apiUpdateReview,
+  apiListEventCategories,
   type SavedEventRead,
-  type EventReviewRead,
 } from '../api';
 
 const budgetOptions = ['€', '€€', '€€€', '€€€€'];
-const favoriteCategories = ['Immersive Art', 'Techno Operas', 'Speakeasies'];
 
 interface NominatimSuggestion {
   place_id: number;
@@ -42,21 +41,47 @@ function shortLabel(s: NominatimSuggestion): string {
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
+  const { t } = useLang();
   const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
   const [locationDraft, setLocationDraft] = useState(user?.preferred_location ?? '');
   const [locationSuggestions, setLocationSuggestions] = useState<NominatimSuggestion[]>([]);
   const [locationOpen, setLocationOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
-  const [myReviews, setMyReviews] = useState<EventReviewRead[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    user?.preferred_categories ?? [],
+  );
 
   useEffect(() => {
-    Promise.all([apiListSavedEvents(), apiListMyReviews()])
-      .then(([events, reviews]) => {
-        setSavedEvents(events);
-        setMyReviews(reviews);
-      })
+    setSelectedCategories(user?.preferred_categories ?? []);
+  }, [user?.preferred_categories]);
+
+  useEffect(() => {
+    apiListSavedEvents()
+      .then(setSavedEvents)
       .catch(() => { /* silent */ });
   }, []);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    apiListEventCategories({}, { signal: ctrl.signal })
+      .then(setCategoryOptions)
+      .catch(() => { /* silent */ });
+    return () => ctrl.abort();
+  }, []);
+
+  async function toggleCategory(cat: string) {
+    const next = selectedCategories.includes(cat)
+      ? selectedCategories.filter((c) => c !== cat)
+      : [...selectedCategories, cat];
+    setSelectedCategories(next);
+    try {
+      const updated = await apiUpdateMe({ preferred_categories: next });
+      setUser(updated);
+    } catch {
+      setSelectedCategories(selectedCategories);
+    }
+  }
 
   useEffect(() => {
     setLocationDraft(user?.preferred_location ?? '');
@@ -127,16 +152,6 @@ export default function ProfilePage() {
     } catch { /* silent */ }
   }
 
-  async function handleEditReview(reviewId: string, rating: number, text: string) {
-    try {
-      const updated = await apiUpdateReview(reviewId, {
-        rating,
-        review_text: text || null,
-      });
-      setMyReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-    } catch { /* silent */ }
-  }
-
   return (
     <div className="bg-surface text-on-surface min-h-screen">
       <TopNav />
@@ -162,7 +177,8 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">
+                  <SectionLabel>{t.profile_title}</SectionLabel>
+                  <h1 className="font-serif text-3xl md:text-5xl tracking-tight text-on-surface mb-2 mt-2">
                     {user?.full_name ?? user?.username}
                   </h1>
                   <div className="flex items-center gap-3">
@@ -190,7 +206,7 @@ export default function ProfilePage() {
 
           {/* Quick Match — Tinder-style event swipe */}
           <section className="mb-12">
-            <QuickMatch />
+            <QuickMatch onSaved={(s) => setSavedEvents((prev) => prev.some((e) => e.event_id === s.event_id) ? prev : [s, ...prev])} />
           </section>
 
           {/* Grid Layout */}
@@ -203,7 +219,7 @@ export default function ProfilePage() {
                 </div>
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">tune</span>
-                  Preferences
+                  {t.profile_prefs}
                 </h2>
                 <div className="space-y-6">
                   <div>
@@ -227,14 +243,26 @@ export default function ProfilePage() {
                   <div>
                     <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Favorite Categories</label>
                     <div className="flex flex-wrap gap-2">
-                      {favoriteCategories.map((cat) => (
-                        <span key={cat} className="bg-surface-container-high px-4 py-2 rounded-xl text-sm font-medium border border-outline-variant/10">
-                          {cat}
-                        </span>
-                      ))}
-                      <button className="bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-xl text-sm">
-                        <span className="material-symbols-outlined text-base align-middle">add</span>
-                      </button>
+                      {categoryOptions.length === 0 && (
+                        <span className="text-on-surface-variant/50 text-sm italic">Loading categories…</span>
+                      )}
+                      {categoryOptions.map((cat) => {
+                        const active = selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => toggleCategory(cat)}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                              active
+                                ? 'bg-primary/20 text-primary border-primary/30'
+                                : 'bg-surface-container-high border-outline-variant/10 hover:border-primary/30'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
@@ -308,7 +336,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-3">
                     <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>bookmark</span>
-                    Saved Events
+                    {t.profile_saved}
                   </h2>
                   <a href="#" className="text-primary text-sm font-bold hover:underline">View All</a>
                 </div>
@@ -357,59 +385,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* History */}
-              <div className="space-y-6">
-                <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">history</span>
-                  Experience History
-                </h2>
-                <div className="space-y-4">
-                  {myReviews.length === 0 && (
-                    <p className="text-on-surface-variant/50 text-sm italic">No reviews yet. Rate events you've attended.</p>
-                  )}
-                  {myReviews.map((review) => (
-                    <div key={review.id} className="bg-surface-container p-6 rounded-3xl flex flex-col md:flex-row gap-6">
-                      <div className="w-full md:w-32 h-32 rounded-2xl overflow-hidden flex-shrink-0 bg-surface-container-highest flex items-center justify-center">
-                        <span className="material-symbols-outlined text-4xl text-on-surface-variant/30">event</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-bold text-lg">{review.event_id}</h3>
-                            <p className="text-on-surface-variant text-sm">
-                              {new Date(review.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                            </p>
-                          </div>
-                          <div className="flex gap-1 text-tertiary">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <span
-                                key={star}
-                                className="material-symbols-outlined"
-                                style={star <= review.rating ? { fontVariationSettings: "'FILL' 1" } : {}}
-                              >
-                                star
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        {review.review_text && (
-                          <div className="bg-surface-container-lowest p-4 rounded-xl mb-4">
-                            <p className="text-on-surface-variant text-sm italic">{review.review_text}</p>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => handleEditReview(review.id, review.rating, review.review_text ?? '')}
-                          className="text-primary text-xs font-bold uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all"
-                        >
-                          Edit Review
-                          <span className="material-symbols-outlined text-sm">chevron_right</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </section>
           </div>
         </div>

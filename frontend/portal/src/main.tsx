@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { loadConfig } from './config.ts'
+import { LanguageProvider } from './context/LanguageContext'
 
 loadConfig().then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
     </StrictMode>,
   )
 })

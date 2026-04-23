@@ -30,6 +30,7 @@ export interface UserRead {
   preferred_location: string | null;
   preferred_location_lat: number | null;
   preferred_location_lng: number | null;
+  preferred_categories: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +60,7 @@ export interface UpdateMeData {
   preferred_location?: string | null;
   preferred_location_lat?: number | null;
   preferred_location_lng?: number | null;
+  preferred_categories?: string[] | null;
   password?: string | null;
 }
 
@@ -255,28 +257,6 @@ export interface SavedEventCreate {
   event_image_url?: string | null;
 }
 
-// ─── Review types ─────────────────────────────────────────────────────────────
-
-export interface EventReviewRead {
-  id: string;
-  user_id: string;
-  event_id: string;
-  rating: number;
-  review_text: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface EventReviewCreate {
-  rating: number;
-  review_text?: string | null;
-}
-
-export interface EventReviewUpdate {
-  rating?: number;
-  review_text?: string | null;
-}
-
 // ─── Event catalog types ──────────────────────────────────────────────────────
 
 export interface EventCatalogItem {
@@ -354,44 +334,6 @@ export async function apiSaveEvent(data: SavedEventCreate): Promise<SavedEventRe
 
 export async function apiUnsaveEvent(eventId: string): Promise<void> {
   await authFetch(`/api/v1/users/me/saved-events/${eventId}`, { method: 'DELETE' });
-}
-
-// ─── Reviews API ──────────────────────────────────────────────────────────────
-
-export async function apiCreateReview(
-  eventId: string,
-  data: EventReviewCreate,
-): Promise<EventReviewRead> {
-  const res = await authFetch(`/api/v1/events/${eventId}/reviews`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new ApiError(res.status, 'Failed to submit review');
-  return res.json();
-}
-
-export async function apiListEventReviews(eventId: string): Promise<EventReviewRead[]> {
-  const res = await authFetch(`/api/v1/events/${eventId}/reviews`);
-  if (!res.ok) throw new ApiError(res.status, 'Failed to load reviews');
-  return res.json();
-}
-
-export async function apiListMyReviews(): Promise<EventReviewRead[]> {
-  const res = await authFetch('/api/v1/users/me/reviews');
-  if (!res.ok) throw new ApiError(res.status, 'Failed to load reviews');
-  return res.json();
-}
-
-export async function apiUpdateReview(
-  reviewId: string,
-  data: EventReviewUpdate,
-): Promise<EventReviewRead> {
-  const res = await authFetch(`/api/v1/users/me/reviews/${reviewId}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new ApiError(res.status, 'Failed to update review');
-  return res.json();
 }
 
 // ─── Events catalog API (public) ──────────────────────────────────────────────
