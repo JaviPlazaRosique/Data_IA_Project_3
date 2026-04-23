@@ -7,11 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY database/requirements-migrations.txt .
+COPY requirements-migrations.txt .
 RUN pip install --no-cache-dir -r requirements-migrations.txt
 
-COPY database/ ./database/
-
-WORKDIR /app/database
+COPY . .
 
 CMD ["alembic", "upgrade", "head"]
