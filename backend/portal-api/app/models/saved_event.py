@@ -29,6 +29,7 @@ class SavedEvent(Base):
     event_date: Mapped[str | None] = mapped_column(Text)
     event_time: Mapped[str | None] = mapped_column(Text)
     event_image_url: Mapped[str | None] = mapped_column(Text)
+    event_url: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

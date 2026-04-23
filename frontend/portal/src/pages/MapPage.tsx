@@ -369,6 +369,7 @@ function EventDetailModal({
         event_date: event.fecha,
         event_time: event.hora,
         event_image_url: event.imagen_evento ?? event.artista_imagen,
+        event_url: event.url,
       });
       setSaved(true);
     } catch {

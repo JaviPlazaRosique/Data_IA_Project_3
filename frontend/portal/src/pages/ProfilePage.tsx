@@ -345,7 +345,11 @@ export default function ProfilePage() {
                     <p className="text-on-surface-variant/50 text-sm italic col-span-2">No saved events yet.</p>
                   )}
                   {savedEvents.map((event) => (
-                    <div key={event.id} className="bg-surface-container-high rounded-[1.5rem] overflow-hidden group hover:translate-y-[-4px] transition-transform duration-300">
+                    <Link
+                      key={event.id}
+                      to={`/event/${event.event_id}`}
+                      className="block bg-surface-container-high rounded-[1.5rem] overflow-hidden group hover:translate-y-[-4px] transition-transform duration-300"
+                    >
                       <div className="h-48 w-full overflow-hidden relative">
                         {event.event_image_url ? (
                           <img
@@ -364,7 +368,11 @@ export default function ProfilePage() {
                           </div>
                         )}
                         <button
-                          onClick={() => handleUnsave(event.event_id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleUnsave(event.event_id);
+                          }}
                           className="absolute top-4 right-4 w-8 h-8 bg-surface/80 backdrop-blur-md rounded-full flex items-center justify-center text-on-surface-variant hover:text-error transition-colors"
                           title="Remove bookmark"
                         >
@@ -376,11 +384,27 @@ export default function ProfilePage() {
                         <p className="text-on-surface-variant text-xs mb-4">
                           {[event.event_venue, event.event_time].filter(Boolean).join(' • ')}
                         </p>
-                        <button className="w-full border border-outline-variant/30 py-2.5 rounded-full text-xs font-bold hover:bg-on-surface hover:text-surface transition-colors">
-                          Book Now
-                        </button>
+                        {event.event_url ? (
+                          <a
+                            href={event.event_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="block text-center w-full border border-outline-variant/30 py-2.5 rounded-full text-xs font-bold hover:bg-on-surface hover:text-surface transition-colors"
+                          >
+                            Book Now
+                          </a>
+                        ) : (
+                          <button
+                            disabled
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            className="w-full border border-outline-variant/20 py-2.5 rounded-full text-xs font-bold text-on-surface-variant/50 cursor-not-allowed"
+                          >
+                            No tickets available
+                          </button>
+                        )}
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
