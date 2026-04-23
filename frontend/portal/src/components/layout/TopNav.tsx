@@ -1,17 +1,20 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-
-const navLinks = [
-  { label: 'Home', path: '/' },
-  { label: 'AI Chat', path: '/planner' },
-  { label: 'Explore', path: '/map' },
-  { label: 'Profile', path: '/profile' },
-];
+import { useLang } from '../../context/LanguageContext';
+import { LanguageToggle } from '../np/Primitives';
 
 export default function TopNav() {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { t } = useLang();
   const navigate = useNavigate();
+
+  const navLinks = [
+    { label: t.nav.discover, path: '/' },
+    { label: t.nav.planner, path: '/planner' },
+    { label: t.nav.map, path: '/map' },
+    { label: t.nav.profile, path: '/profile' },
+  ];
 
   async function handleLogout() {
     await logout();
@@ -45,6 +48,7 @@ export default function TopNav() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <LanguageToggle />
           <button className="text-tertiary/70 hover:text-tertiary transition-colors">
             <span className="material-symbols-outlined">notifications</span>
           </button>
