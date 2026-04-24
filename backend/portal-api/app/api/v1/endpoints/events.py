@@ -27,10 +27,25 @@ def _doc_to_event(doc_id: str, data: dict) -> EventRead:
     return EventRead(id=doc_id, **_coerce(data))
 
 
-async def _load_all(limit: int) -> list[EventRead]:
+async def _run_query(
+    limit: int,
+    ciudad: str | None = None,
+    segmento: list[str] | None = None,
+    fecha: str | None = None,
+) -> list[EventRead]:
     db = get_firestore()
-    query = db.collection(COLLECTION).order_by("fecha_utc").limit(limit)
-    docs = await query.get()
+    q = db.collection(COLLECTION)
+    if ciudad:
+        q = q.where("ciudad", "==", ciudad)
+    if fecha:
+        q = q.where("fecha", "==", fecha)
+    if segmento:
+        if len(segmento) == 1:
+            q = q.where("segmento", "==", segmento[0])
+        else:
+            q = q.where("segmento", "in", segmento[:10])
+    q = q.order_by("fecha_utc").limit(limit)
+    docs = await q.get()
     return [_doc_to_event(doc.id, doc.to_dict()) for doc in docs]
 
 
@@ -45,26 +60,20 @@ async def list_events(
     max_lng: float | None = None,
     limit: int | None = Query(1000, ge=1, le=5000),
 ) -> list[EventRead]:
-    items = await _load_all(limit or 1000)
+    items = await _run_query(limit or 1000, ciudad=ciudad, segmento=segmento, fecha=fecha)
 
-    segmento_set = set(segmento) if segmento else None
     bbox = all(v is not None for v in (min_lat, max_lat, min_lng, max_lng))
+    if not bbox:
+        return items
 
     filtered = []
     for e in items:
-        if ciudad and e.ciudad != ciudad:
+        if e.latitud is None or e.longitud is None:
             continue
-        if segmento_set and e.segmento not in segmento_set:
+        if not (min_lat <= e.latitud <= max_lat):
             continue
-        if fecha and e.fecha != fecha:
+        if not (min_lng <= e.longitud <= max_lng):
             continue
-        if bbox:
-            if e.latitud is None or e.longitud is None:
-                continue
-            if not (min_lat <= e.latitud <= max_lat):
-                continue
-            if not (min_lng <= e.longitud <= max_lng):
-                continue
         filtered.append(e)
     return filtered
 
@@ -78,15 +87,11 @@ async def list_categories(
     min_lng: float | None = None,
     max_lng: float | None = None,
 ) -> list[str]:
-    items = await _load_all(5000)
+    items = await _run_query(5000, ciudad=ciudad, fecha=fecha)
 
     bbox = all(v is not None for v in (min_lat, max_lat, min_lng, max_lng))
     segmentos: set[str] = set()
     for e in items:
-        if ciudad and e.ciudad != ciudad:
-            continue
-        if fecha and e.fecha != fecha:
-            continue
         if bbox:
             if e.latitud is None or e.longitud is None:
                 continue
