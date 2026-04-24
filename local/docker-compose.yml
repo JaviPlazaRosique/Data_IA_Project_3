@@ -69,8 +69,8 @@ services:
   # ─── Backend API ──────────────────────────────────────────────────────────────
   backend:
     build:
-      context: ..
-      dockerfile: backend/portal-api/Dockerfile
+      context: ../backend/portal-api
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://curator:${POSTGRES_PASSWORD:-localpass}@db:5432/electric_curator
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-dev-secret-change-before-prod}
