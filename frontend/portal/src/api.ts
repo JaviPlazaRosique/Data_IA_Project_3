@@ -245,6 +245,7 @@ export interface SavedEventRead {
   event_date: string | null;
   event_time: string | null;
   event_image_url: string | null;
+  event_url: string | null;
   created_at: string;
 }
 
@@ -255,6 +256,7 @@ export interface SavedEventCreate {
   event_date?: string | null;
   event_time?: string | null;
   event_image_url?: string | null;
+  event_url?: string | null;
 }
 
 // ─── Event catalog types ──────────────────────────────────────────────────────
@@ -269,6 +271,7 @@ export interface EventCatalogItem {
   estado: string | null;
   ciudad: string | null;
   recinto_nombre: string | null;
+  direccion: string | null;
   latitud: number | null;
   longitud: number | null;
   segmento: string | null;

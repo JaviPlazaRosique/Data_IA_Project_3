@@ -197,6 +197,11 @@ module "cloud_run_portal_api" {
   email_cuenta_servicio = module.portal_api_sa.email_cuenta_servicio
   id_conector_vpc       = module.vpc_portal.vpc_connector_id
 
+  cpu           = "1"
+  memoria       = "1Gi"
+  min_instances = 0
+  max_instances = 5
+
   variables_entorno = {
     ENVIRONMENT  = "production"
     CORS_ORIGINS = local.cors_origins

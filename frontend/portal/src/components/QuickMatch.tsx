@@ -92,6 +92,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
       event_date: target.fecha,
       event_time: target.hora,
       event_image_url: target.imagen_evento ?? target.artista_imagen,
+      event_url: target.url,
     })
       .then((saved) => {
         onSaved?.(saved);

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import SideNav from '../components/layout/SideNav';
+import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
+import EventCalendar from '../components/event/EventCalendar';
 import {
   apiListEventCategories,
   apiListEvents,
@@ -61,6 +62,24 @@ async function geocodeCity(query: string): Promise<[number, number] | null> {
 }
 
 const EVENT_IMAGE_FALLBACK = 'https://picsum.photos/seed/event-placeholder/200/200';
+
+function buildEventDescription(event: EventCatalogItem): string {
+  const parts: string[] = [];
+  if (event.artista_nombre) {
+    parts.push(`Join ${event.artista_nombre} for an unforgettable live experience.`);
+  }
+  const genreBits = [event.genero, event.subgenero].filter(Boolean).join(' / ');
+  if (genreBits) parts.push(`Genre: ${genreBits}.`);
+  if (event.segmento) parts.push(`Category: ${event.segmento}.`);
+  if (event.recinto_nombre || event.ciudad || event.direccion) {
+    parts.push(
+      `Taking place at ${[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(', ')}.`,
+    );
+  }
+  return parts.length > 0
+    ? parts.join(' ')
+    : `Discover ${event.nombre ?? 'this event'} and plan your night out.`;
+}
 
 type PinCategory = 'music' | 'food' | 'art';
 
@@ -145,19 +164,20 @@ L.Icon.Default.mergeOptions({
 });
 
 // Custom colored SVG pin icons
-const makePin = (color: string) =>
+const makePin = (color: string, hovered = false) =>
   L.divIcon({
     className: '',
     html: `<div style="
-      width:36px;height:36px;
+      width:${hovered ? 52 : 36}px;height:${hovered ? 52 : 36}px;
       background:${color};
       border-radius:50% 50% 50% 0;
       transform:rotate(-45deg);
-      border:3px solid rgba(255,255,255,0.25);
-      box-shadow:0 0 18px ${color}99;
+      border:3px solid ${hovered ? '#ffffff' : 'rgba(255,255,255,0.25)'};
+      box-shadow:0 0 ${hovered ? 28 : 18}px ${color}${hovered ? 'ff' : '99'};
+      transition:all 120ms ease;
     "></div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
+    iconSize: hovered ? [52, 52] : [36, 36],
+    iconAnchor: hovered ? [26, 52] : [18, 36],
     popupAnchor: [0, -38],
   });
 
@@ -165,6 +185,12 @@ const pins = {
   music: makePin('#b6a0ff'),
   food: makePin('#ff946e'),
   art: makePin('#8a99fe'),
+};
+
+const pinsHover = {
+  music: makePin('#b6a0ff', true),
+  food: makePin('#ff946e', true),
+  art: makePin('#8a99fe', true),
 };
 
 const ALL_CATEGORIES = 'All';
@@ -369,6 +395,7 @@ function EventDetailModal({
         event_date: event.fecha,
         event_time: event.hora,
         event_image_url: event.imagen_evento ?? event.artista_imagen,
+        event_url: event.url,
       });
       setSaved(true);
     } catch {
@@ -428,35 +455,8 @@ function EventDetailModal({
                 <span>{locationLine}</span>
               </div>
             )}
-            {schedule.length > 1 || (schedule[0]?.slots.length ?? 0) > 1 ? (
-              <div className="flex items-start gap-2 text-on-surface-variant text-sm">
-                <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
-                <ul className="space-y-1">
-                  {schedule.map((entry) => (
-                    <li key={entry.date} className="flex flex-wrap items-center gap-x-1">
-                      <span>{entry.date}</span>
-                      {entry.slots.length > 0 && <span>·</span>}
-                      {entry.slots.map((slot, idx) => (
-                        <span key={slot.time}>
-                          {slot.url ? (
-                            <a
-                              href={slot.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              {slot.time}
-                            </a>
-                          ) : (
-                            <span>{slot.time}</span>
-                          )}
-                          {idx < entry.slots.length - 1 && ', '}
-                        </span>
-                      ))}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {schedule.length > 0 ? (
+              <EventCalendar entries={schedule} />
             ) : dateLine && (
               <div className="flex items-center gap-2 text-on-surface-variant text-sm">
                 <span className="material-symbols-outlined text-[18px] text-tertiary">event</span>
@@ -471,6 +471,10 @@ function EventDetailModal({
             )}
           </div>
 
+          <p className="text-on-surface-variant text-sm leading-relaxed">
+            {buildEventDescription(event)}
+          </p>
+
           {error && (
             <div className="bg-error/10 text-error border border-error/20 rounded-lg px-3 py-2 text-xs">
               {error}
@@ -478,12 +482,20 @@ function EventDetailModal({
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Link
+              to={`/event/${event.id}`}
+              onClick={onClose}
+              className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">info</span>
+              More info
+            </Link>
             {event.url && (
               <a
                 href={event.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                className="flex-1 bg-surface-container-high text-on-surface font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:bg-surface-variant transition-colors flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-[18px]">open_in_new</span>
                 Entradas
@@ -598,6 +610,8 @@ export default function MapPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
   const [selectedOccurrences, setSelectedOccurrences] = useState<EventCatalogItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dateRef = useRef<string>(todayIso());
   const segmentosRef = useRef<string[]>([]);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -644,6 +658,13 @@ export default function MapPage() {
       fetchEvents();
     }
   }, [bounds, fetchEvents]);
+
+  // Scroll side panel to hovered card.
+  useEffect(() => {
+    if (!hoveredKey) return;
+    const el = cardRefs.current.get(hoveredKey);
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [hoveredKey]);
 
   // Cleanup inflight on unmount.
   useEffect(() => {
@@ -740,52 +761,15 @@ export default function MapPage() {
   const mapCenter: [number, number] = [40.42, -3.7];
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen">
-      <SideNav activeItem="Explore" />
+    <div className="bg-surface text-on-surface h-screen overflow-hidden flex flex-col">
+      <TopNav />
 
-      <main className="md:ml-64 relative min-h-screen flex flex-col overflow-hidden">
-        {/* Top Nav */}
-        <header className="bg-surface flex justify-between items-center w-full px-4 md:px-8 py-4 z-50 border-b border-outline-variant/10">
-          <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold tracking-tighter text-on-surface font-headline">NextPlan</h1>
-            <nav className="hidden lg:flex gap-6 items-center">
-              {[
-                { label: 'Home', path: '/', active: false },
-                { label: 'AI Chat', path: '/planner', active: false },
-                { label: 'Explore', path: '/map', active: true },
-                { label: 'Profile', path: '/profile', active: false },
-              ].map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`font-label text-sm transition-colors duration-300 ${
-                    link.active ? 'text-primary border-b-2 border-primary pb-1' : 'text-on-surface/70 hover:text-tertiary'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative hidden sm:block">
-              <input
-                className="bg-surface-container-lowest border-none rounded-full px-5 py-2 text-sm w-64 focus:outline-none focus:ring-1 focus:ring-secondary text-on-surface placeholder:text-on-surface-variant/50"
-                placeholder="Search experiences..."
-              />
-              <span className="material-symbols-outlined absolute right-3 top-2 text-on-surface-variant text-sm">search</span>
-            </div>
-            <button className="text-on-surface hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications</span>
-            </button>
-          </div>
-        </header>
-
+      <main className="relative flex-1 min-h-0 flex flex-col">
         {/* Map + Side Panel */}
-        <section className="flex-1 relative flex flex-col md:flex-row md:h-[calc(100vh-65px)]">
+        <section className="relative flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row">
 
           {/* ── Real Leaflet Map ── */}
-          <div className="h-[55vh] md:h-auto md:flex-1 relative">
+          <div className="h-[45vh] md:h-auto md:flex-1 relative shrink-0">
             <MapContainer
               center={mapCenter}
               zoom={13}
@@ -811,76 +795,18 @@ export default function MapPage() {
                 {visibleGroups.map((group) => {
                   const point = group.primary;
                   const category = segmentoToCategory(point.segmento);
-                  const schedule = buildScheduleEntries(group.items);
                   return (
                     <Marker
                       key={group.key}
                       position={[point.latitud, point.longitud]}
-                      icon={pins[category]}
+                      icon={hoveredKey === group.key ? pinsHover[category] : pins[category]}
+                      zIndexOffset={hoveredKey === group.key ? 1000 : 0}
                       eventHandlers={{
                         click: () => openGroup(group),
+                        mouseover: () => setHoveredKey(group.key),
+                        mouseout: () => setHoveredKey((k) => (k === group.key ? null : k)),
                       }}
-                    >
-                      <Popup className="curator-popup">
-                        <div style={{ background: '#1e1f25', color: '#faf8fe', padding: '12px 14px', borderRadius: '12px', minWidth: '200px', fontFamily: 'Manrope, sans-serif' }}>
-                          <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-                            {point.segmento ?? category}
-                          </p>
-                          <p style={{ fontSize: '14px', fontWeight: 800, marginBottom: '2px' }}>
-                            {point.nombre ?? 'Evento'}
-                          </p>
-                          <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '6px' }}>
-                            {[point.recinto_nombre, point.ciudad].filter(Boolean).join(' • ')}
-                          </p>
-                          {schedule.length > 0 && (
-                            <ul style={{ fontSize: '11px', opacity: 0.85, marginBottom: '8px', paddingLeft: '14px' }}>
-                              {schedule.map((entry) => (
-                                <li key={entry.date}>
-                                  {entry.date}
-                                  {entry.slots.length > 0 && ' · '}
-                                  {entry.slots.map((slot, idx) => (
-                                    <span key={slot.time}>
-                                      {slot.url ? (
-                                        <a
-                                          href={slot.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          style={{ color: '#b6a0ff', textDecoration: 'underline' }}
-                                        >
-                                          {slot.time}
-                                        </a>
-                                      ) : (
-                                        <span>{slot.time}</span>
-                                      )}
-                                      {idx < entry.slots.length - 1 && ', '}
-                                    </span>
-                                  ))}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          <button
-                            onClick={() => openGroup(group)}
-                            style={{
-                              background: '#b6a0ff',
-                              color: '#1e1f25',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '6px 10px',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                              cursor: 'pointer',
-                              width: '100%',
-                            }}
-                          >
-                            Ver detalles
-                          </button>
-                        </div>
-                      </Popup>
-                    </Marker>
+                    />
                   );
                 })}
               </MarkerClusterGroup>
@@ -1018,7 +944,7 @@ export default function MapPage() {
           </div>
 
           {/* Side Panel */}
-          <div className="w-full md:w-[380px] bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
+          <div className="w-full md:w-[380px] flex-1 md:flex-none md:h-full min-h-0 bg-surface-container-low/95 backdrop-blur-2xl z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-y-auto border-l border-outline-variant/10 pb-20 md:pb-0">
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-serif text-xl">{t.map_title}</h2>
@@ -1060,14 +986,31 @@ export default function MapPage() {
                   const locationLine = [event.recinto_nombre, event.ciudad]
                     .filter(Boolean)
                     .join(' • ');
-                  const schedule = buildScheduleEntries(group.items);
                   return (
-                    <button
+                    <div
                       key={group.key}
-                      onClick={() => handleEventClick(group.key)}
-                      className="w-full text-left group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant cursor-pointer"
+                      ref={(el) => {
+                        if (el) cardRefs.current.set(group.key, el);
+                        else cardRefs.current.delete(group.key);
+                      }}
+                      onMouseEnter={() => setHoveredKey(group.key)}
+                      onMouseLeave={() => setHoveredKey((k) => (k === group.key ? null : k))}
+                      className={`group bg-surface-container-high rounded-xl p-4 mb-4 transition-colors hover:bg-surface-variant ${
+                        hoveredKey === group.key ? 'ring-2 ring-primary' : ''
+                      }`}
                     >
-                      <div className="flex gap-4">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleEventClick(group.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleEventClick(group.key);
+                          }
+                        }}
+                        className="flex gap-4 cursor-pointer text-left"
+                      >
                         <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
                           <img
                             src={image}
@@ -1087,39 +1030,9 @@ export default function MapPage() {
                               <span className="truncate">{locationLine}</span>
                             </div>
                           )}
-                          {schedule.length > 0 && (
-                            <ul className="text-on-surface-variant text-[11px] space-y-0.5">
-                              {schedule.map((entry) => (
-                                <li key={entry.date} className="flex items-start gap-1">
-                                  <span className="material-symbols-outlined text-[14px]">
-                                    event
-                                  </span>
-                                  <span className="flex flex-wrap items-center gap-x-1">
-                                    <span>{entry.date}</span>
-                                    {entry.slots.length > 0 && <span>·</span>}
-                                    {entry.slots.map((slot, idx) => (
-                                      <span key={slot.time}>
-                                        {slot.url ? (
-                                          <a
-                                            href={slot.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="text-primary hover:underline"
-                                          >
-                                            {slot.time}
-                                          </a>
-                                        ) : (
-                                          <span>{slot.time}</span>
-                                        )}
-                                        {idx < entry.slots.length - 1 && ', '}
-                                      </span>
-                                    ))}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                          <p className="text-on-surface-variant text-[11px] leading-snug line-clamp-2">
+                            {buildEventDescription(event)}
+                          </p>
                           {event.segmento && (
                             <span className="inline-block mt-2 bg-surface-container-lowest px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                               {event.segmento}
@@ -1127,26 +1040,17 @@ export default function MapPage() {
                           )}
                         </div>
                       </div>
-                    </button>
+                    </div>
                   );
                 })
               )}
             </div>
 
-            <div className="mt-auto p-8 border-t border-outline-variant/10">
-              <Link
-                to="/planner"
-                className="w-full bg-tertiary text-on-tertiary font-black py-4 rounded-xl text-sm uppercase tracking-widest hover:scale-[0.98] active:opacity-80 transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(255,148,110,0.3)]"
-              >
-                <span className="material-symbols-outlined">casino</span>
-                Surprise Me
-              </Link>
-            </div>
           </div>
         </section>
-
-        <Footer />
       </main>
+
+      <Footer />
 
       <BottomNav />
 
