@@ -57,6 +57,18 @@ variable "memoria" {
   default     = "512Mi"
 }
 
+variable "min_instances" {
+  description = "Minimo de instancias Cloud Run"
+  type        = number
+  default     = 0
+}
+
+variable "max_instances" {
+  description = "Maximo de instancias Cloud Run"
+  type        = number
+  default     = 100
+}
+
 variable "proteccion_borrado" {
   description = "Habilita proteccion contra borrado del servicio"
   type        = bool

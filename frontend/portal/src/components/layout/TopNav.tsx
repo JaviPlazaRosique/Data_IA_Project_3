@@ -22,7 +22,7 @@ export default function TopNav() {
   }
 
   return (
-    <header className="bg-surface sticky top-0 z-50">
+    <header className="bg-surface sticky top-0 z-[1100]">
       <nav className="flex justify-between items-center w-full px-4 md:px-8 py-4 max-w-[1920px] mx-auto">
         <div className="flex items-center gap-8">
           <Link to="/" className="text-xl md:text-2xl font-bold tracking-tighter text-tertiary font-headline">

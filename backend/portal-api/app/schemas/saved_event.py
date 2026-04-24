@@ -11,6 +11,7 @@ class SavedEventCreate(BaseModel):
     event_date: str | None = None
     event_time: str | None = None
     event_image_url: str | None = None
+    event_url: str | None = None
 
 
 class SavedEventRead(BaseModel):
@@ -22,6 +23,7 @@ class SavedEventRead(BaseModel):
     event_date: str | None
     event_time: str | None
     event_image_url: str | None
+    event_url: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
