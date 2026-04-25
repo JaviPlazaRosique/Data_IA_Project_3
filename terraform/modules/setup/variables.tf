@@ -20,7 +20,8 @@ variable "servicios_gcp" {
     "apikeys.googleapis.com",
     "places.googleapis.com",
     "aiplatform.googleapis.com",
-    "cloudscheduler.googleapis.com"
+    "cloudscheduler.googleapis.com",
+    "pubsub.googleapis.com"
   ]
 } 
 

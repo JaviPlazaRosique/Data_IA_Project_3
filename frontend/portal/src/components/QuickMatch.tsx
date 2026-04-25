@@ -4,8 +4,10 @@ import {
   apiListEvents,
   apiListSavedEvents,
   apiSaveEvent,
+  apiSwipeEvent,
   type EventCatalogItem,
   type SavedEventRead,
+  type SwipeDirection,
 } from '../api';
 
 const IMAGE_FALLBACK = 'https://picsum.photos/seed/quick-match/600/800';
@@ -60,10 +62,27 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
   const current = events[index] ?? null;
   const upcoming = useMemo(() => events.slice(index + 1, index + 3), [events, index]);
 
+  const publishSwipe = useCallback((event: EventCatalogItem, direction: SwipeDirection) => {
+    apiSwipeEvent({
+      direction,
+      event_id: event.id,
+      event_title: event.nombre,
+      event_venue: event.recinto_nombre,
+      event_date: event.fecha,
+      event_time: event.hora,
+      event_image_url: event.imagen_evento ?? event.artista_imagen,
+      event_url: event.url,
+      swiped_at: new Date().toISOString(),
+    }).catch((err) => {
+      console.warn('swipe publish failed', err);
+    });
+  }, []);
+
   const advance = useCallback(
     (dir: SwipeDir) => {
       if (!current || exiting) return;
       setExiting(dir);
+      publishSwipe(current, dir);
       if (dir === 'right') {
         setLiked((prev) => [...prev, current.id]);
       }
@@ -74,7 +93,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
         startRef.current = null;
       }, 260);
     },
-    [current, exiting],
+    [current, exiting, publishSwipe],
   );
 
   const favorite = useCallback(() => {
