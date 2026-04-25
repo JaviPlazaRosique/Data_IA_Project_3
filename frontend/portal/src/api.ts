@@ -259,6 +259,17 @@ export interface SavedEventCreate {
   event_url?: string | null;
 }
 
+export type SwipeDirection = 'left' | 'right';
+
+export interface SwipeEventCreate extends SavedEventCreate {
+  direction: SwipeDirection;
+  swiped_at?: string;
+}
+
+export interface SwipeEventAccepted {
+  accepted: boolean;
+}
+
 // ─── Event catalog types ──────────────────────────────────────────────────────
 
 export interface EventCatalogItem {
@@ -337,6 +348,15 @@ export async function apiSaveEvent(data: SavedEventCreate): Promise<SavedEventRe
 
 export async function apiUnsaveEvent(eventId: string): Promise<void> {
   await authFetch(`/api/v1/users/me/saved-events/${eventId}`, { method: 'DELETE' });
+}
+
+export async function apiSwipeEvent(data: SwipeEventCreate): Promise<SwipeEventAccepted> {
+  const res = await authFetch('/api/v1/users/me/swipe-events', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to publish swipe event');
+  return res.json();
 }
 
 // ─── Events catalog API (public) ──────────────────────────────────────────────
