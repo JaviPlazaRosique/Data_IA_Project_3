@@ -1,0 +1,88 @@
+============ K-Means Clustering Workflow ============
+This script will run a complete user clustering workflow using only K-Means.
+It is intentionally verbose so that each stage of the pipeline is easy to follow.
+Output directory ready at: clustering/output
+K values that will be tested: [2, 3, 4, 5, 6, 7, 8]
+K-Means random_state: 42
+K-Means n_init: 20
+
+============ Step 1 - Read CSV ============
+Reading input file from: clustering/swipe_interactions_synthetic.csv
+Loaded 9,817 interaction rows.
+Detected 18 columns in the CSV.
+Column names: interaction_id, event_timestamp, user_id, session_id, event_id, interaction_type, swipe_direction, liked, recommendation_context, segmento, genero, subgenero, ciudad, precio_min, precio_max, fecha_evento, recinto_id, ingestion_timestamp
+
+============ Step 2 - Clean Types And Coherence ============
+All required columns are present.
+Dropping duplicate rows by interaction_id if any exist.
+Rows after deduplication: 9,817
+Casting timestamps, booleans and price columns to proper types.
+Checking logical consistency between swipe_direction and liked.
+Rows with mismatched direction and liked before correction: 0
+Keeping only swipe interactions, since K-Means will be trained on swipe behavior.
+Rows after filtering interaction_type='swipe': 9,817
+Checking malformed prices where precio_max < precio_min.
+No swapped price rows detected.
+Dropping rows with missing values in critical columns.
+Rows dropped due to invalid or missing critical values: 0
+Creating row-level derived variables used later in aggregation.
+Clean interaction rows ready for feature engineering: 9,817
+Unique users available for clustering: 180
+
+============ Step 3 - Aggregate By user_id And Build Features ============
+The clustering unit will be the user, not the individual swipe row.
+Aggregating interactions to create one feature vector per user.
+Detected segments for aggregation: Arts & Theatre, Family, Music, Sports
+Detected recommendation contexts: discover, map, planner
+Built a user-level feature table with 180 rows.
+Handling missing values caused by users without likes or dislikes in some subsets.
+Applying log1p to count-like variables to reduce skew and stabilize K-Means.
+Final number of user-level features: 28
+Feature columns: total_swipes, right_swipe_rate, left_swipe_rate, distinct_segments_liked, distinct_genres_liked, distinct_cities_liked, avg_liked_price, avg_disliked_price, avg_days_until_event_liked, avg_days_until_event_disliked, genre_entropy_all, genre_entropy_liked, city_entropy_liked, recency_days, activity_span_days, sessions_count, events_seen, arts_and_theatre_like_rate, arts_and_theatre_swipe_share, family_like_rate, family_swipe_share, music_like_rate, music_swipe_share, sports_like_rate, sports_swipe_share, discover_share, map_share, planner_share
+
+============ Step 4 - Scale Numeric Variables ============
+Using StandardScaler so all features contribute on a comparable scale.
+Scaled feature matrix shape: 180 users x 28 features
+
+============ Step 5 - Test Multiple K Values With K-Means ============
+For each K we will fit K-Means and compute inertia, silhouette, Calinski-Harabasz and Davies-Bouldin.
+Fitting K-Means with k=2, random_state=42, n_init=20.
+Results for k=2: inertia=4209.3636, silhouette=0.1745, calinski_harabasz=35.12, davies_bouldin=2.0900
+k=2 is currently the best model by silhouette score.
+Fitting K-Means with k=3, random_state=42, n_init=20.
+Results for k=3: inertia=3640.0158, silhouette=0.1786, calinski_harabasz=34.04, davies_bouldin=2.0278
+k=3 is currently the best model by silhouette score.
+Fitting K-Means with k=4, random_state=42, n_init=20.
+Results for k=4: inertia=3122.2523, silhouette=0.2290, calinski_harabasz=36.03, davies_bouldin=1.6353
+k=4 is currently the best model by silhouette score.
+Fitting K-Means with k=5, random_state=42, n_init=20.
+Results for k=5: inertia=2661.5456, silhouette=0.2599, calinski_harabasz=39.10, davies_bouldin=1.4339
+k=5 is currently the best model by silhouette score.
+Fitting K-Means with k=6, random_state=42, n_init=20.
+Results for k=6: inertia=2332.0095, silhouette=0.2763, calinski_harabasz=40.41, davies_bouldin=1.3813
+k=6 is currently the best model by silhouette score.
+Fitting K-Means with k=7, random_state=42, n_init=20.
+Results for k=7: inertia=2226.7145, silhouette=0.2701, calinski_harabasz=36.43, davies_bouldin=1.3741
+Fitting K-Means with k=8, random_state=42, n_init=20.
+Results for k=8: inertia=2140.9741, silhouette=0.2266, calinski_harabasz=33.27, davies_bouldin=1.4844
+Selected best K-Means model: k=6 with silhouette=0.2763
+
+============ Step 6 - Write Output Files ============
+Saving intermediate and final artifacts so the clustering can be audited later.
+Saved: clustering/output/raw_interactions_snapshot.csv
+Saved: clustering/output/clean_interactions.csv
+Saved: clustering/output/user_features.csv
+Saved: clustering/output/scaled_user_features.csv
+Saved: clustering/output/feature_list.csv
+Saved: clustering/output/kmeans_metrics.csv
+Saved: clustering/output/kmeans_assignments.csv
+Saved: clustering/output/kmeans_cluster_profiles.csv
+Saved: clustering/output/kmeans_cluster_sizes.csv
+Saved: clustering/output/kmeans_cluster_centroids_scaled.csv
+Saved: clustering/output/kmeans_cluster_top_traits.csv
+
+============ Step 7 - Final Human-Readable Summary ============
+Saved: clustering/output/clustering_report.txt
+
+============ Step 8 - Persist Execution Log ============
+Writing the verbose execution log so the whole run can be reviewed later.
