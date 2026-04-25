@@ -50,6 +50,12 @@
       "label": "ID del secreto de la API key de Google Places",
       "helpText": "ID del secreto en Secret Manager con la API key de Google Places.",
       "paramType": "TEXT"
+    },
+    {
+      "name": "coleccion_gemini_cache",
+      "label": "Colección de Firestore para la caché de Gemini",
+      "helpText": "Nombre de la colección de Firestore donde se cachean los enriquecimientos de Gemini por nombre de evento.",
+      "paramType": "TEXT"
     }
   ]
 }
