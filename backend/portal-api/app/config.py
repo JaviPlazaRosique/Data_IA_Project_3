@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     GOOGLE_CLOUD_PROJECT: str = ""
     FIREBASE_CREDENTIALS_JSON: str = ""  # path to service account JSON file
 
+    # Pub/Sub
+    PUBSUB_TOPIC_SWIPE_EVENTS: str = "swipe-events"
+
     @model_validator(mode="after")
     def validate_db_config(self) -> "Settings":
         has_full_url = bool(self.DATABASE_URL)
