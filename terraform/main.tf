@@ -174,79 +174,16 @@ module "portal_api_sa" {
   ]
 }
 
-module "topic_swipe_events" {
-  source       = "./modules/pubsub_topic"
-  id_proyecto  = var.id_proyecto
-  nombre_topic = "swipe-events"
-  publicadores = [
-    module.portal_api_sa.email_cuenta_servicio,
-  ]
+module "pubsub_swipe_events" {
+  source             = "./modules/pubsub"
+  id_proyecto        = var.id_proyecto
+  nombre_topic       = "swipe-events"
+  publicadores       = [module.portal_api_sa.email_cuenta_servicio]
+  habilitar_dlq      = true
+  nombre_suscripcion = "swipe-events-sub"
   depends_on = [
     module.portal_api_sa
   ]
-}
-
-module "topic_swipe_events_dlq" {
-  source             = "./modules/pubsub_topic"
-  id_proyecto        = var.id_proyecto
-  nombre_topic       = "swipe-events-dlq"
-  duracion_retencion = "604800s"
-  depends_on = [
-    module.setup
-  ]
-}
-
-data "google_project" "current" {
-  project_id = var.id_proyecto
-}
-
-locals {
-  pubsub_service_agent = "service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
-}
-
-resource "google_pubsub_topic_iam_member" "swipe_events_dlq_publisher" {
-  project = var.id_proyecto
-  topic   = module.topic_swipe_events_dlq.nombre
-  role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${local.pubsub_service_agent}"
-}
-
-resource "google_pubsub_subscription" "swipe_events_main" {
-  project = var.id_proyecto
-  name    = "swipe-events-sub"
-  topic   = module.topic_swipe_events.nombre
-
-  ack_deadline_seconds       = 60
-  message_retention_duration = "604800s"
-
-  retry_policy {
-    minimum_backoff = "10s"
-    maximum_backoff = "600s"
-  }
-
-  dead_letter_policy {
-    dead_letter_topic     = module.topic_swipe_events_dlq.id
-    max_delivery_attempts = 5
-  }
-
-  depends_on = [
-    google_pubsub_topic_iam_member.swipe_events_dlq_publisher
-  ]
-}
-
-resource "google_pubsub_subscription_iam_member" "swipe_events_main_subscriber" {
-  project      = var.id_proyecto
-  subscription = google_pubsub_subscription.swipe_events_main.name
-  role         = "roles/pubsub.subscriber"
-  member       = "serviceAccount:${local.pubsub_service_agent}"
-}
-
-resource "google_pubsub_subscription" "swipe_events_dlq" {
-  project                    = var.id_proyecto
-  name                       = "swipe-events-dlq-sub"
-  topic                      = module.topic_swipe_events_dlq.nombre
-  ack_deadline_seconds       = 60
-  message_retention_duration = "604800s"
 }
 
 module "secretos_proyecto" {
@@ -285,7 +222,7 @@ module "cloud_run_portal_api" {
     DB_NAME                   = module.cloudsql_portal.database_name
     DB_USER                   = module.cloudsql_portal.db_user
     GOOGLE_CLOUD_PROJECT      = var.id_proyecto
-    PUBSUB_TOPIC_SWIPE_EVENTS = module.topic_swipe_events.nombre
+    PUBSUB_TOPIC_SWIPE_EVENTS = module.pubsub_swipe_events.nombre
   }
 
   secretos_entorno = {
@@ -303,7 +240,7 @@ module "cloud_run_portal_api" {
     module.cloudsql_portal,
     module.secretos_proyecto,
     module.portal_api_sa,
-    module.topic_swipe_events
+    module.pubsub_swipe_events
   ]
 }
 
