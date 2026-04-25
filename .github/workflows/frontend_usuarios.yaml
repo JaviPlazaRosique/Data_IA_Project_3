@@ -43,6 +43,9 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: frontend/portal
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
 
       - name: Guardar dist
         uses: actions/upload-artifact@v4

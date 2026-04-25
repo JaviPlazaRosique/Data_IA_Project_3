@@ -12,21 +12,19 @@
 
 import { vi } from 'vitest'
 
-// Leaflet uses browser APIs (canvas, requestAnimationFrame) not available in jsdom.
-// These mocks replace only what the test environment can't provide; build output is unaffected.
-vi.mock('leaflet', () => ({
-  default: {
-    Icon: { Default: { prototype: {}, mergeOptions: vi.fn() } },
-    divIcon: vi.fn(() => ({})),
-  },
+vi.mock('@vis.gl/react-google-maps', () => ({
+  APIProvider: ({ children }: { children: React.ReactNode }) => children,
+  Map: () => null,
+  AdvancedMarker: () => null,
+  InfoWindow: () => null,
+  useMap: () => null,
 }))
 
-vi.mock('react-leaflet', () => ({
-  MapContainer: () => null,
-  TileLayer: () => null,
-  Marker: () => null,
-  Popup: () => null,
-  useMap: () => ({ flyTo: vi.fn() }),
+vi.mock('@googlemaps/markerclusterer', () => ({
+  MarkerClusterer: vi.fn().mockImplementation(() => ({
+    clearMarkers: vi.fn(),
+    addMarkers: vi.fn(),
+  })),
 }))
 
 import { render } from '@testing-library/react'
