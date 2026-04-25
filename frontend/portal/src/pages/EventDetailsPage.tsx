@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import {
+  APIProvider,
+  Map as GMap,
+  AdvancedMarker,
+  InfoWindow,
+} from '@vis.gl/react-google-maps';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
@@ -15,12 +18,44 @@ import {
 
 const heroImg = 'https://picsum.photos/seed/festival-night/1400/700';
 
-delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+const GMAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+const GMAPS_MAP_ID =
+  (import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined) || undefined;
+
+function VenueMap({
+  lat,
+  lng,
+  venueName,
+  venueAddress,
+}: {
+  lat: number;
+  lng: number;
+  venueName: string;
+  venueAddress: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <GMap
+      defaultCenter={{ lat, lng }}
+      defaultZoom={15}
+      mapId={GMAPS_MAP_ID}
+      gestureHandling="cooperative"
+      disableDefaultUI={false}
+      style={{ width: '100%', height: '100%', minHeight: 400 }}
+    >
+      <AdvancedMarker
+        position={{ lat, lng }}
+        onClick={() => setOpen((v) => !v)}
+      />
+      {open && (
+        <InfoWindow position={{ lat, lng }} onCloseClick={() => setOpen(false)}>
+          <div className="font-bold">{venueName}</div>
+          {venueAddress && <div className="text-xs">{venueAddress}</div>}
+        </InfoWindow>
+      )}
+    </GMap>
+  );
+}
 
 type ScheduleEntry = {
   date: string;
@@ -294,24 +329,14 @@ export default function EventDetailsPage() {
                     )}
                   </div>
                   {hasCoords ? (
-                    <MapContainer
-                      center={[lat, lng]}
-                      zoom={15}
-                      scrollWheelZoom={false}
-                      className="w-full h-full min-h-[400px]"
-                      style={{ minHeight: 400 }}
-                    >
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    <APIProvider apiKey={GMAPS_API_KEY}>
+                      <VenueMap
+                        lat={lat}
+                        lng={lng}
+                        venueName={venueName}
+                        venueAddress={venueAddress}
                       />
-                      <Marker position={[lat, lng]}>
-                        <Popup>
-                          <div className="font-bold">{venueName}</div>
-                          {venueAddress && <div className="text-xs">{venueAddress}</div>}
-                        </Popup>
-                      </Marker>
-                    </MapContainer>
+                    </APIProvider>
                   ) : (
                     <div className="w-full h-full min-h-[400px] flex items-center justify-center text-on-surface-variant text-sm">
                       No coordinates available for this event.

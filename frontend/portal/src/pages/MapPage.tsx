@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import {
+  APIProvider,
+  Map as GMap,
+  AdvancedMarker,
+  useMap,
+} from '@vis.gl/react-google-maps';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
@@ -155,43 +157,42 @@ function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
     }));
 }
 
-// Fix default marker icon paths broken by Vite bundling
-delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+const GMAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+const GMAPS_MAP_ID =
+  (import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined) || undefined;
 
-// Custom colored SVG pin icons
-const makePin = (color: string, hovered = false) =>
-  L.divIcon({
-    className: '',
-    html: `<div style="
-      width:${hovered ? 52 : 36}px;height:${hovered ? 52 : 36}px;
-      background:${color};
-      border-radius:50% 50% 50% 0;
-      transform:rotate(-45deg);
-      border:3px solid ${hovered ? '#ffffff' : 'rgba(255,255,255,0.25)'};
-      box-shadow:0 0 ${hovered ? 28 : 18}px ${color}${hovered ? 'ff' : '99'};
-      transition:all 120ms ease;
-    "></div>`,
-    iconSize: hovered ? [52, 52] : [36, 36],
-    iconAnchor: hovered ? [26, 52] : [18, 36],
-    popupAnchor: [0, -38],
-  });
+type Bounds = { south: number; west: number; north: number; east: number };
 
-const pins = {
-  music: makePin('#b6a0ff'),
-  food: makePin('#ff946e'),
-  art: makePin('#8a99fe'),
+const PIN_COLOR: Record<PinCategory, string> = {
+  music: '#b6a0ff',
+  food: '#ff946e',
+  art: '#8a99fe',
 };
 
-const pinsHover = {
-  music: makePin('#b6a0ff', true),
-  food: makePin('#ff946e', true),
-  art: makePin('#8a99fe', true),
-};
+function CategoryPin({
+  category,
+  hovered,
+}: {
+  category: PinCategory;
+  hovered: boolean;
+}) {
+  const color = PIN_COLOR[category];
+  const size = hovered ? 52 : 36;
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        background: color,
+        borderRadius: '50% 50% 50% 0',
+        transform: 'rotate(-45deg) translateY(-50%)',
+        border: `3px solid ${hovered ? '#ffffff' : 'rgba(255,255,255,0.25)'}`,
+        boxShadow: `0 0 ${hovered ? 28 : 18}px ${color}${hovered ? 'ff' : '99'}`,
+        transition: 'all 120ms ease',
+      }}
+    />
+  );
+}
 
 const ALL_CATEGORIES = 'All';
 
@@ -203,25 +204,36 @@ const todayIso = () => {
   return `${y}-${m}-${day}`;
 };
 
-// Fly to a location when an event is selected. Effect runs only when
-// coordinates actually change — prevents re-centering on unrelated re-renders
-// (e.g. polling refetch).
 function MapFlyTo({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo([lat, lng], 15, { duration: 1.2 });
+    if (!map) return;
+    map.panTo({ lat, lng });
+    map.setZoom(15);
   }, [lat, lng, map]);
   return null;
 }
 
-function BoundsWatcher({ onChange }: { onChange: (b: L.LatLngBounds) => void }) {
+function BoundsWatcher({ onChange }: { onChange: (b: Bounds) => void }) {
   const map = useMap();
   useEffect(() => {
-    onChange(map.getBounds());
+    if (!map) return;
+    const emit = () => {
+      const b = map.getBounds();
+      if (!b) return;
+      const sw = b.getSouthWest();
+      const ne = b.getNorthEast();
+      onChange({
+        south: sw.lat(),
+        west: sw.lng(),
+        north: ne.lat(),
+        east: ne.lng(),
+      });
+    };
+    emit();
+    const listener = map.addListener('idle', emit);
+    return () => listener.remove();
   }, [map, onChange]);
-  useMapEvents({
-    moveend: () => onChange(map.getBounds()),
-  });
   return null;
 }
 
@@ -240,27 +252,36 @@ function InitialView({
   const positionedRef = useRef(false);
   const geoAttemptedRef = useRef(false);
 
-  // Lock auto-positioning once the user drags or zooms — polling refetches
-  // must not snap the map back after user interaction.
   useEffect(() => {
+    if (!map) return;
     const lock = () => {
       positionedRef.current = true;
     };
-    map.on('dragstart', lock);
-    map.on('zoomstart', lock);
+    const l1 = map.addListener('dragstart', lock);
+    const l2 = map.addListener('zoom_changed', lock);
     return () => {
-      map.off('dragstart', lock);
-      map.off('zoomstart', lock);
+      l1.remove();
+      l2.remove();
     };
   }, [map]);
 
   useEffect(() => {
-    if (positionedRef.current) return;
+    if (!map || positionedRef.current) return;
     let cancelled = false;
 
+    const fitToEvents = () => {
+      const bounds = new google.maps.LatLngBounds();
+      events.forEach((e) =>
+        bounds.extend({ lat: e.latitud, lng: e.longitud }),
+      );
+      map.fitBounds(bounds, 40);
+    };
+
     async function resolve() {
+      if (!map) return;
       if (preferredLat != null && preferredLng != null) {
-        map.setView([preferredLat, preferredLng], CITY_ZOOM);
+        map.setCenter({ lat: preferredLat, lng: preferredLng });
+        map.setZoom(CITY_ZOOM);
         positionedRef.current = true;
         return;
       }
@@ -275,7 +296,8 @@ function InitialView({
         if (!coords) coords = await geocodeCity(preferredLocation);
         if (cancelled || positionedRef.current) return;
         if (coords) {
-          map.setView(coords, CITY_ZOOM);
+          map.setCenter({ lat: coords[0], lng: coords[1] });
+          map.setZoom(CITY_ZOOM);
           positionedRef.current = true;
           return;
         }
@@ -286,17 +308,16 @@ function InitialView({
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             if (positionedRef.current) return;
-            map.setView([pos.coords.latitude, pos.coords.longitude], CITY_ZOOM);
+            map.setCenter({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            });
+            map.setZoom(CITY_ZOOM);
             positionedRef.current = true;
           },
           () => {
             if (positionedRef.current || events.length === 0) return;
-            map.fitBounds(
-              L.latLngBounds(
-                events.map((e) => [e.latitud, e.longitud] as [number, number]),
-              ),
-              { padding: [40, 40] },
-            );
+            fitToEvents();
             positionedRef.current = true;
           },
         );
@@ -304,10 +325,7 @@ function InitialView({
       }
 
       if (events.length > 0) {
-        map.fitBounds(
-          L.latLngBounds(events.map((e) => [e.latitud, e.longitud] as [number, number])),
-          { padding: [40, 40] },
-        );
+        fitToEvents();
         positionedRef.current = true;
       }
     }
@@ -319,6 +337,88 @@ function InitialView({
   }, [preferredLocation, preferredLat, preferredLng, events, map]);
 
   return null;
+}
+
+function ClusteredMarkers({
+  groups,
+  hoveredKey,
+  setHoveredKey,
+  onClick,
+}: {
+  groups: EventGroup[];
+  hoveredKey: string | null;
+  setHoveredKey: React.Dispatch<React.SetStateAction<string | null>>;
+  onClick: (group: EventGroup) => void;
+}) {
+  const map = useMap();
+  const clustererRef = useRef<MarkerClusterer | null>(null);
+  const markersRef = useRef(
+    new Map<string, google.maps.marker.AdvancedMarkerElement>(),
+  );
+
+  useEffect(() => {
+    if (!map || clustererRef.current) return;
+    clustererRef.current = new MarkerClusterer({ map });
+    return () => {
+      clustererRef.current?.clearMarkers();
+      clustererRef.current = null;
+    };
+  }, [map]);
+
+  const resync = useCallback(() => {
+    const c = clustererRef.current;
+    if (!c) return;
+    c.clearMarkers();
+    c.addMarkers(Array.from(markersRef.current.values()));
+  }, []);
+
+  const keysSig = useMemo(() => groups.map((g) => g.key).join('|'), [groups]);
+  useEffect(() => {
+    resync();
+  }, [keysSig, resync]);
+
+  const setMarkerRef = useCallback(
+    (
+      marker: google.maps.marker.AdvancedMarkerElement | null,
+      key: string,
+    ) => {
+      const cur = markersRef.current.get(key);
+      if (marker === cur) return;
+      if (marker) markersRef.current.set(key, marker);
+      else markersRef.current.delete(key);
+      resync();
+    },
+    [resync],
+  );
+
+  return (
+    <>
+      {groups.map((group) => {
+        const point = group.primary;
+        const category = segmentoToCategory(point.segmento);
+        const hovered = hoveredKey === group.key;
+        const position = { lat: point.latitud, lng: point.longitud };
+        return (
+          <AdvancedMarker
+            key={group.key}
+            ref={(m) => setMarkerRef(m, group.key)}
+            position={position}
+            zIndex={hovered ? 1000 : undefined}
+            onClick={() => onClick(group)}
+          >
+            <div
+              onMouseEnter={() => setHoveredKey(group.key)}
+              onMouseLeave={() =>
+                setHoveredKey((k) => (k === group.key ? null : k))
+              }
+            >
+              <CategoryPin category={category} hovered={hovered} />
+            </div>
+          </AdvancedMarker>
+        );
+      })}
+    </>
+  );
 }
 
 function EventDetailModal({
@@ -606,7 +706,7 @@ export default function MapPage() {
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
+  const [bounds, setBounds] = useState<Bounds | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
   const [selectedOccurrences, setSelectedOccurrences] = useState<EventCatalogItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
@@ -616,7 +716,7 @@ export default function MapPage() {
   const segmentosRef = useRef<string[]>([]);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const inflightRef = useRef<AbortController | null>(null);
-  const boundsRef = useRef<L.LatLngBounds | null>(null);
+  const boundsRef = useRef<Bounds | null>(null);
   const initialFetchedRef = useRef(false);
 
   const fetchEvents = useCallback(() => {
@@ -629,10 +729,10 @@ export default function MapPage() {
     const b = boundsRef.current;
     const params: NonNullable<Parameters<typeof apiListEvents>[0]> = { limit: 1000 };
     if (b) {
-      params.min_lat = b.getSouth();
-      params.max_lat = b.getNorth();
-      params.min_lng = b.getWest();
-      params.max_lng = b.getEast();
+      params.min_lat = b.south;
+      params.max_lat = b.north;
+      params.min_lng = b.west;
+      params.max_lng = b.east;
     }
     if (fecha) params.fecha = fecha;
     if (segmentos) params.segmento = segmentos;
@@ -741,9 +841,15 @@ export default function MapPage() {
   const groupedEvents = groupMappableEvents(mappableEvents);
 
   const visibleGroups = bounds
-    ? groupedEvents.filter((g) =>
-        bounds.contains([g.primary.latitud, g.primary.longitud]),
-      )
+    ? groupedEvents.filter((g) => {
+        const { latitud: lat, longitud: lng } = g.primary;
+        return (
+          lat >= bounds.south &&
+          lat <= bounds.north &&
+          lng >= bounds.west &&
+          lng <= bounds.east
+        );
+      })
     : groupedEvents;
 
   const openGroup = (g: EventGroup) => {
@@ -758,7 +864,7 @@ export default function MapPage() {
     openGroup(g);
   };
 
-  const mapCenter: [number, number] = [40.42, -3.7];
+  const mapCenter = { lat: 40.42, lng: -3.7 };
 
   return (
     <div className="bg-surface text-on-surface h-screen overflow-hidden flex flex-col">
@@ -768,49 +874,34 @@ export default function MapPage() {
         {/* Map + Side Panel */}
         <section className="relative flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row">
 
-          {/* ── Real Leaflet Map ── */}
           <div className="h-[45vh] md:h-auto md:flex-1 relative shrink-0">
-            <MapContainer
-              center={mapCenter}
-              zoom={13}
-              style={{ width: '100%', height: '100%' }}
-              zoomControl={false}
-            >
-              {/* CartoDB Dark Matter tiles — dark map for free */}
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-              />
-
-              {flyTarget && <MapFlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
-              <BoundsWatcher onChange={setBounds} />
-              <InitialView
-                preferredLocation={user?.preferred_location ?? null}
-                preferredLat={user?.preferred_location_lat ?? null}
-                preferredLng={user?.preferred_location_lng ?? null}
-                events={mappableEvents}
-              />
-
-              <MarkerClusterGroup chunkedLoading>
-                {visibleGroups.map((group) => {
-                  const point = group.primary;
-                  const category = segmentoToCategory(point.segmento);
-                  return (
-                    <Marker
-                      key={group.key}
-                      position={[point.latitud, point.longitud]}
-                      icon={hoveredKey === group.key ? pinsHover[category] : pins[category]}
-                      zIndexOffset={hoveredKey === group.key ? 1000 : 0}
-                      eventHandlers={{
-                        click: () => openGroup(group),
-                        mouseover: () => setHoveredKey(group.key),
-                        mouseout: () => setHoveredKey((k) => (k === group.key ? null : k)),
-                      }}
-                    />
-                  );
-                })}
-              </MarkerClusterGroup>
-            </MapContainer>
+            <APIProvider apiKey={GMAPS_API_KEY}>
+              <GMap
+                defaultCenter={mapCenter}
+                defaultZoom={13}
+                mapId={GMAPS_MAP_ID}
+                disableDefaultUI
+                gestureHandling="greedy"
+                style={{ width: '100%', height: '100%' }}
+              >
+                {flyTarget && (
+                  <MapFlyTo lat={flyTarget.lat} lng={flyTarget.lng} />
+                )}
+                <BoundsWatcher onChange={setBounds} />
+                <InitialView
+                  preferredLocation={user?.preferred_location ?? null}
+                  preferredLat={user?.preferred_location_lat ?? null}
+                  preferredLng={user?.preferred_location_lng ?? null}
+                  events={mappableEvents}
+                />
+                <ClusteredMarkers
+                  groups={visibleGroups}
+                  hoveredKey={hoveredKey}
+                  setHoveredKey={setHoveredKey}
+                  onClick={openGroup}
+                />
+              </GMap>
+            </APIProvider>
 
             {/* Filter Bar – floating over the map */}
             <div className="absolute top-6 left-6 z-[400] pointer-events-auto">
