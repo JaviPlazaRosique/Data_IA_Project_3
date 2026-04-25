@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -12,6 +13,18 @@ class SavedEventCreate(BaseModel):
     event_time: str | None = None
     event_image_url: str | None = None
     event_url: str | None = None
+
+
+SwipeDirection = Literal["left", "right"]
+
+
+class SwipeEventCreate(SavedEventCreate):
+    direction: SwipeDirection
+    swiped_at: datetime | None = None
+
+
+class SwipeEventAccepted(BaseModel):
+    accepted: bool
 
 
 class SavedEventRead(BaseModel):

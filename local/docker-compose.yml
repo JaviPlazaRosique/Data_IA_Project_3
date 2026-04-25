@@ -66,6 +66,15 @@ services:
         condition: service_started
     restart: "no"
 
+  # ─── Pub/Sub Emulator ─────────────────────────────────────────────────────────
+  # Auto-creates the topics listed in PUBSUB_PROJECT1 on boot.
+  pubsub:
+    image: messagebird/gcloud-pubsub-emulator:latest
+    environment:
+      PUBSUB_PROJECT1: demo-local,swipe-events
+    ports:
+      - "8085:8681"
+
   # ─── Backend API ──────────────────────────────────────────────────────────────
   backend:
     build:
@@ -78,12 +87,16 @@ services:
       ENVIRONMENT: development
       GOOGLE_CLOUD_PROJECT: demo-local
       FIRESTORE_EMULATOR_HOST: firebase:8081
+      PUBSUB_EMULATOR_HOST: pubsub:8681
+      PUBSUB_TOPIC_SWIPE_EVENTS: swipe-events
     ports:
       - "8080:8080"
     depends_on:
       migrate:
         condition: service_completed_successfully
       firebase:
+        condition: service_started
+      pubsub:
         condition: service_started
     restart: unless-stopped
 
