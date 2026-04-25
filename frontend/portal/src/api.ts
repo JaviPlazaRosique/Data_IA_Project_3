@@ -1,4 +1,4 @@
-import { getBackendUrl } from './config';
+import { awaitConfig, getBackendUrl } from './config';
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
@@ -14,6 +14,17 @@ export const setTokens = (access: string, refresh: string): void => {
 export const clearTokens = (): void => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Ticketmaster classification returns the literal "Undefined" for
+// unclassified events. Treat it as empty across the UI.
+export const cleanLabel = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  const trimmed = s.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'undefined') return null;
+  return trimmed;
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,6 +78,7 @@ export interface UpdateMeData {
 // ─── Base fetch ───────────────────────────────────────────────────────────────
 
 async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  await awaitConfig();
   const base = getBackendUrl();
   return fetch(`${base}${path}`, {
     ...options,
@@ -100,6 +112,7 @@ async function attemptRefresh(): Promise<boolean> {
 }
 
 export async function authFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  await awaitConfig();
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -387,6 +400,7 @@ export async function apiListEvents(
   if (params?.min_lng != null) q.set('min_lng', String(params.min_lng));
   if (params?.max_lng != null) q.set('max_lng', String(params.max_lng));
   const qs = q.toString();
+  await awaitConfig();
   const res = await fetch(
     `${getBackendUrl()}/api/v1/events${qs ? `?${qs}` : ''}`,
     init,
@@ -414,6 +428,7 @@ export async function apiListEventCategories(
   if (params?.min_lng != null) q.set('min_lng', String(params.min_lng));
   if (params?.max_lng != null) q.set('max_lng', String(params.max_lng));
   const qs = q.toString();
+  await awaitConfig();
   const res = await fetch(
     `${getBackendUrl()}/api/v1/events/categories${qs ? `?${qs}` : ''}`,
     init,
@@ -423,6 +438,7 @@ export async function apiListEventCategories(
 }
 
 export async function apiGetEvent(eventId: string): Promise<EventCatalogItem> {
+  await awaitConfig();
   const res = await fetch(`${getBackendUrl()}/api/v1/events/${eventId}`);
   if (!res.ok) throw new ApiError(res.status, 'Failed to load event');
   return res.json();

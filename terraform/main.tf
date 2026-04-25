@@ -283,6 +283,46 @@ module "firestore" {
     }
   ]
 
+  indices_compuestos = [
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "fecha", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "ciudad", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "segmento", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "fecha", order = "ASCENDING" },
+        { field_path = "ciudad", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "fecha", order = "ASCENDING" },
+        { field_path = "segmento", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+  ]
+
   depends_on = [
     module.setup
   ]

@@ -41,6 +41,35 @@ variable "politica_borrado_terraform" {
   }
 }
 
+variable "indices_compuestos" {
+  description = <<-EOT
+    Lista de índices compuestos de Firestore.
+    Cada entrada admite:
+      - coleccion (string, requerido): nombre de la colección.
+      - campos    (list, requerido): lista de campos en orden, cada uno con
+          - field_path (string)
+          - order      (string: "ASCENDING" | "DESCENDING")
+    Ejemplo:
+      indices_compuestos = [
+        {
+          coleccion = "eventos"
+          campos = [
+            { field_path = "fecha",     order = "ASCENDING" },
+            { field_path = "fecha_utc", order = "ASCENDING" },
+          ]
+        }
+      ]
+  EOT
+  type = list(object({
+    coleccion = string
+    campos = list(object({
+      field_path = string
+      order      = string
+    }))
+  }))
+  default = []
+}
+
 variable "politicas_ttl" {
   description = <<-EOT
     Lista de políticas TTL para borrado automático de documentos por colección.
