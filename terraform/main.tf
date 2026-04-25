@@ -457,6 +457,80 @@ module "bigquery" {
           mode = "NULLABLE"
         },
         {
+          name = "antelacion_recomendada",
+          type = "RECORD",
+          mode = "NULLABLE",
+          fields = [
+            { name = "minutos_antelacion", type = "INTEGER", mode = "NULLABLE" },
+            { name = "motivo", type = "STRING", mode = "NULLABLE" },
+          ]
+        },
+        {
+          name = "vibe",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "occasion_tags",
+          type = "STRING",
+          mode = "REPEATED"
+        },
+        {
+          name = "price_band",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "indoor_outdoor",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "time_of_day_fit",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "romantic_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "family_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "group_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "tourist_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "duration_minutes_estimate",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "plan_pairings",
+          type = "STRING",
+          mode = "REPEATED"
+        },
+        {
+          name = "categoria",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "subcategoria",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
           name = "tiempo",
           type = "RECORD",
           mode = "NULLABLE",
