@@ -7,6 +7,7 @@ locals {
     id_proyecto                  = var.id_proyecto
     coleccion_firestore_eventos  = "eventos"
     coleccion_firestore_recintos = "recintos"
+    coleccion_gemini_cache       = "gemini_cache"
     dataset_bigquery             = module.bigquery.id_dataset
     tabla_eventos_bigquery       = "eventos"
     bucket_gcs                   = "${module.bucket_eventos_raw.url}/eventos"
@@ -396,17 +397,7 @@ module "bigquery" {
           mode = "NULLABLE"
         },
         {
-          name = "precio_min",
-          type = "FLOAT64",
-          mode = "NULLABLE"
-        },
-        {
-          name = "precio_max",
-          type = "FLOAT64",
-          mode = "NULLABLE"
-        },
-        {
-          name = "moneda",
+          name = "descripcion",
           type = "STRING",
           mode = "NULLABLE"
         },
