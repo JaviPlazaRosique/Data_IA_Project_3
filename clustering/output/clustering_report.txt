@@ -1,0 +1,58 @@
+Cleaning summary
+{
+  "input_rows": 9817,
+  "rows_after_dedup": 9817,
+  "direction_liked_mismatches": 0,
+  "rows_after_interaction_filter": 9817,
+  "price_swaps": 0,
+  "rows_dropped_invalid": 0,
+  "clean_rows": 9817,
+  "unique_users": 180
+}
+
+Selected K-Means model
+- Best k: 6
+- Silhouette: 0.2763
+- Calinski-Harabasz: 40.41
+- Davies-Bouldin: 1.3813
+- Inertia: 2332.0095
+
+Cluster sizes
+- Cluster 0: 25 users (13.89%)
+- Cluster 1: 30 users (16.67%)
+- Cluster 2: 35 users (19.44%)
+- Cluster 3: 30 users (16.67%)
+- Cluster 4: 30 users (16.67%)
+- Cluster 5: 30 users (16.67%)
+
+Cluster interpretation
+
+Cluster 0
+- users: 25
+- strongest positive traits: avg_disliked_price (+1.65), avg_days_until_event_disliked (+1.63), avg_liked_price (+1.15), avg_days_until_event_liked (+0.58), recency_days (+0.56)
+- strongest negative traits: activity_span_days (-2.69), genre_entropy_all (-0.39), genre_entropy_liked (-0.28), sports_swipe_share (-0.21), sports_like_rate (-0.19)
+
+Cluster 1
+- users: 30
+- strongest positive traits: activity_span_days (+4.12), avg_disliked_price (+0.79), genre_entropy_all (+0.66), genre_entropy_liked (+0.59), left_swipe_rate (+0.37)
+- strongest negative traits: avg_liked_price (-6.38), recency_days (-4.98), avg_days_until_event_liked (-3.10), avg_days_until_event_disliked (-1.98), right_swipe_rate (-0.37)
+
+Cluster 2
+- users: 35
+- strongest positive traits: activity_span_days (+6.13), avg_liked_price (+3.90), music_swipe_share (+0.44), music_like_rate (+0.42), events_seen (+0.21)
+- strongest negative traits: recency_days (-2.97), sports_swipe_share (-0.18), family_like_rate (-0.16), family_swipe_share (-0.15), left_swipe_rate (-0.14)
+
+Cluster 3
+- users: 30
+- strongest positive traits: avg_disliked_price (+4.01), recency_days (+2.55), avg_days_until_event_disliked (+0.87), family_swipe_share (+0.52), family_like_rate (+0.46)
+- strongest negative traits: avg_liked_price (-10.13), activity_span_days (-5.44), avg_days_until_event_liked (-1.38), genre_entropy_liked (-0.49), events_seen (-0.35)
+
+Cluster 4
+- users: 30
+- strongest positive traits: avg_liked_price (+3.56), recency_days (+3.18), avg_days_until_event_liked (+2.52), avg_days_until_event_disliked (+0.73), genre_entropy_liked (+0.63)
+- strongest negative traits: avg_disliked_price (-4.97), activity_span_days (-2.41), discover_share (-0.17), right_swipe_rate (-0.12), family_swipe_share (-0.10)
+
+Cluster 5
+- users: 30
+- strongest positive traits: avg_liked_price (+7.44), recency_days (+2.25), avg_days_until_event_liked (+1.59), sports_swipe_share (+0.58), sports_like_rate (+0.57)
+- strongest negative traits: avg_disliked_price (-1.25), avg_days_until_event_disliked (-1.18), activity_span_days (-1.18), genre_entropy_all (-0.44), genre_entropy_liked (-0.43)
