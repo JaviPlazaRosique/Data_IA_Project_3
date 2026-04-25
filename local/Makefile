@@ -1,7 +1,8 @@
 COMPOSE := docker compose -f docker-compose.yml
 
 .PHONY: help up up-full down reset logs logs-backend logs-firebase \
-        seed-events migrate dev frontend-config psql build ps
+        seed-events migrate dev frontend-config psql build ps \
+        pubsub-topics pubsub-sub pubsub-pull pubsub-listen
 
 help:
 	@echo "The Electric Curator — local dev targets"
@@ -22,6 +23,9 @@ help:
 	@echo "  make psql            open psql inside the db container"
 	@echo "  make build           rebuild all images"
 	@echo "  make ps              show container status"
+	@echo "  make pubsub-topics   list topics in the local emulator"
+	@echo "  make pubsub-pull     pull + ack queued swipe messages once"
+	@echo "  make pubsub-listen   poll continuously every 2s"
 
 up:
 	$(COMPOSE) up -d --build
@@ -65,3 +69,33 @@ build:
 
 ps:
 	$(COMPOSE) ps
+
+# ─── Pub/Sub emulator helpers ────────────────────────────────────────────────
+# Emulator listens on host :8085. Project = demo-local. Topic = swipe-events.
+PUBSUB_HOST := localhost:8085
+PUBSUB_PROJECT := demo-local
+PUBSUB_TOPIC := swipe-events
+PUBSUB_SUB := swipe-events-debug
+
+pubsub-topics:
+	@curl -s http://$(PUBSUB_HOST)/v1/projects/$(PUBSUB_PROJECT)/topics | python3 -m json.tool
+
+pubsub-sub:
+	@curl -s -X PUT http://$(PUBSUB_HOST)/v1/projects/$(PUBSUB_PROJECT)/subscriptions/$(PUBSUB_SUB) \
+		-H "Content-Type: application/json" \
+		-d '{"topic":"projects/$(PUBSUB_PROJECT)/topics/$(PUBSUB_TOPIC)","ackDeadlineSeconds":10}' | python3 -m json.tool || true
+
+pubsub-pull: pubsub-sub
+	@curl -s -X POST http://$(PUBSUB_HOST)/v1/projects/$(PUBSUB_PROJECT)/subscriptions/$(PUBSUB_SUB):pull \
+		-H "Content-Type: application/json" \
+		-d '{"maxMessages":20,"returnImmediately":true}' \
+		| python3 -c 'import sys,json,base64; d=json.load(sys.stdin); msgs=d.get("receivedMessages",[]); print(f"{len(msgs)} message(s)\n"); [print(json.dumps({"id":m["message"].get("messageId"),"attrs":m["message"].get("attributes",{}),"data":json.loads(base64.b64decode(m["message"]["data"]))}, indent=2)) for m in msgs]; ack=[m["ackId"] for m in msgs]; open("/tmp/.psack","w").write(json.dumps(ack))'
+	@if [ -s /tmp/.psack ]; then \
+		curl -s -X POST http://$(PUBSUB_HOST)/v1/projects/$(PUBSUB_PROJECT)/subscriptions/$(PUBSUB_SUB):acknowledge \
+			-H "Content-Type: application/json" \
+			-d "$$(printf '{"ackIds":%s}' $$(cat /tmp/.psack))" > /dev/null; \
+	fi
+
+pubsub-listen:
+	@echo "Polling $(PUBSUB_TOPIC) every 2s. Ctrl-C to stop."
+	@while true; do $(MAKE) --no-print-directory pubsub-pull; sleep 2; done

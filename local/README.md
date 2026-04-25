@@ -28,7 +28,8 @@ On first boot the stack will:
 3. Seed two test users.
 4. Start the Firestore emulator on `localhost:8081` (UI at `localhost:4000`).
 5. Seed six fixture events into the `eventos` collection.
-6. Start the FastAPI backend on `localhost:8080`.
+6. Start the Pub/Sub emulator on `localhost:8085` with topic `swipe-events` pre-created.
+7. Start the FastAPI backend on `localhost:8080`.
 
 When all one-shot services have exited and `backend` + `firebase` are running,
 you're ready.
@@ -77,6 +78,7 @@ Both users are seeded by `local/seed.py` on first migrate.
 | Backend API | <http://localhost:8080> |
 | OpenAPI docs | <http://localhost:8080/docs> |
 | Firestore Emulator UI | <http://localhost:4000> |
+| Pub/Sub Emulator | `localhost:8085` (project `demo-local`, topic `swipe-events`) |
 | Postgres | `localhost:5433` (user: `curator`, db: `electric_curator`) |
 
 ## Seeded Firestore events
@@ -121,3 +123,27 @@ invoking compose from there (the `Makefile` does this for you).
 
 **Stale cached builds.** `docker compose -f local/docker-compose.yml build --no-cache`
 then `make up`.
+
+## Inspecting swipe events (Pub/Sub emulator)
+
+Left/right swipes in QuickMatch publish to the `swipe-events` topic on the
+Pub/Sub emulator. The favorite button is a separate action that writes to the
+`saved_events` table in Postgres and does **not** publish to Pub/Sub. Pull
+queued swipe messages with `gcloud` pointed at the emulator:
+
+```bash
+export PUBSUB_EMULATOR_HOST=localhost:8085
+export PUBSUB_PROJECT_ID=demo-local
+gcloud pubsub subscriptions create swipe-events-debug --topic=swipe-events --project=demo-local
+gcloud pubsub subscriptions pull swipe-events-debug --auto-ack --limit=10 --project=demo-local
+```
+
+Or hit the emulator REST API directly:
+
+```bash
+curl http://localhost:8085/v1/projects/demo-local/topics
+```
+
+Topic state is in-memory — restarting the `pubsub` container drops queued
+messages and the subscription. The `swipe-events` topic itself is recreated
+automatically on boot from `PUBSUB_PROJECT1` in `docker-compose.yml`.
