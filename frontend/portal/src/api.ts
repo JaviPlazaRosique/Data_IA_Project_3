@@ -16,6 +16,17 @@ export const clearTokens = (): void => {
   localStorage.removeItem(REFRESH_KEY);
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Ticketmaster classification returns the literal "Undefined" for
+// unclassified events. Treat it as empty across the UI.
+export const cleanLabel = (s: string | null | undefined): string | null => {
+  if (!s) return null;
+  const trimmed = s.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'undefined') return null;
+  return trimmed;
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UserRead {

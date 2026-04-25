@@ -5,6 +5,7 @@ import {
   apiListSavedEvents,
   apiSaveEvent,
   apiSwipeEvent,
+  cleanLabel,
   type EventCatalogItem,
   type SavedEventRead,
   type SwipeDirection,
@@ -446,7 +447,9 @@ function Card({
   const title = event.nombre ?? 'Evento';
   const locationLine = [event.recinto_nombre, event.ciudad].filter(Boolean).join(' • ');
   const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
-  const tags = [event.segmento, event.genero].filter((t): t is string => !!t);
+  const tags = [event.segmento, event.genero]
+    .map(cleanLabel)
+    .filter((t): t is string => t !== null);
 
   return (
     <div
