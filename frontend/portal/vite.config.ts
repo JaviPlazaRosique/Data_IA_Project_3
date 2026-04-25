@@ -12,11 +12,10 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (
-              id.includes('leaflet') ||
-              id.includes('react-leaflet') ||
-              id.includes('react-leaflet-cluster')
+              id.includes('@vis.gl/react-google-maps') ||
+              id.includes('@googlemaps/markerclusterer')
             ) {
-              return 'leaflet';
+              return 'gmaps';
             }
             if (
               id.includes('/react/') ||
