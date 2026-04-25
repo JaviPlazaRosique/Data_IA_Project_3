@@ -115,7 +115,6 @@ def transformar_evento(evento_raw: dict) -> dict:
     inicio        = (evento_raw.get("dates") or {}).get("start") or {}
     venta         = ((evento_raw.get("sales") or {}).get("public")) or {}
     ubicacion     = venue.get("location") or {}
-    precio        = (evento_raw.get("priceRanges") or [{}])[0]
 
     evento = {
         "id":               evento_raw.get("id"),
@@ -143,9 +142,7 @@ def transformar_evento(evento_raw: dict) -> dict:
         "artista_imagen":   sacar_mejor_imagen(atraccion.get("images") or [], ratio="3_2", min_ancho=300),
         "imagen_evento":    sacar_mejor_imagen(evento_raw.get("images") or [], ratio="16_9", min_ancho=1000),
         "promotor":         (evento_raw.get("promoter") or {}).get("name"),
-        "precio_min":       float(precio["min"]) if precio.get("min") is not None else None,
-        "precio_max":       float(precio["max"]) if precio.get("max") is not None else None,
-        "moneda":           precio.get("currency"),
+        "descripcion":      evento_raw.get("description"),
     }
 
     logging.debug(f"[Ticketmaster] Evento procesado: id = {evento['id']}")
@@ -264,17 +261,7 @@ schema_bq = {
             "mode": "NULLABLE"
         },
         {
-            "name": "precio_min",
-            "type": "FLOAT64",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "precio_max",
-            "type": "FLOAT64",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "moneda",
+            "name": "descripcion",
             "type": "STRING",
             "mode": "NULLABLE"
         },
@@ -736,22 +723,21 @@ Debes devolver solo JSON válido que cumpla exactamente el schema indicado.
 No inventes información fuera de lo que permitan inferir los datos.
 Si falta contexto, elige la opción más prudente y coherente.
 
-Usa únicamente estos 8 campos del evento para inferir la respuesta:
+Usa únicamente estos 7 campos del evento para inferir la respuesta:
 - nombre: {evento.get("nombre")}
+- descripcion: {evento.get("descripcion")}
 - segmento: {evento.get("segmento")}
 - genero: {evento.get("genero")}
 - subgenero: {evento.get("subgenero")}
 - recinto_nombre: {evento.get("recinto_nombre")}
 - hora: {evento.get("hora")}
-- precio_min: {evento.get("precio_min")}
-- precio_max: {evento.get("precio_max")}
 
 Reglas de salida:
 - minutos_antelacion: entero razonable entre 15 y 120.
 - motivo: una frase corta en español.
 - vibe: elige exactamente una opción entre romantico, energetico, tranquilo, familiar, premium, alternativo.
 - occasion_tags: devuelve de 1 a 3 etiquetas entre pareja, friends, familia, solo, afterwork.
-- price_band: usa low si el precio_max es hasta 25, medium si está entre 26 y 60 o si no hay suficiente señal clara, high si supera 60.
+- price_band: infiere la banda de precio (low, medium, high) a partir del tipo de evento, género y recinto.
 - indoor_outdoor: elige indoor, outdoor, mixed o unknown.
 - time_of_day_fit: morning para eventos de mañana, afternoon para tarde, night para noche.
 - romantic_score, family_score, group_score y tourist_score: enteros entre 0 y 100.
@@ -764,10 +750,16 @@ Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
 """
 
+CAMPOS_GEMINI = {"vibe", "occasion_tags", "price_band", "indoor_outdoor", "time_of_day_fit",
+                 "romantic_score", "family_score", "group_score", "tourist_score",
+                 "duration_minutes_estimate", "plan_pairings", "categoria", "subcategoria"}
+
+
 class EnriquecerConGemini(beam.DoFn):
-    def __init__(self, id_proyecto: str, region: str = "europe-west1"):
-        self.id_proyecto = id_proyecto
-        self.region      = region
+    def __init__(self, id_proyecto: str, coleccion_gemini_cache: str, region: str = "europe-west1"):
+        self.id_proyecto          = id_proyecto
+        self.coleccion_gemini_cache = coleccion_gemini_cache
+        self.region               = region
 
     def setup(self):
         vertexai.init(project=self.id_proyecto, location=self.region)
@@ -778,9 +770,33 @@ class EnriquecerConGemini(beam.DoFn):
                 response_schema=schema_salida_enriquecimiento_gemini,
             ),
         )
+        self.db = firestore.Client(project=self.id_proyecto)
         logging.info("[Gemini] Worker inicializado — modelo: gemini-2.5-flash (Vertex AI, proyecto=%s)", self.id_proyecto)
 
+    def _id_cache(self, nombre: str) -> str:
+        return nombre.replace("/", "_")
+
+    def _leer_cache(self, nombre: str) -> dict | None:
+        doc = self.db.collection(self.coleccion_gemini_cache).document(self._id_cache(nombre)).get()
+        if not doc.exists:
+            return None
+        datos = doc.to_dict()
+        if not CAMPOS_GEMINI.issubset(datos.keys()):
+            return None
+        return datos
+
+    def _guardar_cache(self, nombre: str, enriquecimiento: dict) -> None:
+        self.db.collection(self.coleccion_gemini_cache).document(self._id_cache(nombre)).set(enriquecimiento)
+
     def process(self, evento: dict):
+        nombre = evento.get("nombre")
+
+        cache = self._leer_cache(nombre)
+        if cache is not None:
+            logging.info("[Gemini] Caché HIT — id=%s | nombre=%s", evento.get("id"), nombre)
+            yield {**evento, **{campo: cache[campo] for campo in CAMPOS_GEMINI | {"antelacion_recomendada"} if campo in cache}}
+            return
+
         prompt = construir_prompt_enriquecimiento_gemini(evento)
 
         try:
@@ -806,26 +822,28 @@ class EnriquecerConGemini(beam.DoFn):
             yield {**evento, "antelacion_recomendada": None}
             return
 
-        yield {
-            **evento,
+        datos_cache = {
             "antelacion_recomendada": {
                 "minutos_antelacion": enriquecimiento.get("minutos_antelacion"),
                 "motivo": enriquecimiento.get("motivo"),
             },
-            "vibe": enriquecimiento.get("vibe"),
-            "occasion_tags": enriquecimiento.get("occasion_tags", []),
-            "price_band": enriquecimiento.get("price_band"),
-            "indoor_outdoor": enriquecimiento.get("indoor_outdoor"),
-            "time_of_day_fit": enriquecimiento.get("time_of_day_fit"),
-            "romantic_score": enriquecimiento.get("romantic_score"),
-            "family_score": enriquecimiento.get("family_score"),
-            "group_score": enriquecimiento.get("group_score"),
-            "tourist_score": enriquecimiento.get("tourist_score"),
+            "vibe":                     enriquecimiento.get("vibe"),
+            "occasion_tags":            enriquecimiento.get("occasion_tags", []),
+            "price_band":               enriquecimiento.get("price_band"),
+            "indoor_outdoor":           enriquecimiento.get("indoor_outdoor"),
+            "time_of_day_fit":          enriquecimiento.get("time_of_day_fit"),
+            "romantic_score":           enriquecimiento.get("romantic_score"),
+            "family_score":             enriquecimiento.get("family_score"),
+            "group_score":              enriquecimiento.get("group_score"),
+            "tourist_score":            enriquecimiento.get("tourist_score"),
             "duration_minutes_estimate": enriquecimiento.get("duration_minutes_estimate"),
-            "plan_pairings": enriquecimiento.get("plan_pairings", []),
-            "categoria": enriquecimiento.get("categoria"),
-            "subcategoria": enriquecimiento.get("subcategoria"),
+            "plan_pairings":            enriquecimiento.get("plan_pairings", []),
+            "categoria":                enriquecimiento.get("categoria"),
+            "subcategoria":             enriquecimiento.get("subcategoria"),
         }
+
+        self._guardar_cache(nombre, datos_cache)
+        yield {**evento, **datos_cache}
 
 
 WMO_DESCRIPCIONES = {
@@ -970,6 +988,12 @@ def run():
         help = "ID del secreto en Secret Manager para la API key de Google Places"
     )
 
+    parser.add_argument(
+        "--coleccion_gemini_cache",
+        required = True,
+        help = "Colección de Firestore para la caché de enriquecimientos de Gemini"
+    )
+
     argumentos, pipeline_opts = parser.parse_known_args()
 
     worker_image = (
@@ -1041,7 +1065,7 @@ def run():
                 )
             )
             | "EnriquecerConGemini" >> beam.ParDo(
-                EnriquecerConGemini(argumentos.id_proyecto)
+                EnriquecerConGemini(argumentos.id_proyecto, argumentos.coleccion_gemini_cache)
             )
             | "EnriquecerConTiempo" >> beam.ParDo(EnriquecerConTiempo())
         )
