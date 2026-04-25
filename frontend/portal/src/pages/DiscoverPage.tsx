@@ -4,7 +4,7 @@ import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import { categories, heroEvent } from '../data/mockData';
-import { apiListEvents, type EventCatalogItem } from '../api';
+import { apiListEvents, cleanLabel, type EventCatalogItem } from '../api';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
 
@@ -226,9 +226,9 @@ export default function DiscoverPage() {
                   const title = first.nombre ?? 'Evento';
                   const venue = [first.recinto_nombre, first.ciudad].filter(Boolean).join(' • ');
                   const image = first.imagen_evento ?? first.artista_imagen ?? EVENT_IMAGE_FALLBACK;
-                  const tags = [first.segmento, first.genero].filter(
-                    (t): t is string => !!t,
-                  );
+                  const tags = [first.segmento, first.genero]
+                    .map(cleanLabel)
+                    .filter((t): t is string => t !== null);
                   const schedule = buildScheduleEntries(group.items);
                   return (
                     <div

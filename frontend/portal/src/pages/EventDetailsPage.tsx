@@ -13,6 +13,7 @@ import EventCalendar from '../components/event/EventCalendar';
 import {
   apiGetEvent,
   apiListEvents,
+  cleanLabel,
   type EventCatalogItem,
 } from '../api';
 
@@ -210,9 +211,12 @@ export default function EventDetailsPage() {
                 if (event.artista_nombre) {
                   parts.push(`Join ${event.artista_nombre} for an unforgettable live experience.`);
                 }
-                const genreBits = [event.genero, event.subgenero].filter(Boolean).join(' / ');
+                const segmento = cleanLabel(event.segmento);
+                const genero = cleanLabel(event.genero);
+                const subgenero = cleanLabel(event.subgenero);
+                const genreBits = [genero, subgenero].filter(Boolean).join(' / ');
                 if (genreBits) parts.push(`Genre: ${genreBits}.`);
-                if (event.segmento) parts.push(`Category: ${event.segmento}.`);
+                if (segmento) parts.push(`Category: ${segmento}.`);
                 if (event.recinto_nombre || event.ciudad || event.direccion) {
                   parts.push(
                     `Taking place at ${[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(', ')}.`
@@ -226,9 +230,12 @@ export default function EventDetailsPage() {
                   : `Discover ${event.nombre ?? 'this event'} and plan your night out.`;
               })()}
             </p>
-            {(event?.genero || event?.subgenero || event?.segmento) && (
+            {[event?.segmento, event?.genero, event?.subgenero]
+              .map(cleanLabel)
+              .filter(Boolean).length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4">
                 {[event?.segmento, event?.genero, event?.subgenero]
+                  .map(cleanLabel)
                   .filter(Boolean)
                   .map((tag) => (
                     <span
