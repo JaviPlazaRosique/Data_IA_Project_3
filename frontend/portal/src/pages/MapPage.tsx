@@ -15,6 +15,7 @@ import {
   apiListEventCategories,
   apiListEvents,
   apiSaveEvent,
+  cleanLabel,
   type EventCatalogItem,
 } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -70,9 +71,12 @@ function buildEventDescription(event: EventCatalogItem): string {
   if (event.artista_nombre) {
     parts.push(`Join ${event.artista_nombre} for an unforgettable live experience.`);
   }
-  const genreBits = [event.genero, event.subgenero].filter(Boolean).join(' / ');
+  const segmento = cleanLabel(event.segmento);
+  const genero = cleanLabel(event.genero);
+  const subgenero = cleanLabel(event.subgenero);
+  const genreBits = [genero, subgenero].filter(Boolean).join(' / ');
   if (genreBits) parts.push(`Genre: ${genreBits}.`);
-  if (event.segmento) parts.push(`Category: ${event.segmento}.`);
+  if (segmento) parts.push(`Category: ${segmento}.`);
   if (event.recinto_nombre || event.ciudad || event.direccion) {
     parts.push(
       `Taking place at ${[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(', ')}.`,
@@ -86,8 +90,9 @@ function buildEventDescription(event: EventCatalogItem): string {
 type PinCategory = 'music' | 'food' | 'art';
 
 const segmentoToCategory = (s: string | null): PinCategory => {
-  if (s === 'Music') return 'music';
-  if (s === 'Arts & Theatre' || s === 'Film') return 'art';
+  const c = cleanLabel(s);
+  if (c === 'Music') return 'music';
+  if (c === 'Arts & Theatre' || c === 'Film') return 'art';
   return 'food';
 };
 
@@ -160,6 +165,17 @@ function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
 const GMAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 const GMAPS_MAP_ID =
   (import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined) || undefined;
+
+// AdvancedMarkerElement requires a vector map, which only loads when a
+// Cloud-based map style ID is provided. Without it the map renders raster
+// tiles and AdvancedMarker.setMap throws "Cannot read properties of
+// undefined (reading 'getRootNode')".
+if (!GMAPS_MAP_ID && typeof window !== 'undefined') {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[MapPage] VITE_GOOGLE_MAPS_MAP_ID is not set. Advanced markers will not render.',
+  );
+}
 
 type Bounds = { south: number; west: number; north: number; east: number };
 
@@ -377,6 +393,9 @@ function ClusteredMarkers({
     resync();
   }, [keysSig, resync]);
 
+  // Just collect the refs. The keysSig effect performs a single
+  // clear+add after each render commit, so we avoid clearing the
+  // clusterer N times during ref attach/detach cycles.
   const setMarkerRef = useCallback(
     (
       marker: google.maps.marker.AdvancedMarkerElement | null,
@@ -386,9 +405,8 @@ function ClusteredMarkers({
       if (marker === cur) return;
       if (marker) markersRef.current.set(key, marker);
       else markersRef.current.delete(key);
-      resync();
     },
-    [resync],
+    [],
   );
 
   return (
@@ -481,7 +499,9 @@ function EventDetailModal({
     .join(' • ');
   const schedule = buildScheduleEntries(occurrences.length ? occurrences : [event]);
   const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
-  const tags = [event.segmento, event.genero, event.subgenero].filter(Boolean);
+  const tags = [event.segmento, event.genero, event.subgenero]
+    .map(cleanLabel)
+    .filter(Boolean);
 
   async function onSave() {
     if (!event) return;
@@ -801,7 +821,13 @@ export default function MapPage() {
     const params: Parameters<typeof apiListEventCategories>[0] = {};
     if (selectedDate) params.fecha = selectedDate;
     apiListEventCategories(params, { signal: ctrl.signal })
-      .then(setCategoryOptions)
+      .then((cats) =>
+        setCategoryOptions(
+          cats
+            .map((c) => cleanLabel(c))
+            .filter((c): c is string => c !== null),
+        ),
+      )
       .catch(() => {
         /* leave previous options on failure */
       });
@@ -1124,9 +1150,9 @@ export default function MapPage() {
                           <p className="text-on-surface-variant text-[11px] leading-snug line-clamp-2">
                             {buildEventDescription(event)}
                           </p>
-                          {event.segmento && (
+                          {cleanLabel(event.segmento) && (
                             <span className="inline-block mt-2 bg-surface-container-lowest px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-                              {event.segmento}
+                              {cleanLabel(event.segmento)}
                             </span>
                           )}
                         </div>
