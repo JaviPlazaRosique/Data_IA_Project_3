@@ -253,108 +253,6 @@ function BoundsWatcher({ onChange }: { onChange: (b: Bounds) => void }) {
   return null;
 }
 
-function InitialView({
-  preferredLocation,
-  preferredLat,
-  preferredLng,
-  events,
-}: {
-  preferredLocation: string | null;
-  preferredLat: number | null;
-  preferredLng: number | null;
-  events: Array<{ latitud: number; longitud: number }>;
-}) {
-  const map = useMap();
-  const positionedRef = useRef(false);
-  const geoAttemptedRef = useRef(false);
-
-  useEffect(() => {
-    if (!map) return;
-    const lock = () => {
-      positionedRef.current = true;
-    };
-    const l1 = map.addListener('dragstart', lock);
-    const l2 = map.addListener('zoom_changed', lock);
-    return () => {
-      l1.remove();
-      l2.remove();
-    };
-  }, [map]);
-
-  useEffect(() => {
-    if (!map || positionedRef.current) return;
-    let cancelled = false;
-
-    const fitToEvents = () => {
-      const bounds = new google.maps.LatLngBounds();
-      events.forEach((e) =>
-        bounds.extend({ lat: e.latitud, lng: e.longitud }),
-      );
-      map.fitBounds(bounds, 40);
-    };
-
-    async function resolve() {
-      if (!map) return;
-      if (preferredLat != null && preferredLng != null) {
-        map.setCenter({ lat: preferredLat, lng: preferredLng });
-        map.setZoom(CITY_ZOOM);
-        positionedRef.current = true;
-        return;
-      }
-
-      if (preferredLocation) {
-        const key = preferredLocation
-          .trim()
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '');
-        let coords: [number, number] | null = CITY_COORDS[key] ?? null;
-        if (!coords) coords = await geocodeCity(preferredLocation);
-        if (cancelled || positionedRef.current) return;
-        if (coords) {
-          map.setCenter({ lat: coords[0], lng: coords[1] });
-          map.setZoom(CITY_ZOOM);
-          positionedRef.current = true;
-          return;
-        }
-      }
-
-      if (!geoAttemptedRef.current && navigator.geolocation) {
-        geoAttemptedRef.current = true;
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            if (positionedRef.current) return;
-            map.setCenter({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-            });
-            map.setZoom(CITY_ZOOM);
-            positionedRef.current = true;
-          },
-          () => {
-            if (positionedRef.current || events.length === 0) return;
-            fitToEvents();
-            positionedRef.current = true;
-          },
-        );
-        return;
-      }
-
-      if (events.length > 0) {
-        fitToEvents();
-        positionedRef.current = true;
-      }
-    }
-
-    resolve();
-    return () => {
-      cancelled = true;
-    };
-  }, [preferredLocation, preferredLat, preferredLng, events, map]);
-
-  return null;
-}
-
 function ClusteredMarkers({
   groups,
   hoveredKey,
@@ -740,6 +638,69 @@ export default function MapPage() {
   const inflightRef = useRef<AbortController | null>(null);
   const boundsRef = useRef<Bounds | null>(null);
   const initialFetchedRef = useRef(false);
+  const [initialCenter, setInitialCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
+  const initialResolvedRef = useRef(false);
+
+  // Resolve starting map center: geolocation > saved city > Madrid.
+  useEffect(() => {
+    if (initialResolvedRef.current) return;
+    let cancelled = false;
+
+    function commit(lat: number, lng: number) {
+      if (cancelled || initialResolvedRef.current) return;
+      initialResolvedRef.current = true;
+      setInitialCenter({ lat, lng, zoom: CITY_ZOOM });
+    }
+
+    async function resolveStart() {
+      // 1. Geolocation
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) => {
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 });
+          });
+          commit(pos.coords.latitude, pos.coords.longitude);
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      if (cancelled || initialResolvedRef.current) return;
+
+      // 2. Saved location coords
+      const lat = user?.preferred_location_lat;
+      const lng = user?.preferred_location_lng;
+      if (lat != null && lng != null) {
+        commit(lat, lng);
+        return;
+      }
+
+      // 3. Saved city name → known coords or geocode
+      if (user?.preferred_location) {
+        const key = user.preferred_location
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        let coords: [number, number] | null = CITY_COORDS[key] ?? null;
+        if (!coords) coords = await geocodeCity(user.preferred_location);
+        if (cancelled || initialResolvedRef.current) return;
+        if (coords) {
+          commit(coords[0], coords[1]);
+          return;
+        }
+      }
+
+      // 4. Madrid fallback
+      const [mLat, mLng] = CITY_COORDS.madrid;
+      commit(mLat, mLng);
+    }
+
+    resolveStart();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.preferred_location, user?.preferred_location_lat, user?.preferred_location_lng]);
 
   const fetchEvents = useCallback(() => {
     inflightRef.current?.abort();
@@ -916,8 +877,6 @@ export default function MapPage() {
     openGroup(g);
   };
 
-  const mapCenter = { lat: 40.42, lng: -3.7 };
-
   return (
     <div className="bg-surface text-on-surface h-screen overflow-hidden flex flex-col">
       <TopNav />
@@ -927,10 +886,11 @@ export default function MapPage() {
         <section className="relative flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row">
 
           <div className="h-[45vh] md:h-auto md:flex-1 relative shrink-0">
+            {initialCenter ? (
             <APIProvider apiKey={GMAPS_API_KEY}>
               <GMap
-                defaultCenter={mapCenter}
-                defaultZoom={13}
+                defaultCenter={{ lat: initialCenter.lat, lng: initialCenter.lng }}
+                defaultZoom={initialCenter.zoom}
                 mapId={GMAPS_MAP_ID}
                 disableDefaultUI
                 gestureHandling="greedy"
@@ -940,12 +900,6 @@ export default function MapPage() {
                   <MapFlyTo lat={flyTarget.lat} lng={flyTarget.lng} />
                 )}
                 <BoundsWatcher onChange={setBounds} />
-                <InitialView
-                  preferredLocation={user?.preferred_location ?? null}
-                  preferredLat={user?.preferred_location_lat ?? null}
-                  preferredLng={user?.preferred_location_lng ?? null}
-                  events={mappableEvents}
-                />
                 <ClusteredMarkers
                   groups={visibleGroups}
                   hoveredKey={hoveredKey}
@@ -954,6 +908,11 @@ export default function MapPage() {
                 />
               </GMap>
             </APIProvider>
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-surface-container-low text-on-surface-variant">
+                <span className="material-symbols-outlined animate-pulse text-3xl">my_location</span>
+              </div>
+            )}
 
             {/* Filter Bar – floating over the map (desktop) */}
             <div className="hidden md:block absolute top-6 left-6 z-[400] pointer-events-auto">
