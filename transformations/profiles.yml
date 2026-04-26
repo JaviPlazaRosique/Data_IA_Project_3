@@ -1,0 +1,19 @@
+recomendacion:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT') }}"
+      dataset: "{{ env_var('DBT_DATASET', 'recomendacion_planes') }}"
+      location: EU
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT') }}"
+      dataset: "{{ env_var('DBT_DATASET', 'dbt_dev') }}"
+      location: EU
+      threads: 4

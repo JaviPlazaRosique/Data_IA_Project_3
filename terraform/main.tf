@@ -174,15 +174,69 @@ module "portal_api_sa" {
   ]
 }
 
-module "pubsub_swipe_events" {
-  source             = "./modules/pubsub"
+data "google_project" "actual" {
+  project_id = var.id_proyecto
+}
+
+locals {
+  pubsub_service_agent = "service-${data.google_project.actual.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+module "bigquery_raw" {
+  source             = "./modules/bigquery"
   id_proyecto        = var.id_proyecto
-  nombre_topic       = "swipe-events"
-  publicadores       = [module.portal_api_sa.email_cuenta_servicio]
-  habilitar_dlq      = true
-  nombre_suscripcion = "swipe-events-sub"
+  id_dataset         = "raw"
+  nombre_dataset     = "Landing zone para mensajes crudos de Pub/Sub"
+  ubicacion          = "EU"
+  proteccion_borrado = var.proteccion_borrado
+
+  tablas = [
+    {
+      id_tabla        = "swipes_raw"
+      campo_particion = "publish_time"
+      schema_json = jsonencode([
+        { name = "subscription_name", type = "STRING", mode = "NULLABLE" },
+        { name = "message_id", type = "STRING", mode = "NULLABLE" },
+        { name = "publish_time", type = "TIMESTAMP", mode = "NULLABLE" },
+        { name = "data", type = "STRING", mode = "NULLABLE" },
+        { name = "attributes", type = "STRING", mode = "NULLABLE" }
+      ])
+    }
+  ]
+
   depends_on = [
-    module.portal_api_sa
+    module.setup
+  ]
+}
+
+resource "google_bigquery_dataset_iam_member" "pubsub_raw_data_editor" {
+  project    = var.id_proyecto
+  dataset_id = module.bigquery_raw.id_dataset
+  role       = "roles/bigquery.dataEditor"
+  member     = "serviceAccount:${local.pubsub_service_agent}"
+}
+
+resource "google_bigquery_dataset_iam_member" "pubsub_raw_metadata_viewer" {
+  project    = var.id_proyecto
+  dataset_id = module.bigquery_raw.id_dataset
+  role       = "roles/bigquery.metadataViewer"
+  member     = "serviceAccount:${local.pubsub_service_agent}"
+}
+
+module "pubsub_swipe_events" {
+  source                  = "./modules/pubsub"
+  id_proyecto             = var.id_proyecto
+  nombre_topic            = "swipe-events"
+  publicadores            = [module.portal_api_sa.email_cuenta_servicio]
+  habilitar_dlq           = true
+  nombre_suscripcion      = "swipe-events-sub"
+  tipo_suscripcion        = "bigquery"
+  bigquery_table          = "${var.id_proyecto}.${module.bigquery_raw.id_dataset}.swipes_raw"
+  bigquery_write_metadata = true
+  depends_on = [
+    module.portal_api_sa,
+    google_bigquery_dataset_iam_member.pubsub_raw_data_editor,
+    google_bigquery_dataset_iam_member.pubsub_raw_metadata_viewer
   ]
 }
 
