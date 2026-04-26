@@ -10,9 +10,8 @@ export default function TopNav() {
 
   const navLinks = [
     { label: t.nav.discover, path: '/' },
-    { label: t.nav.planner, path: '/planner' },
     { label: t.nav.map, path: '/map' },
-    { label: t.nav.profile, path: '/profile' },
+    { label: t.nav.planner, path: '/planner' },
   ];
 
   async function handleLogout() {
@@ -47,13 +46,20 @@ export default function TopNav() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="text-tertiary/70 hover:text-tertiary transition-colors">
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
           {user ? (
-            <div className="flex items-center gap-3">
-              <Link to="/profile" className="hidden sm:block text-sm font-medium text-tertiary/70 hover:text-tertiary transition-colors">
-                {user.full_name ?? user.username}
+            <>
+              <button className="text-tertiary/70 hover:text-tertiary transition-colors" title="Notificaciones">
+                <span className="material-symbols-outlined">notifications</span>
+              </button>
+              <Link
+                to="/profile"
+                className="text-tertiary/70 hover:text-tertiary transition-colors flex items-center gap-2"
+                title={user.full_name ?? user.username}
+              >
+                <span className="hidden sm:block text-sm font-medium">
+                  {user.full_name ?? user.username}
+                </span>
+                <span className="material-symbols-outlined">account_circle</span>
               </Link>
               <button
                 onClick={handleLogout}
@@ -62,7 +68,7 @@ export default function TopNav() {
               >
                 <span className="material-symbols-outlined">logout</span>
               </button>
-            </div>
+            </>
           ) : (
             <Link to="/login" className="text-sm font-bold text-tertiary hover:underline">
               Iniciar sesión
