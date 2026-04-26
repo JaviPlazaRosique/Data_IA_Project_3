@@ -722,6 +722,8 @@ export default function MapPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const mobileFiltersRef = useRef<HTMLDivElement | null>(null);
   const categoryMenuRef = useRef<HTMLDivElement | null>(null);
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
@@ -841,6 +843,28 @@ export default function MapPage() {
     if (still.length !== selectedCategories.length) setSelectedCategories(still);
   }, [categoryOptions, selectedCategories]);
 
+  // Close mobile filters on outside click / Escape.
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (
+        mobileFiltersRef.current &&
+        !mobileFiltersRef.current.contains(e.target as Node)
+      ) {
+        setMobileFiltersOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileFiltersOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [mobileFiltersOpen]);
+
   // Close category menu on outside click / Escape.
   useEffect(() => {
     if (!categoryMenuOpen) return;
@@ -929,8 +953,8 @@ export default function MapPage() {
               </GMap>
             </APIProvider>
 
-            {/* Filter Bar – floating over the map */}
-            <div className="absolute top-6 left-6 z-[400] pointer-events-auto">
+            {/* Filter Bar – floating over the map (desktop) */}
+            <div className="hidden md:block absolute top-6 left-6 z-[400] pointer-events-auto">
               <div className="bg-surface-variant/80 backdrop-blur-3xl rounded-full px-6 py-3 flex flex-wrap items-center gap-4 shadow-2xl border border-outline-variant/20">
                 <div className="flex items-center gap-3 border-r border-outline-variant/20 pr-6">
                   <button
@@ -1024,12 +1048,12 @@ export default function MapPage() {
               </div>
             </div>
 
-            {/* Reload button */}
+            {/* Reload button (desktop) */}
             <button
               type="button"
               onClick={fetchEvents}
               disabled={loading}
-              className="absolute top-6 right-6 z-[400] bg-surface-container-high/90 backdrop-blur-xl rounded-full px-5 h-12 flex items-center gap-2 border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors disabled:opacity-50"
+              className="hidden md:flex absolute top-6 right-6 z-[400] bg-surface-container-high/90 backdrop-blur-xl rounded-full px-5 h-12 items-center gap-2 border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors disabled:opacity-50"
               aria-label="Reload events in this area"
               title="Reload events in this area"
             >
@@ -1043,21 +1067,105 @@ export default function MapPage() {
               </span>
             </button>
 
-            {/* Legend */}
-            <div className="absolute bottom-6 right-6 z-[400]">
-              <div className="bg-surface-container-high/90 backdrop-blur-xl px-5 py-3 rounded-xl border border-outline-variant/15 flex flex-col gap-2 shadow-xl">
-                {[
-                  { color: '#b6a0ff', label: 'Music' },
-                  { color: '#ff946e', label: 'Food' },
-                  { color: '#8a99fe', label: 'Art' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full" style={{ background: item.color, boxShadow: `0 0 6px ${item.color}` }} />
-                    <span className="text-xs font-semibold text-on-surface-variant">{item.label}</span>
+            {/* Mobile reload icon */}
+            <button
+              type="button"
+              onClick={fetchEvents}
+              disabled={loading}
+              className="md:hidden absolute top-4 right-4 z-[400] bg-surface-container-high/90 backdrop-blur-xl rounded-full w-11 h-11 flex items-center justify-center border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors disabled:opacity-50"
+              aria-label="Reload events in this area"
+              title="Reload events in this area"
+            >
+              <span
+                className={`material-symbols-outlined text-primary text-xl ${loading ? 'animate-spin' : ''}`}
+              >
+                autorenew
+              </span>
+            </button>
+
+            {/* Mobile filter icon + dropdown */}
+            <div ref={mobileFiltersRef} className="md:hidden absolute top-4 left-4 z-[450]">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((v) => !v)}
+                className="bg-surface-variant/85 backdrop-blur-xl rounded-full w-11 h-11 flex items-center justify-center border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors"
+                aria-label="Filters"
+                aria-expanded={mobileFiltersOpen}
+              >
+                <span className="material-symbols-outlined text-primary text-xl">tune</span>
+                {(selectedCategories.length > 0 || selectedDate) && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary border-2 border-surface" />
+                )}
+              </button>
+              {mobileFiltersOpen && (
+                <div className="absolute top-full mt-2 left-0 w-72 bg-surface-container-high rounded-2xl border border-outline-variant/20 shadow-2xl p-4 space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-primary text-base">calendar_today</span>
+                      <span className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">Day</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="flex-1 bg-surface-container rounded-lg px-3 py-2 text-sm font-semibold text-on-surface [color-scheme:dark] outline-none border border-outline-variant/20"
+                      />
+                      {selectedDate && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDate('')}
+                          className="material-symbols-outlined text-on-surface-variant text-base hover:text-on-surface"
+                          aria-label="Clear date filter"
+                        >
+                          close
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-secondary text-base">filter_alt</span>
+                      <span className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">Categories</span>
+                    </div>
+                    <div className="max-h-44 overflow-y-auto rounded-lg border border-outline-variant/20">
+                      {[ALL_CATEGORIES, ...categoryOptions].map((cat) => {
+                        const isAll = cat === ALL_CATEGORIES;
+                        const selected = isAll
+                          ? selectedCategories.length === 0
+                          : selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => toggleCategory(cat)}
+                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 transition-colors ${
+                              selected ? 'text-primary bg-primary/10' : 'text-on-surface hover:bg-surface-variant/50'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-base">
+                              {selected ? 'check_box' : 'check_box_outline_blank'}
+                            </span>
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-tertiary text-base">payments</span>
+                      <span className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">Price</span>
+                    </div>
+                    <div className="bg-surface-container rounded-lg px-3 py-2 text-sm font-semibold text-on-surface border border-outline-variant/20">
+                      Under $50
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+
           </div>
 
           {/* Side Panel */}
