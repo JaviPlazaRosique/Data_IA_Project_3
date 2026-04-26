@@ -34,6 +34,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 
 export default function App() {
   return (
@@ -49,6 +50,14 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <OnboardingPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/planner"
               element={

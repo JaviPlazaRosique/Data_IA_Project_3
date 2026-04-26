@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../api';
 import TopNav from '../components/layout/TopNav';
-import BottomNav from '../components/layout/BottomNav';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -23,18 +22,19 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register({ email, username, password, full_name: fullName || undefined });
-      navigate('/profile');
+      localStorage.setItem('np_new_user', '1');
+      navigate('/onboarding');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong');
+      setError(err instanceof ApiError ? err.message : 'Algo ha ido mal');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="h-screen bg-surface flex flex-col overflow-hidden">
-      <TopNav />
-      <main className="flex-1 relative flex items-center justify-center px-4 overflow-y-auto pb-24 md:pb-4">
+    <div className="min-h-screen bg-surface flex flex-col">
+      <div className="hidden md:block"><TopNav /></div>
+      <main className="flex-1 relative flex items-center justify-center px-4 py-8">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="relative w-full max-w-sm my-4">
@@ -43,7 +43,7 @@ export default function RegisterPage() {
           <Link to="/" className="text-2xl font-extrabold tracking-tighter text-on-surface font-headline">
             NextPlan
           </Link>
-          <p className="text-on-surface-variant text-sm mt-2">Create your account</p>
+          <p className="text-on-surface-variant text-sm mt-2">Crea tu cuenta</p>
         </div>
 
         {/* Card */}
@@ -59,7 +59,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
-              Full Name <span className="text-on-surface-variant/40 normal-case font-normal">(optional)</span>
+              Nombre completo <span className="text-on-surface-variant/40 normal-case font-normal">(opcional)</span>
             </label>
             <input
               type="text"
@@ -73,7 +73,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
-              Username
+              Usuario
             </label>
             <input
               type="text"
@@ -88,7 +88,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
-              Email
+              Correo electrónico
             </label>
             <input
               type="email"
@@ -103,7 +103,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
-              Password <span className="text-on-surface-variant/40 normal-case font-normal">(min 8 chars)</span>
+              Contraseña <span className="text-on-surface-variant/40 normal-case font-normal">(mín. 8 caracteres)</span>
             </label>
             <input
               type="password"
@@ -125,9 +125,9 @@ export default function RegisterPage() {
               className="mt-0.5 accent-primary w-4 h-4 shrink-0"
             />
             <span className="text-xs text-on-surface-variant leading-relaxed">
-              I have read and agree to the{' '}
+              He leído y acepto el{' '}
               <Link to="/privacy" className="text-primary font-bold hover:underline" target="_blank">
-                Privacy Notice
+                Aviso de privacidad
               </Link>
             </span>
           </label>
@@ -137,19 +137,18 @@ export default function RegisterPage() {
             disabled={loading || !privacyAccepted}
             className="w-full bg-primary text-on-primary font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
-            {loading ? 'Creating account…' : 'Create Account'}
+            {loading ? 'Creando cuenta…' : 'Crear cuenta'}
           </button>
 
           <p className="text-center text-sm text-on-surface-variant">
-            Already have an account?{' '}
+            ¿Ya tienes cuenta?{' '}
             <Link to="/login" className="text-primary font-bold hover:underline">
-              Sign In
+              Inicia sesión
             </Link>
           </p>
         </form>
         </div>
       </main>
-      <BottomNav />
     </div>
   );
 }

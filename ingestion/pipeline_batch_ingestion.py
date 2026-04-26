@@ -275,57 +275,57 @@ schema_bq = {
             ],
         },
         {
-            "name": "vibe",
+            "name": "vibra",
             "type": "STRING",
             "mode": "NULLABLE"
         },
         {
-            "name": "occasion_tags",
+            "name": "etiquetas_ocasion",
             "type": "STRING",
             "mode": "REPEATED"
         },
         {
-            "name": "price_band",
+            "name": "banda_precio",
             "type": "STRING",
             "mode": "NULLABLE"
         },
         {
-            "name": "indoor_outdoor",
+            "name": "interior_exterior",
             "type": "STRING",
             "mode": "NULLABLE"
         },
         {
-            "name": "time_of_day_fit",
+            "name": "franja_horaria",
             "type": "STRING",
             "mode": "NULLABLE"
         },
         {
-            "name": "romantic_score",
+            "name": "puntuacion_romantica",
             "type": "INTEGER",
             "mode": "NULLABLE"
         },
         {
-            "name": "family_score",
+            "name": "puntuacion_familiar",
             "type": "INTEGER",
             "mode": "NULLABLE"
         },
         {
-            "name": "group_score",
+            "name": "puntuacion_grupo",
             "type": "INTEGER",
             "mode": "NULLABLE"
         },
         {
-            "name": "tourist_score",
+            "name": "puntuacion_turista",
             "type": "INTEGER",
             "mode": "NULLABLE"
         },
         {
-            "name": "duration_minutes_estimate",
+            "name": "duracion_minutos_estimada",
             "type": "INTEGER",
             "mode": "NULLABLE"
         },
         {
-            "name": "plan_pairings",
+            "name": "maridajes_plan",
             "type": "STRING",
             "mode": "REPEATED"
         },
@@ -559,55 +559,55 @@ schema_salida_enriquecimiento_gemini = {
             "type": "string",
             "description": "Razón principal de la recomendación en una frase corta"
         },
-        "vibe": {
+        "vibra": {
             "type": "string",
             "enum": ["romantico", "energetico", "tranquilo", "familiar", "premium", "alternativo"],
             "description": "Vibra principal del evento"
         },
-        "occasion_tags": {
+        "etiquetas_ocasion": {
             "type": "array",
             "items": {
                 "type": "string",
-                "enum": ["pareja", "friends", "familia", "solo", "afterwork"],
+                "enum": ["pareja", "amigos", "familia", "solo", "afterwork"],
             },
             "description": "Etiquetas de ocasión recomendadas"
         },
-        "price_band": {
+        "banda_precio": {
             "type": "string",
-            "enum": ["low", "medium", "high"],
+            "enum": ["bajo", "medio", "alto"],
             "description": "Banda de precio inferida"
         },
-        "indoor_outdoor": {
+        "interior_exterior": {
             "type": "string",
-            "enum": ["indoor", "outdoor", "mixed", "unknown"],
+            "enum": ["interior", "exterior", "mixto", "desconocido"],
             "description": "Tipo de espacio del evento"
         },
-        "time_of_day_fit": {
+        "franja_horaria": {
             "type": "string",
-            "enum": ["morning", "afternoon", "night"],
+            "enum": ["mañana", "tarde", "noche"],
             "description": "Franja horaria más adecuada"
         },
-        "romantic_score": {
+        "puntuacion_romantica": {
             "type": "integer",
             "description": "Puntuación para planes románticos entre 0 y 100"
         },
-        "family_score": {
+        "puntuacion_familiar": {
             "type": "integer",
             "description": "Puntuación para planes familiares entre 0 y 100"
         },
-        "group_score": {
+        "puntuacion_grupo": {
             "type": "integer",
             "description": "Puntuación para grupos entre 0 y 100"
         },
-        "tourist_score": {
+        "puntuacion_turista": {
             "type": "integer",
             "description": "Puntuación para turistas entre 0 y 100"
         },
-        "duration_minutes_estimate": {
+        "duracion_minutos_estimada": {
             "type": "integer",
             "description": "Duración estimada del evento en minutos"
         },
-        "plan_pairings": {
+        "maridajes_plan": {
             "type": "array",
             "items": {
                 "type": "string"
@@ -655,17 +655,17 @@ schema_salida_enriquecimiento_gemini = {
     "required": [
         "minutos_antelacion",
         "motivo",
-        "vibe",
-        "occasion_tags",
-        "price_band",
-        "indoor_outdoor",
-        "time_of_day_fit",
-        "romantic_score",
-        "family_score",
-        "group_score",
-        "tourist_score",
-        "duration_minutes_estimate",
-        "plan_pairings",
+        "vibra",
+        "etiquetas_ocasion",
+        "banda_precio",
+        "interior_exterior",
+        "franja_horaria",
+        "puntuacion_romantica",
+        "puntuacion_familiar",
+        "puntuacion_grupo",
+        "puntuacion_turista",
+        "duracion_minutos_estimada",
+        "maridajes_plan",
         "categoria",
         "subcategoria",
     ],
@@ -735,14 +735,14 @@ Usa únicamente estos 7 campos del evento para inferir la respuesta:
 Reglas de salida:
 - minutos_antelacion: entero razonable entre 15 y 120.
 - motivo: una frase corta en español.
-- vibe: elige exactamente una opción entre romantico, energetico, tranquilo, familiar, premium, alternativo.
-- occasion_tags: devuelve de 1 a 3 etiquetas entre pareja, friends, familia, solo, afterwork.
-- price_band: infiere la banda de precio (low, medium, high) a partir del tipo de evento, género y recinto.
-- indoor_outdoor: elige indoor, outdoor, mixed o unknown.
-- time_of_day_fit: morning para eventos de mañana, afternoon para tarde, night para noche.
-- romantic_score, family_score, group_score y tourist_score: enteros entre 0 y 100.
-- duration_minutes_estimate: duración típica estimada en minutos.
-- plan_pairings: devuelve de 1 a 3 etiquetas cortas en snake_case; prioriza valores como cena_antes, copas_despues, paseo cuando encajen.
+- vibra: elige exactamente una opción entre romantico, energetico, tranquilo, familiar, premium, alternativo.
+- etiquetas_ocasion: devuelve de 1 a 3 etiquetas entre pareja, amigos, familia, solo, afterwork.
+- banda_precio: infiere la banda de precio (bajo, medio, alto) a partir del tipo de evento, género y recinto.
+- interior_exterior: elige interior, exterior, mixto o desconocido.
+- franja_horaria: mañana para eventos de mañana, tarde para tarde, noche para noche.
+- puntuacion_romantica, puntuacion_familiar, puntuacion_grupo y puntuacion_turista: enteros entre 0 y 100.
+- duracion_minutos_estimada: duración típica estimada en minutos.
+- maridajes_plan: devuelve de 1 a 3 etiquetas cortas en snake_case; prioriza valores como cena_antes, copas_despues, paseo cuando encajen.
 - categoria: elige exactamente una entre Música, Arte y Teatro, Deportes, Familia y otros.
 - subcategoria: elige exactamente una subcategoría compatible con la categoria seleccionada.
 
@@ -750,9 +750,9 @@ Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
 """
 
-CAMPOS_GEMINI = {"vibe", "occasion_tags", "price_band", "indoor_outdoor", "time_of_day_fit",
-                 "romantic_score", "family_score", "group_score", "tourist_score",
-                 "duration_minutes_estimate", "plan_pairings", "categoria", "subcategoria"}
+CAMPOS_GEMINI = {"vibra", "etiquetas_ocasion", "banda_precio", "interior_exterior", "franja_horaria",
+                 "puntuacion_romantica", "puntuacion_familiar", "puntuacion_grupo", "puntuacion_turista",
+                 "duracion_minutos_estimada", "maridajes_plan", "categoria", "subcategoria"}
 
 
 class EnriquecerConGemini(beam.DoFn):
@@ -808,11 +808,11 @@ class EnriquecerConGemini(beam.DoFn):
                 )
             enriquecimiento = json.loads(respuesta.text)
             logging.info(
-                "[Gemini] Enriquecimiento generado — id=%s | categoria=%s | subcategoria=%s | vibe=%s",
+                "[Gemini] Enriquecimiento generado — id=%s | categoria=%s | subcategoria=%s | vibra=%s",
                 evento.get("id"),
                 enriquecimiento.get("categoria"),
                 enriquecimiento.get("subcategoria"),
-                enriquecimiento.get("vibe"),
+                enriquecimiento.get("vibra"),
             )
         except Exception as e:
             enriquecimiento = None
@@ -827,19 +827,19 @@ class EnriquecerConGemini(beam.DoFn):
                 "minutos_antelacion": enriquecimiento.get("minutos_antelacion"),
                 "motivo": enriquecimiento.get("motivo"),
             },
-            "vibe":                     enriquecimiento.get("vibe"),
-            "occasion_tags":            enriquecimiento.get("occasion_tags", []),
-            "price_band":               enriquecimiento.get("price_band"),
-            "indoor_outdoor":           enriquecimiento.get("indoor_outdoor"),
-            "time_of_day_fit":          enriquecimiento.get("time_of_day_fit"),
-            "romantic_score":           enriquecimiento.get("romantic_score"),
-            "family_score":             enriquecimiento.get("family_score"),
-            "group_score":              enriquecimiento.get("group_score"),
-            "tourist_score":            enriquecimiento.get("tourist_score"),
-            "duration_minutes_estimate": enriquecimiento.get("duration_minutes_estimate"),
-            "plan_pairings":            enriquecimiento.get("plan_pairings", []),
-            "categoria":                enriquecimiento.get("categoria"),
-            "subcategoria":             enriquecimiento.get("subcategoria"),
+            "vibra":                      enriquecimiento.get("vibra"),
+            "etiquetas_ocasion":          enriquecimiento.get("etiquetas_ocasion", []),
+            "banda_precio":               enriquecimiento.get("banda_precio"),
+            "interior_exterior":          enriquecimiento.get("interior_exterior"),
+            "franja_horaria":             enriquecimiento.get("franja_horaria"),
+            "puntuacion_romantica":       enriquecimiento.get("puntuacion_romantica"),
+            "puntuacion_familiar":        enriquecimiento.get("puntuacion_familiar"),
+            "puntuacion_grupo":           enriquecimiento.get("puntuacion_grupo"),
+            "puntuacion_turista":         enriquecimiento.get("puntuacion_turista"),
+            "duracion_minutos_estimada":  enriquecimiento.get("duracion_minutos_estimada"),
+            "maridajes_plan":             enriquecimiento.get("maridajes_plan", []),
+            "categoria":                  enriquecimiento.get("categoria"),
+            "subcategoria":               enriquecimiento.get("subcategoria"),
         }
 
         self._guardar_cache(nombre, datos_cache)

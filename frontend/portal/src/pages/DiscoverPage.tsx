@@ -61,7 +61,7 @@ function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
 }
 
 export default function DiscoverPage() {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [aiDismissed, setAiDismissed] = useState(false);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,21 +86,12 @@ export default function DiscoverPage() {
               <div className="space-y-4">
                 <SectionLabel>Madrid · {t.tonight}</SectionLabel>
                 <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight text-on-surface">
-                  {lang === 'es' ? (
-                    <>
-                      Planes para
-                      <br />
-                      <span className="italic text-primary">esta noche</span>,<br />
-                      afinados al clima.
-                    </>
-                  ) : (
-                    <>
-                      Plans for
-                      <br />
-                      <span className="italic text-primary">tonight</span>,<br />
-                      tuned to the weather.
-                    </>
-                  )}
+                  <>
+                    Planes para
+                    <br />
+                    <span className="italic text-primary">esta noche</span>,<br />
+                    afinados al clima.
+                  </>
                 </h1>
                 <p className="text-on-surface-variant text-lg max-w-md font-body leading-relaxed">
                   {t.brand_tagline}
