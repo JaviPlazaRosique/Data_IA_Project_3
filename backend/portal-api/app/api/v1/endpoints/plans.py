@@ -75,10 +75,10 @@ async def get_plan(
     db = get_firestore()
     doc = await db.collection(COLLECTION).document(plan_id).get()
     if not doc.exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan no encontrado")
     data = doc.to_dict()
     if data["user_id"] != str(current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your plan")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Este plan no te pertenece")
     return _doc_to_plan(plan_id, data)
 
 
@@ -92,10 +92,10 @@ async def update_plan(
     doc_ref = db.collection(COLLECTION).document(plan_id)
     doc = await doc_ref.get()
     if not doc.exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan no encontrado")
     data = doc.to_dict()
     if data["user_id"] != str(current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your plan")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Este plan no te pertenece")
 
     updates: dict = {"updated_at": _now_iso(), "expires_at": _expiry_iso()}
     if body.title is not None:
@@ -119,7 +119,7 @@ async def delete_plan(
     doc_ref = db.collection(COLLECTION).document(plan_id)
     doc = await doc_ref.get()
     if not doc.exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan no encontrado")
     if doc.to_dict()["user_id"] != str(current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your plan")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Este plan no te pertenece")
     await doc_ref.delete()

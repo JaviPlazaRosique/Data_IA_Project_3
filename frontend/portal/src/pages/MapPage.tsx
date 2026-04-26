@@ -506,7 +506,7 @@ function EventDetailModal({
               className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-[18px]">info</span>
-              More info
+              Más información
             </Link>
             {event.url && (
               <a
