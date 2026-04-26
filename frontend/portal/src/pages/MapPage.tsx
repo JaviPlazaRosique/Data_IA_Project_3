@@ -1043,10 +1043,6 @@ export default function MapPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-tertiary text-lg">payments</span>
-                  <span className="font-label text-sm font-semibold">Under $50</span>
-                </div>
               </div>
             </div>
 
@@ -1155,15 +1151,6 @@ export default function MapPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="material-symbols-outlined text-tertiary text-base">payments</span>
-                      <span className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">Price</span>
-                    </div>
-                    <div className="bg-surface-container rounded-lg px-3 py-2 text-sm font-semibold text-on-surface border border-outline-variant/20">
-                      Under $50
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
