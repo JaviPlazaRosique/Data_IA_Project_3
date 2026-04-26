@@ -26,7 +26,7 @@ function StorageNotice() {
   );
 }
 
-const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
+const SwipePage = lazy(() => import('./pages/SwipePage'));
 const AIPlannerPage = lazy(() => import('./pages/AIPlannerPage'));
 const EventDetailsPage = lazy(() => import('./pages/EventDetailsPage'));
 const MapPage = lazy(() => import('./pages/MapPage'));
@@ -44,7 +44,7 @@ export default function App() {
         <StorageNotice />
         <Suspense fallback={<div className="min-h-screen bg-surface" />}>
           <Routes>
-            <Route path="/" element={<DiscoverPage />} />
+            <Route path="/" element={<SwipePage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/event/:id" element={<EventDetailsPage />} />
             <Route path="/login" element={<LoginPage />} />
