@@ -5,7 +5,10 @@ interface PublicConfig {
 let config: PublicConfig = { backendUrl: '' };
 let serverAvailable = true;
 
-export async function loadConfig(): Promise<void> {
+// Fire the fetch eagerly on module import so it overlaps React boot.
+// Pages call awaitConfig() (or use the api helpers) which won't issue
+// requests until this resolves.
+export const configReady: Promise<void> = (async () => {
   try {
     const res = await fetch(`${import.meta.env.BASE_URL}public-config.json`);
     if (res.ok) {
@@ -16,6 +19,10 @@ export async function loadConfig(): Promise<void> {
   } catch {
     serverAvailable = false;
   }
+})();
+
+export function awaitConfig(): Promise<void> {
+  return configReady;
 }
 
 export function getBackendUrl(): string {

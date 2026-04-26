@@ -337,6 +337,46 @@ module "firestore" {
     }
   ]
 
+  indices_compuestos = [
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "fecha", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "ciudad", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "segmento", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "fecha", order = "ASCENDING" },
+        { field_path = "ciudad", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+    {
+      coleccion = "eventos"
+      campos = [
+        { field_path = "fecha", order = "ASCENDING" },
+        { field_path = "segmento", order = "ASCENDING" },
+        { field_path = "fecha_utc", order = "ASCENDING" },
+      ]
+    },
+  ]
+
   depends_on = [
     module.setup
   ]
@@ -467,6 +507,80 @@ module "bigquery" {
         },
         {
           name = "descripcion",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "antelacion_recomendada",
+          type = "RECORD",
+          mode = "NULLABLE",
+          fields = [
+            { name = "minutos_antelacion", type = "INTEGER", mode = "NULLABLE" },
+            { name = "motivo", type = "STRING", mode = "NULLABLE" },
+          ]
+        },
+        {
+          name = "vibe",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "occasion_tags",
+          type = "STRING",
+          mode = "REPEATED"
+        },
+        {
+          name = "price_band",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "indoor_outdoor",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "time_of_day_fit",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "romantic_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "family_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "group_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "tourist_score",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "duration_minutes_estimate",
+          type = "INTEGER",
+          mode = "NULLABLE"
+        },
+        {
+          name = "plan_pairings",
+          type = "STRING",
+          mode = "REPEATED"
+        },
+        {
+          name = "categoria",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "subcategoria",
           type = "STRING",
           mode = "NULLABLE"
         },
