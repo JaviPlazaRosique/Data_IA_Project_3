@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import BottomNav from '../components/layout/BottomNav';
 
 export default function PrivacyPage() {
   return (
@@ -12,7 +13,7 @@ export default function PrivacyPage() {
         </Link>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 md:px-8 py-16 space-y-12">
+      <main className="max-w-3xl mx-auto px-4 md:px-8 py-16 pb-28 md:pb-16 space-y-12">
         <div>
           <h1 className="text-4xl font-black font-headline tracking-tighter mb-3">Privacy Notice</h1>
           <p className="text-on-surface-variant text-sm">Last updated: April 2026</p>
@@ -168,6 +169,7 @@ export default function PrivacyPage() {
           </p>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 }
