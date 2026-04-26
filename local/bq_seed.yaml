@@ -1,0 +1,39 @@
+projects:
+  - id: demo-local
+    datasets:
+      # Landing zone — schema matches prod raw.swipes_raw
+      - id: raw
+        tables:
+          - id: swipes_raw
+            columns:
+              - name: subscription_name
+                type: STRING
+              - name: message_id
+                type: STRING
+              - name: publish_time
+                type: TIMESTAMP
+              - name: data
+                type: STRING
+              - name: attributes
+                type: STRING
+
+      # Analytics dataset — minimal eventos catalog so dbt joins resolve
+      - id: recomendacion_planes
+        tables:
+          - id: eventos
+            columns:
+              - name: id
+                type: STRING
+              - name: nombre
+                type: STRING
+              - name: ciudad
+                type: STRING
+              - name: genero
+                type: STRING
+              - name: subgenero
+                type: STRING
+              - name: recinto_nombre
+                type: STRING
+
+      # Sandbox dataset for ad-hoc queries / future dbt experiments
+      - id: dbt_dev

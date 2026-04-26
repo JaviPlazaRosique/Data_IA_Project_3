@@ -79,3 +79,37 @@ variable "max_delivery_attempts" {
   type        = number
   default     = 5
 }
+
+variable "tipo_suscripcion" {
+  description = "Tipo de suscripción principal: 'pull' o 'bigquery'."
+  type        = string
+  default     = "pull"
+  validation {
+    condition     = contains(["pull", "bigquery"], var.tipo_suscripcion)
+    error_message = "tipo_suscripcion debe ser 'pull' o 'bigquery'."
+  }
+}
+
+variable "bigquery_table" {
+  description = "Tabla destino para suscripción BigQuery (formato 'proyecto.dataset.tabla')."
+  type        = string
+  default     = ""
+}
+
+variable "bigquery_use_topic_schema" {
+  description = "Si true, usa el schema del topic para validar mensajes contra la tabla."
+  type        = bool
+  default     = false
+}
+
+variable "bigquery_write_metadata" {
+  description = "Si true, la suscripción escribe message_id, publish_time, attributes y data como columnas."
+  type        = bool
+  default     = true
+}
+
+variable "bigquery_drop_unknown_fields" {
+  description = "Si true, descarta campos del mensaje no presentes en la tabla."
+  type        = bool
+  default     = false
+}

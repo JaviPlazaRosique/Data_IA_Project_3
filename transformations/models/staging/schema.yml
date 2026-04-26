@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: stg_swipes
+    description: "Parseo del envelope Pub/Sub a columnas tipadas."
+    columns:
+      - name: message_id
+        tests: [not_null, unique]
+      - name: event_id
+        tests: [not_null]
+      - name: user_id
+        tests: [not_null]
+      - name: direction
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['left', 'right']
+      - name: swiped_at
+        tests: [not_null]
+      - name: ingested_at
+        tests: [not_null]

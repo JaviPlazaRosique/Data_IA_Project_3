@@ -1,0 +1,31 @@
+version: 2
+
+sources:
+  - name: raw
+    database: "{{ env_var('GCP_PROJECT') }}"
+    schema: raw
+    tables:
+      - name: swipes_raw
+        description: "Mensajes crudos de Pub/Sub topic swipe-events. Schema fijado por la suscripción BQ con write_metadata=true."
+        loaded_at_field: publish_time
+        freshness:
+          warn_after: {count: 1, period: hour}
+          error_after: {count: 6, period: hour}
+        columns:
+          - name: subscription_name
+            data_type: string
+          - name: message_id
+            data_type: string
+          - name: publish_time
+            data_type: timestamp
+          - name: data
+            description: "Payload JSON serializado por portal-api (event_id, user_id, direction, swiped_at)."
+            data_type: string
+          - name: attributes
+            data_type: string
+
+  - name: catalog
+    database: "{{ env_var('GCP_PROJECT') }}"
+    schema: recomendacion_planes
+    tables:
+      - name: eventos
