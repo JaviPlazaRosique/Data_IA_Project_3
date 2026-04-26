@@ -144,25 +144,4 @@ export function ComingSoonBadge() {
   );
 }
 
-export function LanguageToggle() {
-  const { lang, setLang } = useLang();
-  return (
-    <div
-      className="inline-flex items-center gap-0.5 rounded-full p-0.5"
-      style={{ background: 'var(--np-surface-2)', border: '1px solid var(--np-line)' }}
-    >
-      {(['es', 'en'] as const).map((l) => (
-        <button
-          key={l}
-          onClick={() => setLang(l)}
-          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-            lang === l ? 'text-white' : 'text-[var(--np-fg-dim)]'
-          }`}
-          style={lang === l ? { background: 'var(--np-primary-dim)' } : {}}
-        >
-          {l.toUpperCase()}
-        </button>
-      ))}
-    </div>
-  );
-}
+

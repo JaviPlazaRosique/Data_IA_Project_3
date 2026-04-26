@@ -17,34 +17,12 @@ import {
 
 const budgetOptions = ['€', '€€', '€€€', '€€€€'];
 
-interface NominatimSuggestion {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-  address?: {
-    city?: string;
-    town?: string;
-    village?: string;
-    municipality?: string;
-    country?: string;
-  };
-}
-
-function shortLabel(s: NominatimSuggestion): string {
-  const city =
-    s.address?.city ?? s.address?.town ?? s.address?.village ?? s.address?.municipality;
-  const country = s.address?.country;
-  return [city, country].filter(Boolean).join(', ') || s.display_name;
-}
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const { t } = useLang();
   const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
   const [locationDraft, setLocationDraft] = useState(user?.preferred_location ?? '');
-  const [locationSuggestions, setLocationSuggestions] = useState<NominatimSuggestion[]>([]);
-  const [locationOpen, setLocationOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
@@ -86,60 +64,19 @@ export default function ProfilePage() {
     setLocationDraft(user?.preferred_location ?? '');
   }, [user?.preferred_location]);
 
-  useEffect(() => {
-    const query = locationDraft.trim();
-    if (query.length < 2 || query === (user?.preferred_location ?? '')) {
-      setLocationSuggestions([]);
-      return;
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1&accept-language=en`,
-        { signal: controller.signal, headers: { 'Accept-Language': 'en' } },
-      )
-        .then((r) => (r.ok ? r.json() : []))
-        .then((data: NominatimSuggestion[]) => {
-          setLocationSuggestions(Array.isArray(data) ? data : []);
-        })
-        .catch(() => { /* aborted or network error */ });
-    }, 300);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [locationDraft, user?.preferred_location]);
+  async function handleLocationBlur() {
+    const value = locationDraft.trim();
+    if (value === (user?.preferred_location ?? '')) return;
+    try {
+      const updated = await apiUpdateMe({ preferred_location: value || null });
+      setUser(updated);
+    } catch { /* silent */ }
+  }
 
   async function handleBudgetChange(opt: string) {
     setActiveBudget(opt);
     try {
       const updated = await apiUpdateMe({ preferred_budget: opt });
-      setUser(updated);
-    } catch { /* silent */ }
-  }
-
-  async function selectSuggestion(s: NominatimSuggestion) {
-    const label = shortLabel(s);
-    setLocationDraft(label);
-    setLocationSuggestions([]);
-    setLocationOpen(false);
-    try {
-      const updated = await apiUpdateMe({
-        preferred_location: label,
-        preferred_location_lat: parseFloat(s.lat),
-        preferred_location_lng: parseFloat(s.lon),
-      });
-      setUser(updated);
-    } catch { /* silent */ }
-  }
-
-  async function clearLocation() {
-    setLocationDraft('');
-    setLocationSuggestions([]);
-    setLocationOpen(false);
-    try {
-      const updated = await apiUpdateMe({
-        preferred_location: null,
-        preferred_location_lat: null,
-        preferred_location_lng: null,
-      });
       setUser(updated);
     } catch { /* silent */ }
   }
@@ -264,45 +201,17 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Preferred Location</label>
-                    <div className="relative">
-                      <div className="bg-surface-container-lowest flex items-center gap-3 p-3 rounded-xl">
-                        <span className="material-symbols-outlined text-secondary">location_on</span>
-                        <input
-                          type="text"
-                          value={locationDraft}
-                          onChange={(e) => { setLocationDraft(e.target.value); setLocationOpen(true); }}
-                          onFocus={() => setLocationOpen(true)}
-                          onBlur={() => setTimeout(() => setLocationOpen(false), 150)}
-                          placeholder="Type a city, then pick from the list…"
-                          className="flex-1 bg-transparent text-sm font-medium focus:outline-none placeholder:text-on-surface-variant/40"
-                        />
-                        {user?.preferred_location && (
-                          <button
-                            onMouseDown={(e) => { e.preventDefault(); clearLocation(); }}
-                            className="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer hover:text-error transition-colors"
-                            title="Clear preferred location"
-                          >close</button>
-                        )}
-                      </div>
-                      {locationOpen && locationSuggestions.length > 0 && (
-                        <ul className="absolute z-10 top-full left-0 right-0 mt-1 bg-surface-container-high rounded-xl border border-outline-variant/10 shadow-xl overflow-hidden">
-                          {locationSuggestions.map((s) => (
-                            <li key={s.place_id}>
-                              <button
-                                onMouseDown={(e) => { e.preventDefault(); selectSuggestion(s); }}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-variant/40 transition-colors flex items-start gap-2"
-                              >
-                                <span className="material-symbols-outlined text-secondary/70 text-base mt-0.5">location_on</span>
-                                <span className="flex-1">
-                                  <span className="block font-medium">{shortLabel(s)}</span>
-                                  <span className="block text-[11px] text-on-surface-variant/60 truncate">{s.display_name}</span>
-                                </span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Ciudad</label>
+                    <div className="bg-surface-container-lowest flex items-center gap-3 p-3 rounded-xl">
+                      <span className="material-symbols-outlined text-secondary">location_on</span>
+                      <input
+                        type="text"
+                        value={locationDraft}
+                        onChange={(e) => setLocationDraft(e.target.value)}
+                        onBlur={handleLocationBlur}
+                        placeholder="Ej. Madrid, Barcelona…"
+                        className="flex-1 bg-transparent text-sm font-medium focus:outline-none placeholder:text-on-surface-variant/40"
+                      />
                     </div>
                   </div>
                 </div>
