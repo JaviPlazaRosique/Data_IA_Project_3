@@ -75,6 +75,46 @@ services:
     ports:
       - "8085:8681"
 
+  # ─── BigQuery emulator (goccy/bigquery-emulator) ─────────────────────────────
+  # REST API on host :9050. Datasets/tables seeded from bq_seed.yaml.
+  bigquery-emulator:
+    image: ghcr.io/goccy/bigquery-emulator:latest
+    command:
+      - --project=demo-local
+      - --data-from-yaml=/data/seed.yaml
+      - --port=9050
+      - --grpc-port=9060
+    volumes:
+      - ./bq_seed.yaml:/data/seed.yaml:ro
+    ports:
+      - "9550:9050"
+      - "9560:9060"
+
+  # ─── Pub/Sub → BigQuery sink (local replica of the prod BQ subscription) ─────
+  # Pulls swipe-events from the emulator and appends envelope rows to
+  # ./swipes_data/swipes_raw.jsonl with the same shape as raw.swipes_raw in BQ.
+  pubsub-bq-sink:
+    build:
+      context: ..
+      dockerfile: local/Dockerfile.pubsub-bq-sink
+    environment:
+      GOOGLE_CLOUD_PROJECT: demo-local
+      PUBSUB_EMULATOR_HOST: pubsub:8681
+      PUBSUB_TOPIC: swipe-events
+      PUBSUB_SUBSCRIPTION: swipe-events-sub
+      BIGQUERY_API_ENDPOINT: http://bigquery-emulator:9050
+      BIGQUERY_DATASET: raw
+      BIGQUERY_TABLE: swipes_raw
+      OUTPUT_PATH: /data/swipes_raw.jsonl
+    volumes:
+      - ./swipes_data:/data
+    depends_on:
+      pubsub:
+        condition: service_started
+      bigquery-emulator:
+        condition: service_started
+    restart: unless-stopped
+
   # ─── Backend API ──────────────────────────────────────────────────────────────
   backend:
     build:

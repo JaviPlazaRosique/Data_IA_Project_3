@@ -1,0 +1,29 @@
+name: recomendacion
+version: '1.0.0'
+config-version: 2
+
+profile: recomendacion
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  recomendacion:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: incremental
+      +schema: marts
+      +on_schema_change: append_new_columns
+      +labels:
+        pipeline: swipes

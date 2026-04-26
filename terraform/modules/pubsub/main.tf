@@ -67,6 +67,16 @@ resource "google_pubsub_subscription" "main" {
     }
   }
 
+  dynamic "bigquery_config" {
+    for_each = var.tipo_suscripcion == "bigquery" ? [1] : []
+    content {
+      table               = var.bigquery_table
+      use_topic_schema    = var.bigquery_use_topic_schema
+      write_metadata      = var.bigquery_write_metadata
+      drop_unknown_fields = var.bigquery_drop_unknown_fields
+    }
+  }
+
   depends_on = [
     google_pubsub_topic_iam_member.dlq_publisher
   ]
