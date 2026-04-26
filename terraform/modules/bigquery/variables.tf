@@ -32,6 +32,15 @@ variable "eliminar_contenido_al_borrar" {
   default     = false
 }
 
+variable "iam_members" {
+  description = "Lista de bindings IAM a nivel de dataset. Cada entrada admite member y role."
+  type = list(object({
+    member = string
+    role   = string
+  }))
+  default = []
+}
+
 variable "tablas" {
   description = <<-EOT
     Lista de tablas a crear en el dataset. Cada tabla admite:
