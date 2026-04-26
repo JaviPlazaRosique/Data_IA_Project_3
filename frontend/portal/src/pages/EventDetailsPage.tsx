@@ -85,10 +85,10 @@ function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
 }
 
 const weatherMetrics = [
-  { label: 'Precipitation', value: '2%' },
-  { label: 'Humidity', value: '45%' },
-  { label: 'Wind', value: '12 km/h' },
-  { label: 'UV Index', value: '0 Low' },
+  { label: 'Precipitación', value: '2%' },
+  { label: 'Humedad', value: '45%' },
+  { label: 'Viento', value: '12 km/h' },
+  { label: 'Índice UV', value: '0 Bajo' },
 ];
 
 export default function EventDetailsPage() {
@@ -259,14 +259,14 @@ export default function EventDetailsPage() {
           >
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
               <div>
-                <h2 className="text-2xl font-bold font-headline mb-1">Atmospheric Forecast</h2>
+                <h2 className="text-2xl font-bold font-headline mb-1">Previsión del tiempo</h2>
                 <p className="text-on-surface-variant font-label text-sm">Real-time data powered by Open-Meteo</p>
               </div>
               <div className="flex items-center gap-4 bg-surface-container-lowest/50 p-4 rounded-xl">
                 <span className="material-symbols-outlined text-secondary" style={{ fontSize: '3rem' }}>partly_cloudy_night</span>
                 <div>
                   <div className="text-4xl font-black font-headline">18°C</div>
-                  <div className="text-sm font-label text-on-surface-variant">Clear Skies</div>
+                  <div className="text-sm font-label text-on-surface-variant">Cielos despejados</div>
                 </div>
               </div>
             </div>
@@ -346,7 +346,7 @@ export default function EventDetailsPage() {
                     </APIProvider>
                   ) : (
                     <div className="w-full h-full min-h-[400px] flex items-center justify-center text-on-surface-variant text-sm">
-                      No coordinates available for this event.
+                      No hay localización disponible para este evento.
                     </div>
                   )}
                 </>

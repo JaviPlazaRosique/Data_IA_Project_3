@@ -38,7 +38,7 @@ async def save_event(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Event already saved"
+            status_code=status.HTTP_409_CONFLICT, detail="El evento ya está guardado"
         )
     return saved
 
@@ -57,6 +57,6 @@ async def unsave_event(
     )
     if result.rowcount == 0:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Saved event not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evento guardado no encontrado"
         )
     await db.commit()

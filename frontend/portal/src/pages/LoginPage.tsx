@@ -65,7 +65,7 @@ export default function LoginPage() {
               required
               autoComplete="email"
               className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/20 focus:border-secondary focus:outline-none px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-colors"
-              placeholder="you@example.com"
+              placeholder="tu@ejemplo.com"
             />
           </div>
 
