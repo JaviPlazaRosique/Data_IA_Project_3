@@ -846,7 +846,7 @@ export default function MapPage() {
   // Close mobile filters on outside click / Escape.
   useEffect(() => {
     if (!mobileFiltersOpen) return;
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: Event) => {
       if (
         mobileFiltersRef.current &&
         !mobileFiltersRef.current.contains(e.target as Node)
@@ -857,10 +857,12 @@ export default function MapPage() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMobileFiltersOpen(false);
     };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('touchstart', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('touchstart', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [mobileFiltersOpen]);
