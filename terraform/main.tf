@@ -182,47 +182,6 @@ locals {
   pubsub_service_agent = "service-${data.google_project.actual.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
-module "bigquery_raw" {
-  source             = "./modules/bigquery"
-  id_proyecto        = var.id_proyecto
-  id_dataset         = "raw"
-  nombre_dataset     = "Landing zone para mensajes crudos de Pub/Sub"
-  ubicacion          = "EU"
-  proteccion_borrado = var.proteccion_borrado
-
-  tablas = [
-    {
-      id_tabla        = "swipes_raw"
-      campo_particion = "publish_time"
-      schema_json = jsonencode([
-        { name = "subscription_name", type = "STRING", mode = "NULLABLE" },
-        { name = "message_id", type = "STRING", mode = "NULLABLE" },
-        { name = "publish_time", type = "TIMESTAMP", mode = "NULLABLE" },
-        { name = "data", type = "STRING", mode = "NULLABLE" },
-        { name = "attributes", type = "STRING", mode = "NULLABLE" }
-      ])
-    }
-  ]
-
-  depends_on = [
-    module.setup
-  ]
-}
-
-resource "google_bigquery_dataset_iam_member" "pubsub_raw_data_editor" {
-  project    = var.id_proyecto
-  dataset_id = module.bigquery_raw.id_dataset
-  role       = "roles/bigquery.dataEditor"
-  member     = "serviceAccount:${local.pubsub_service_agent}"
-}
-
-resource "google_bigquery_dataset_iam_member" "pubsub_raw_metadata_viewer" {
-  project    = var.id_proyecto
-  dataset_id = module.bigquery_raw.id_dataset
-  role       = "roles/bigquery.metadataViewer"
-  member     = "serviceAccount:${local.pubsub_service_agent}"
-}
-
 module "pubsub_swipe_events" {
   source                  = "./modules/pubsub"
   id_proyecto             = var.id_proyecto
@@ -231,12 +190,11 @@ module "pubsub_swipe_events" {
   habilitar_dlq           = true
   nombre_suscripcion      = "swipe-events-sub"
   tipo_suscripcion        = "bigquery"
-  bigquery_table          = "${var.id_proyecto}.${module.bigquery_raw.id_dataset}.swipes_raw"
+  bigquery_table          = "${var.id_proyecto}.${module.bigquery.id_dataset}.swipes_raw"
   bigquery_write_metadata = true
   depends_on = [
     module.portal_api_sa,
-    google_bigquery_dataset_iam_member.pubsub_raw_data_editor,
-    google_bigquery_dataset_iam_member.pubsub_raw_metadata_viewer
+    module.bigquery
   ]
 }
 
@@ -520,57 +478,57 @@ module "bigquery" {
           ]
         },
         {
-          name = "vibe",
+          name = "vibra",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "occasion_tags",
+          name = "etiquetas_ocasion",
           type = "STRING",
           mode = "REPEATED"
         },
         {
-          name = "price_band",
+          name = "banda_precio",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "indoor_outdoor",
+          name = "interior_exterior",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "time_of_day_fit",
+          name = "franja_horaria",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "romantic_score",
+          name = "puntuacion_romantica",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "family_score",
+          name = "puntuacion_familiar",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "group_score",
+          name = "puntuacion_grupo",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "tourist_score",
+          name = "puntuacion_turista",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "duration_minutes_estimate",
+          name = "duracion_minutos_estimada",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "plan_pairings",
+          name = "maridajes_plan",
           type = "STRING",
           mode = "REPEATED"
         },
@@ -598,6 +556,48 @@ module "bigquery" {
           ]
         }
       ])
+    },
+    {
+      id_tabla        = "swipes_raw"
+      campo_particion = "publish_time"
+      schema_json = jsonencode([
+        {
+          name = "subscription_name",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "message_id",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "publish_time",
+          type = "TIMESTAMP",
+          mode = "NULLABLE"
+        },
+        {
+          name = "data",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "attributes",
+          type = "STRING",
+          mode = "NULLABLE"
+        }
+      ])
+    }
+  ]
+
+  iam_members = [
+    {
+      role   = "roles/bigquery.dataEditor"
+      member = "serviceAccount:${local.pubsub_service_agent}"
+    },
+    {
+      role   = "roles/bigquery.metadataViewer"
+      member = "serviceAccount:${local.pubsub_service_agent}"
     }
   ]
 

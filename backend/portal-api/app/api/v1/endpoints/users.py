@@ -1,3 +1,6 @@
+import logging
+
+import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +12,29 @@ from app.models.saved_event import SavedEvent
 from app.models.user import User
 from app.schemas.saved_event import SavedEventRead
 from app.schemas.user import UserRead, UserUpdate
+
+logger = logging.getLogger(__name__)
+
+_NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+_NOMINATIM_HEADERS = {"User-Agent": "NextPlan-Portal/1.0 (j.plazarosique@gmail.com)"}
+
+
+async def _geocode(location: str) -> tuple[float, float] | None:
+    """Return (lat, lng) for a location string using Nominatim, or None on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(
+                _NOMINATIM_URL,
+                params={"q": location, "format": "json", "limit": 1},
+                headers=_NOMINATIM_HEADERS,
+            )
+            r.raise_for_status()
+            results = r.json()
+            if results:
+                return float(results[0]["lat"]), float(results[0]["lon"])
+    except Exception:
+        logger.warning("Geocoding failed for location=%r", location)
+    return None
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -28,6 +54,20 @@ async def update_me(
 
     if "password" in update_data:
         current_user.hashed_password = hash_password(update_data.pop("password"))
+
+    if "preferred_location" in update_data:
+        location = update_data["preferred_location"]
+        if location:
+            coords = await _geocode(location)
+            if coords:
+                update_data["preferred_location_lat"] = coords[0]
+                update_data["preferred_location_lng"] = coords[1]
+            else:
+                update_data["preferred_location_lat"] = None
+                update_data["preferred_location_lng"] = None
+        else:
+            update_data["preferred_location_lat"] = None
+            update_data["preferred_location_lng"] = None
 
     for field, value in update_data.items():
         setattr(current_user, field, value)
