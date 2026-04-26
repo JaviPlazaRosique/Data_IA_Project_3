@@ -910,7 +910,7 @@ export default function MapPage() {
             </APIProvider>
             ) : (
               <div className="h-full w-full flex items-center justify-center bg-surface-container-low text-on-surface-variant">
-                <span className="material-symbols-outlined animate-pulse text-3xl">my_location</span>
+                <span className="material-symbols-outlined animate-spin text-3xl">autorenew</span>
               </div>
             )}
 
