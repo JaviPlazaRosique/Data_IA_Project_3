@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
-import { LanguageToggle } from '../np/Primitives';
 
 export default function TopNav() {
   const location = useLocation();
@@ -48,7 +47,6 @@ export default function TopNav() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <LanguageToggle />
           <button className="text-tertiary/70 hover:text-tertiary transition-colors">
             <span className="material-symbols-outlined">notifications</span>
           </button>
@@ -60,14 +58,14 @@ export default function TopNav() {
               <button
                 onClick={handleLogout}
                 className="text-tertiary/70 hover:text-error transition-colors"
-                title="Sign out"
+                title="Cerrar sesión"
               >
                 <span className="material-symbols-outlined">logout</span>
               </button>
             </div>
           ) : (
             <Link to="/login" className="text-sm font-bold text-tertiary hover:underline">
-              Sign In
+              Iniciar sesión
             </Link>
           )}
         </div>
