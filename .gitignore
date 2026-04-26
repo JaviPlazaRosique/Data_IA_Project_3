@@ -55,3 +55,6 @@ override.tf.json
 
 # Generated at build time
 frontend/portal/public/public-config.json
+
+# Local Pub/Sub→BQ sink output
+local/swipes_data/

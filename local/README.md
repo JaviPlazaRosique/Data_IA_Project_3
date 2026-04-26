@@ -124,6 +124,57 @@ invoking compose from there (the `Makefile` does this for you).
 **Stale cached builds.** `docker compose -f local/docker-compose.yml build --no-cache`
 then `make up`.
 
+## Pub/Sub → BigQuery sink + BigQuery emulator (local replica)
+
+Prod uses a native Pub/Sub BigQuery subscription writing every swipe envelope
+to `raw.swipes_raw`. Locally, two containers reproduce that:
+
+1. **`bigquery-emulator`** — `goccy/bigquery-emulator` exposes the BigQuery
+   REST API on `localhost:9550` (host 9050 collides with Tor on most Linux installs, so the host port is remapped; container port stays 9050 — the sink talks to it as `bigquery-emulator:9050` over the docker network). Datasets `raw`, `recomendacion_planes`,
+   `dbt_dev` and tables `raw.swipes_raw`, `recomendacion_planes.eventos` are
+   pre-created from `local/bq_seed.yaml` on boot. State is in-memory — restart
+   wipes all data.
+2. **`pubsub-bq-sink`** — Python subscriber on `swipe-events-sub` that calls
+   the BigQuery emulator REST API to insert each envelope row. Also writes
+   the same row to `local/swipes_data/swipes_raw.jsonl` for quick eyeballing.
+
+```bash
+make up
+make sink-tail                # follow the JSONL while you swipe
+make bq-tables                # list tables in the raw dataset
+make bq-swipes                # SELECT recent rows from raw.swipes_raw
+make bq-query SQL="SELECT count(*) FROM raw.swipes_raw"
+make bq-seed-eventos          # one demo row in recomendacion_planes.eventos
+```
+
+Caveats:
+- The emulator implements the REST API and a SQL subset; some BigQuery
+  functions (e.g. complex `JSON_VALUE` paths, window functions) may not be
+  fully supported. Treat it as a smoke-test of the ingest contract, not full
+  parity with prod.
+- dbt-bigquery does not have a first-class custom-endpoint setting, so
+  `make dbt-build` still targets a real GCP dev dataset — see below.
+
+`local/swipes_data/` is gitignored.
+
+## dbt transformations
+
+The dbt project lives at `transformations/`. BigQuery has no local emulator,
+so dbt is always executed against a real GCP dev dataset. Set up ADC once,
+then run targets via Docker (no local Python install required):
+
+```bash
+gcloud auth application-default login
+export GCP_PROJECT=project3grupo3
+export DBT_DATASET=dbt_dev    # any sandbox dataset you can write to
+make dbt-build                # dbt build against $GCP_PROJECT.$DBT_DATASET
+make dbt-test                 # tests only
+```
+
+The dev profile reads from `raw.swipes_raw` + `recomendacion_planes.eventos`
+in the live project and writes models into `$DBT_DATASET`. Use a personal
+sandbox dataset to avoid colliding with prod marts.
+
 ## Inspecting swipe events (Pub/Sub emulator)
 
 Left/right swipes in QuickMatch publish to the `swipe-events` topic on the
