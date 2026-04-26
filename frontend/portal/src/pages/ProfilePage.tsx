@@ -6,7 +6,6 @@ import BottomNav from '../components/layout/BottomNav';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
-import QuickMatch from '../components/QuickMatch';
 import {
   apiUpdateMe,
   apiListSavedEvents,
@@ -138,11 +137,6 @@ export default function ProfilePage() {
               </Link>
             </div>
           </header>
-
-          {/* Quick Match — Tinder-style event swipe */}
-          <section className="mb-12">
-            <QuickMatch onSaved={(s) => setSavedEvents((prev) => prev.some((e) => e.event_id === s.event_id) ? prev : [s, ...prev])} />
-          </section>
 
           {/* Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

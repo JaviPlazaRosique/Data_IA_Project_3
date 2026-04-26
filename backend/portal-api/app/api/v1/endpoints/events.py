@@ -109,5 +109,5 @@ async def get_event(event_id: str) -> EventRead:
     db = get_firestore()
     doc = await db.collection(COLLECTION).document(event_id).get()
     if not doc.exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento no encontrado")
     return _doc_to_event(doc.id, doc.to_dict())

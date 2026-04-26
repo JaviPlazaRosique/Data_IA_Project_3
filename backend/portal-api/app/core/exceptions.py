@@ -2,27 +2,27 @@ from fastapi import HTTPException, status
 
 credentials_exception = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Could not validate credentials",
+    detail="No se han podido validar las credenciales",
     headers={"WWW-Authenticate": "Bearer"},
 )
 
 email_taken_exception = HTTPException(
     status_code=status.HTTP_409_CONFLICT,
-    detail="Email already registered",
+    detail="Ese email ya está registrado",
 )
 
 username_taken_exception = HTTPException(
     status_code=status.HTTP_409_CONFLICT,
-    detail="Username already taken",
+    detail="Ese nombre de usuario ya está en uso",
 )
 
 invalid_credentials_exception = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Invalid email or password",
+    detail="Email o contraseña incorrectos",
     headers={"WWW-Authenticate": "Bearer"},
 )
 
 inactive_user_exception = HTTPException(
     status_code=status.HTTP_403_FORBIDDEN,
-    detail="Inactive user account",
+    detail="Cuenta de usuario inactiva",
 )

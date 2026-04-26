@@ -104,7 +104,7 @@ async def erase_me(
     if confirm != "DELETE MY ACCOUNT":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Send {"confirm": "DELETE MY ACCOUNT"} to confirm erasure.',
+            detail='Envía {"confirm": "DELETE MY ACCOUNT"} para confirmar el borrado.',
         )
 
     # Delete Firestore plans belonging to this user

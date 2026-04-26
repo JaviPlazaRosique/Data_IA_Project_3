@@ -95,9 +95,9 @@ export default function AIPlannerPage() {
         {showDisclosure && (
           <div className="mx-4 md:mx-8 mt-3 flex items-start justify-between gap-4 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-sm text-on-surface-variant">
             <span>
-              Your conversations are saved to your account so you can continue planning later.{' '}
+              Tus conversaciones se guardan en tu cuenta para que puedas seguir planeando más tarde.{' '}
               <Link to="/privacy" className="text-primary font-bold hover:underline">
-                Privacy Notice
+                Aviso de privacidad
               </Link>
             </span>
             <button
@@ -106,7 +106,7 @@ export default function AIPlannerPage() {
                 setShowDisclosure(false);
               }}
               className="shrink-0 text-on-surface/40 hover:text-on-surface transition-colors"
-              aria-label="Dismiss"
+              aria-label="Cerrar"
             >
               ✕
             </button>
@@ -337,7 +337,7 @@ export default function AIPlannerPage() {
 
         <footer className="hidden md:flex w-full py-6 border-t border-outline-variant/20 bg-surface">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-8 w-full">
-            <p className="text-xs font-medium text-on-surface/40">© 2024 NextPlan. Powered by Neon Nocturne.</p>
+            <p className="text-xs font-medium text-on-surface/40">© 2024 NextPlan. Hecho por Neon Nocturne.</p>
             <div className="flex gap-6">
               {['Privacy Policy', 'Terms of Service', 'Open-Meteo Data', 'Contact'].map((link) => (
                 <a key={link} href="#" className="text-xs font-medium text-on-surface/40 hover:text-primary transition-opacity">
