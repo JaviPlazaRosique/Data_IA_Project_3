@@ -478,57 +478,57 @@ module "bigquery" {
           ]
         },
         {
-          name = "vibe",
+          name = "vibra",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "occasion_tags",
+          name = "etiquetas_ocasion",
           type = "STRING",
           mode = "REPEATED"
         },
         {
-          name = "price_band",
+          name = "banda_precio",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "indoor_outdoor",
+          name = "interior_exterior",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "time_of_day_fit",
+          name = "franja_horaria",
           type = "STRING",
           mode = "NULLABLE"
         },
         {
-          name = "romantic_score",
+          name = "puntuacion_romantica",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "family_score",
+          name = "puntuacion_familiar",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "group_score",
+          name = "puntuacion_grupo",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "tourist_score",
+          name = "puntuacion_turista",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "duration_minutes_estimate",
+          name = "duracion_minutos_estimada",
           type = "INTEGER",
           mode = "NULLABLE"
         },
         {
-          name = "plan_pairings",
+          name = "maridajes_plan",
           type = "STRING",
           mode = "REPEATED"
         },
