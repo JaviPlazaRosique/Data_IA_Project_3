@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../api';
 import TopNav from '../components/layout/TopNav';
+import BottomNav from '../components/layout/BottomNav';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -32,14 +33,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
+    <div className="h-screen bg-surface flex flex-col overflow-hidden">
       <div className="hidden md:block"><TopNav /></div>
-      <main className="flex-1 relative flex items-center justify-center px-4 py-8">
+      <main className="flex-1 relative flex items-center justify-center px-4 py-3 pb-24 md:py-8 md:pb-8 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
 
-        <div className="relative w-full max-w-sm my-4">
+        <div className="relative w-full max-w-sm">
         {/* Logo */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-4">
           <Link to="/" className="text-2xl font-extrabold tracking-tighter text-on-surface font-headline">
             NextPlan
           </Link>
@@ -49,7 +50,7 @@ export default function RegisterPage() {
         {/* Card */}
         <form
           onSubmit={handleSubmit}
-          className="bg-surface-container-low rounded-[2rem] p-8 space-y-5 border border-outline-variant/10"
+          className="bg-surface-container-low rounded-[2rem] p-5 md:p-8 space-y-3 md:space-y-5 border border-outline-variant/10"
         >
           {error && (
             <div className="bg-error/10 border border-error/30 text-error text-sm px-4 py-3 rounded-xl">
@@ -67,7 +68,7 @@ export default function RegisterPage() {
               onChange={(e) => setFullName(e.target.value)}
               autoComplete="name"
               className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/20 focus:border-secondary focus:outline-none px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-colors"
-              placeholder="Elena Vance"
+              placeholder="Ej. Elena Vance"
             />
           </div>
 
@@ -97,7 +98,7 @@ export default function RegisterPage() {
               required
               autoComplete="email"
               className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/20 focus:border-secondary focus:outline-none px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-colors"
-              placeholder="you@example.com"
+              placeholder="tu@ejemplo.com"
             />
           </div>
 
@@ -149,6 +150,7 @@ export default function RegisterPage() {
         </form>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 }

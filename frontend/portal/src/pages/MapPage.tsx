@@ -253,108 +253,6 @@ function BoundsWatcher({ onChange }: { onChange: (b: Bounds) => void }) {
   return null;
 }
 
-function InitialView({
-  preferredLocation,
-  preferredLat,
-  preferredLng,
-  events,
-}: {
-  preferredLocation: string | null;
-  preferredLat: number | null;
-  preferredLng: number | null;
-  events: Array<{ latitud: number; longitud: number }>;
-}) {
-  const map = useMap();
-  const positionedRef = useRef(false);
-  const geoAttemptedRef = useRef(false);
-
-  useEffect(() => {
-    if (!map) return;
-    const lock = () => {
-      positionedRef.current = true;
-    };
-    const l1 = map.addListener('dragstart', lock);
-    const l2 = map.addListener('zoom_changed', lock);
-    return () => {
-      l1.remove();
-      l2.remove();
-    };
-  }, [map]);
-
-  useEffect(() => {
-    if (!map || positionedRef.current) return;
-    let cancelled = false;
-
-    const fitToEvents = () => {
-      const bounds = new google.maps.LatLngBounds();
-      events.forEach((e) =>
-        bounds.extend({ lat: e.latitud, lng: e.longitud }),
-      );
-      map.fitBounds(bounds, 40);
-    };
-
-    async function resolve() {
-      if (!map) return;
-      if (preferredLat != null && preferredLng != null) {
-        map.setCenter({ lat: preferredLat, lng: preferredLng });
-        map.setZoom(CITY_ZOOM);
-        positionedRef.current = true;
-        return;
-      }
-
-      if (preferredLocation) {
-        const key = preferredLocation
-          .trim()
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '');
-        let coords: [number, number] | null = CITY_COORDS[key] ?? null;
-        if (!coords) coords = await geocodeCity(preferredLocation);
-        if (cancelled || positionedRef.current) return;
-        if (coords) {
-          map.setCenter({ lat: coords[0], lng: coords[1] });
-          map.setZoom(CITY_ZOOM);
-          positionedRef.current = true;
-          return;
-        }
-      }
-
-      if (!geoAttemptedRef.current && navigator.geolocation) {
-        geoAttemptedRef.current = true;
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            if (positionedRef.current) return;
-            map.setCenter({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-            });
-            map.setZoom(CITY_ZOOM);
-            positionedRef.current = true;
-          },
-          () => {
-            if (positionedRef.current || events.length === 0) return;
-            fitToEvents();
-            positionedRef.current = true;
-          },
-        );
-        return;
-      }
-
-      if (events.length > 0) {
-        fitToEvents();
-        positionedRef.current = true;
-      }
-    }
-
-    resolve();
-    return () => {
-      cancelled = true;
-    };
-  }, [preferredLocation, preferredLat, preferredLng, events, map]);
-
-  return null;
-}
-
 function ClusteredMarkers({
   groups,
   hoveredKey,
@@ -608,7 +506,7 @@ function EventDetailModal({
               className="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-[18px]">info</span>
-              More info
+              Más información
             </Link>
             {event.url && (
               <a
@@ -722,6 +620,8 @@ export default function MapPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const mobileFiltersRef = useRef<HTMLDivElement | null>(null);
   const categoryMenuRef = useRef<HTMLDivElement | null>(null);
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
@@ -738,6 +638,69 @@ export default function MapPage() {
   const inflightRef = useRef<AbortController | null>(null);
   const boundsRef = useRef<Bounds | null>(null);
   const initialFetchedRef = useRef(false);
+  const [initialCenter, setInitialCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
+  const initialResolvedRef = useRef(false);
+
+  // Resolve starting map center: geolocation > saved city > Madrid.
+  useEffect(() => {
+    if (initialResolvedRef.current) return;
+    let cancelled = false;
+
+    function commit(lat: number, lng: number) {
+      if (cancelled || initialResolvedRef.current) return;
+      initialResolvedRef.current = true;
+      setInitialCenter({ lat, lng, zoom: CITY_ZOOM });
+    }
+
+    async function resolveStart() {
+      // 1. Geolocation
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) => {
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 });
+          });
+          commit(pos.coords.latitude, pos.coords.longitude);
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      if (cancelled || initialResolvedRef.current) return;
+
+      // 2. Saved location coords
+      const lat = user?.preferred_location_lat;
+      const lng = user?.preferred_location_lng;
+      if (lat != null && lng != null) {
+        commit(lat, lng);
+        return;
+      }
+
+      // 3. Saved city name → known coords or geocode
+      if (user?.preferred_location) {
+        const key = user.preferred_location
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        let coords: [number, number] | null = CITY_COORDS[key] ?? null;
+        if (!coords) coords = await geocodeCity(user.preferred_location);
+        if (cancelled || initialResolvedRef.current) return;
+        if (coords) {
+          commit(coords[0], coords[1]);
+          return;
+        }
+      }
+
+      // 4. Madrid fallback
+      const [mLat, mLng] = CITY_COORDS.madrid;
+      commit(mLat, mLng);
+    }
+
+    resolveStart();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.preferred_location, user?.preferred_location_lat, user?.preferred_location_lng]);
 
   const fetchEvents = useCallback(() => {
     inflightRef.current?.abort();
@@ -841,6 +804,30 @@ export default function MapPage() {
     if (still.length !== selectedCategories.length) setSelectedCategories(still);
   }, [categoryOptions, selectedCategories]);
 
+  // Close mobile filters on outside click / Escape.
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const onDown = (e: Event) => {
+      if (
+        mobileFiltersRef.current &&
+        !mobileFiltersRef.current.contains(e.target as Node)
+      ) {
+        setMobileFiltersOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileFiltersOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('touchstart', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('touchstart', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [mobileFiltersOpen]);
+
   // Close category menu on outside click / Escape.
   useEffect(() => {
     if (!categoryMenuOpen) return;
@@ -890,8 +877,6 @@ export default function MapPage() {
     openGroup(g);
   };
 
-  const mapCenter = { lat: 40.42, lng: -3.7 };
-
   return (
     <div className="bg-surface text-on-surface h-screen overflow-hidden flex flex-col">
       <TopNav />
@@ -901,10 +886,11 @@ export default function MapPage() {
         <section className="relative flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row">
 
           <div className="h-[45vh] md:h-auto md:flex-1 relative shrink-0">
+            {initialCenter ? (
             <APIProvider apiKey={GMAPS_API_KEY}>
               <GMap
-                defaultCenter={mapCenter}
-                defaultZoom={13}
+                defaultCenter={{ lat: initialCenter.lat, lng: initialCenter.lng }}
+                defaultZoom={initialCenter.zoom}
                 mapId={GMAPS_MAP_ID}
                 disableDefaultUI
                 gestureHandling="greedy"
@@ -914,12 +900,6 @@ export default function MapPage() {
                   <MapFlyTo lat={flyTarget.lat} lng={flyTarget.lng} />
                 )}
                 <BoundsWatcher onChange={setBounds} />
-                <InitialView
-                  preferredLocation={user?.preferred_location ?? null}
-                  preferredLat={user?.preferred_location_lat ?? null}
-                  preferredLng={user?.preferred_location_lng ?? null}
-                  events={mappableEvents}
-                />
                 <ClusteredMarkers
                   groups={visibleGroups}
                   hoveredKey={hoveredKey}
@@ -928,9 +908,14 @@ export default function MapPage() {
                 />
               </GMap>
             </APIProvider>
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-surface-container-low text-on-surface-variant">
+                <span className="material-symbols-outlined animate-spin text-3xl">autorenew</span>
+              </div>
+            )}
 
-            {/* Filter Bar – floating over the map */}
-            <div className="absolute top-6 left-6 z-[400] pointer-events-auto">
+            {/* Filter Bar – floating over the map (desktop) */}
+            <div className="hidden md:block absolute top-6 left-6 z-[400] pointer-events-auto">
               <div className="bg-surface-variant/80 backdrop-blur-3xl rounded-full px-6 py-3 flex flex-wrap items-center gap-4 shadow-2xl border border-outline-variant/20">
                 <div className="flex items-center gap-3 border-r border-outline-variant/20 pr-6">
                   <button
@@ -1017,19 +1002,15 @@ export default function MapPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-tertiary text-lg">payments</span>
-                  <span className="font-label text-sm font-semibold">Under $50</span>
-                </div>
               </div>
             </div>
 
-            {/* Reload button */}
+            {/* Reload button (desktop) */}
             <button
               type="button"
               onClick={fetchEvents}
               disabled={loading}
-              className="absolute top-6 right-6 z-[400] bg-surface-container-high/90 backdrop-blur-xl rounded-full px-5 h-12 flex items-center gap-2 border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors disabled:opacity-50"
+              className="hidden md:flex absolute top-6 right-6 z-[400] bg-surface-container-high/90 backdrop-blur-xl rounded-full px-5 h-12 items-center gap-2 border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors disabled:opacity-50"
               aria-label="Reload events in this area"
               title="Reload events in this area"
             >
@@ -1043,21 +1024,96 @@ export default function MapPage() {
               </span>
             </button>
 
-            {/* Legend */}
-            <div className="absolute bottom-6 right-6 z-[400]">
-              <div className="bg-surface-container-high/90 backdrop-blur-xl px-5 py-3 rounded-xl border border-outline-variant/15 flex flex-col gap-2 shadow-xl">
-                {[
-                  { color: '#b6a0ff', label: 'Music' },
-                  { color: '#ff946e', label: 'Food' },
-                  { color: '#8a99fe', label: 'Art' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full" style={{ background: item.color, boxShadow: `0 0 6px ${item.color}` }} />
-                    <span className="text-xs font-semibold text-on-surface-variant">{item.label}</span>
+            {/* Mobile reload icon */}
+            <button
+              type="button"
+              onClick={fetchEvents}
+              disabled={loading}
+              className="md:hidden absolute top-4 right-4 z-[400] bg-surface-container-high/90 backdrop-blur-xl rounded-full w-11 h-11 flex items-center justify-center border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors disabled:opacity-50"
+              aria-label="Reload events in this area"
+              title="Reload events in this area"
+            >
+              <span
+                className={`material-symbols-outlined text-primary text-xl ${loading ? 'animate-spin' : ''}`}
+              >
+                autorenew
+              </span>
+            </button>
+
+            {/* Mobile filter icon + dropdown */}
+            <div ref={mobileFiltersRef} className="md:hidden absolute top-4 left-4 z-[450]">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((v) => !v)}
+                className="bg-surface-variant/85 backdrop-blur-xl rounded-full w-11 h-11 flex items-center justify-center border border-outline-variant/20 shadow-xl hover:bg-surface-variant transition-colors"
+                aria-label="Filters"
+                aria-expanded={mobileFiltersOpen}
+              >
+                <span className="material-symbols-outlined text-primary text-xl">tune</span>
+                {(selectedCategories.length > 0 || selectedDate) && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary border-2 border-surface" />
+                )}
+              </button>
+              {mobileFiltersOpen && (
+                <div className="absolute top-full mt-2 left-0 w-72 bg-surface-container-high rounded-2xl border border-outline-variant/20 shadow-2xl p-4 space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-primary text-base">calendar_today</span>
+                      <span className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">Day</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="flex-1 bg-surface-container rounded-lg px-3 py-2 text-sm font-semibold text-on-surface [color-scheme:dark] outline-none border border-outline-variant/20"
+                      />
+                      {selectedDate && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDate('')}
+                          className="material-symbols-outlined text-on-surface-variant text-base hover:text-on-surface"
+                          aria-label="Clear date filter"
+                        >
+                          close
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-secondary text-base">filter_alt</span>
+                      <span className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">Categories</span>
+                    </div>
+                    <div className="max-h-44 overflow-y-auto rounded-lg border border-outline-variant/20">
+                      {[ALL_CATEGORIES, ...categoryOptions].map((cat) => {
+                        const isAll = cat === ALL_CATEGORIES;
+                        const selected = isAll
+                          ? selectedCategories.length === 0
+                          : selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => toggleCategory(cat)}
+                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 transition-colors ${
+                              selected ? 'text-primary bg-primary/10' : 'text-on-surface hover:bg-surface-variant/50'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-base">
+                              {selected ? 'check_box' : 'check_box_outline_blank'}
+                            </span>
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
+
           </div>
 
           {/* Side Panel */}
