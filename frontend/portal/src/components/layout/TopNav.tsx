@@ -9,7 +9,7 @@ export default function TopNav() {
   const navigate = useNavigate();
 
   const navLinks = [
-    { label: t.nav.discover, path: '/' },
+    { label: t.nav.discover, path: '/swipe' },
     { label: t.nav.map, path: '/map' },
     { label: t.nav.planner, path: '/planner' },
   ];
