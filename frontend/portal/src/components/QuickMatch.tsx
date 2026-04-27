@@ -40,6 +40,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const pointerIdRef = useRef<number | null>(null);
+  const cardShownAtRef = useRef<number | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -63,17 +64,18 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
   const current = events[index] ?? null;
   const upcoming = useMemo(() => events.slice(index + 1, index + 3), [events, index]);
 
+  useEffect(() => {
+    cardShownAtRef.current = current ? performance.now() : null;
+  }, [current?.id]);
+
   const publishSwipe = useCallback((event: EventCatalogItem, direction: SwipeDirection) => {
+    const shownAt = cardShownAtRef.current;
+    const dwell_ms = shownAt != null ? Math.round(performance.now() - shownAt) : undefined;
     apiSwipeEvent({
       direction,
       event_id: event.id,
-      event_title: event.nombre,
-      event_venue: event.recinto_nombre,
-      event_date: event.fecha,
-      event_time: event.hora,
-      event_image_url: event.imagen_evento ?? event.artista_imagen,
-      event_url: event.url,
       swiped_at: new Date().toISOString(),
+      ...(dwell_ms != null ? { dwell_ms } : {}),
     }).catch((err) => {
       console.warn('swipe publish failed', err);
     });

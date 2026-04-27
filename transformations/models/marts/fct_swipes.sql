@@ -45,6 +45,7 @@ select
     d.user_id,
     d.direction,
     d.swiped_at,
+    d.dwell_ms,
     d.ingested_at,
     d.message_id,
     e.event_nombre,

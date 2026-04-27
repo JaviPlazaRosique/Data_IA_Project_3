@@ -274,9 +274,11 @@ export interface SavedEventCreate {
 
 export type SwipeDirection = 'left' | 'right';
 
-export interface SwipeEventCreate extends SavedEventCreate {
+export interface SwipeEventCreate {
+  event_id: string;
   direction: SwipeDirection;
   swiped_at?: string;
+  dwell_ms?: number;
 }
 
 export interface SwipeEventAccepted {

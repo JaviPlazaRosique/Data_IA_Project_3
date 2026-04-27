@@ -17,3 +17,5 @@ models:
               values: ['left', 'right']
       - name: swiped_at
         tests: [not_null]
+      - name: dwell_ms
+        description: "Milisegundos que la card estuvo visible antes del swipe. Nullable."

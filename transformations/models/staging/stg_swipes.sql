@@ -5,6 +5,7 @@ select
     json_value(data, '$.user_id')               as user_id,
     json_value(data, '$.direction')             as direction,
     timestamp(json_value(data, '$.swiped_at'))  as swiped_at,
+    safe_cast(json_value(data, '$.dwell_ms') as int64) as dwell_ms,
     publish_time                                 as ingested_at,
     message_id
 from {{ source('raw', 'swipes_raw') }}
