@@ -6,7 +6,7 @@ export default function BottomNav() {
   const { t } = useLang();
 
   const navItems = [
-    { icon: 'style', label: t.nav.discover, path: '/' },
+    { icon: 'style', label: t.nav.discover, path: '/swipe' },
     { icon: 'map', label: t.nav.map, path: '/map' },
     { icon: 'auto_awesome', label: t.nav.planner, path: '/planner' },
   ];
