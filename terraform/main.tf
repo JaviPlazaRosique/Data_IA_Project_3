@@ -174,6 +174,22 @@ module "portal_api_sa" {
   ]
 }
 
+module "bucket_avatares" {
+  source      = "./modules/bucket"
+  nombre      = "avatares-usuarios-${var.id_proyecto}"
+  id_proyecto = var.id_proyecto
+  ubicacion   = upper(var.region)
+  depends_on = [
+    module.setup
+  ]
+}
+
+resource "google_storage_bucket_iam_member" "portal_api_sa_avatares" {
+  bucket = module.bucket_avatares.nombre
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${module.portal_api_sa.email_cuenta_servicio}"
+}
+
 data "google_project" "actual" {
   project_id = var.id_proyecto
 }
@@ -235,6 +251,7 @@ module "cloud_run_portal_api" {
     DB_USER                   = module.cloudsql_portal.db_user
     GOOGLE_CLOUD_PROJECT      = var.id_proyecto
     PUBSUB_TOPIC_SWIPE_EVENTS = module.pubsub_swipe_events.nombre
+    AVATAR_BUCKET_NAME        = module.bucket_avatares.nombre
   }
 
   secretos_entorno = {
