@@ -207,8 +207,8 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
         : null;
 
   return (
-    <div className="bg-surface-container-low rounded-[2rem] p-6 md:p-10 relative overflow-hidden">
-      <div className="flex items-start justify-between mb-6 md:mb-8 gap-4">
+    <div className="bg-surface-container-low rounded-[2rem] p-4 md:p-6 relative overflow-hidden h-full flex flex-col">
+      <div className="flex items-start justify-between mb-3 md:mb-4 gap-4 shrink-0">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold font-headline tracking-tight flex items-center gap-3">
             <span className="material-symbols-outlined text-primary">style</span>
@@ -228,7 +228,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
         </button>
       </div>
 
-      <div className="relative mx-auto w-full max-w-[360px] md:max-w-[420px] aspect-[3/4]">
+      <div className="relative mx-auto w-full max-w-[360px] md:max-w-[420px] flex-1 min-h-0 aspect-[3/4]" style={{ maxHeight: '100%' }}>
         {loading ? (
           <div className="absolute inset-0 rounded-[2rem] bg-surface-container-high animate-pulse" />
         ) : error ? (
@@ -309,7 +309,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
 
       {/* Action buttons */}
       {current && (
-        <div className="mt-8 flex items-center justify-center gap-4">
+        <div className="mt-4 md:mt-6 flex items-center justify-center gap-4 shrink-0">
           <button
             onClick={() => advance('left')}
             className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-container-high flex items-center justify-center text-error border border-error/20 active:scale-90 transition-transform shadow-xl"
