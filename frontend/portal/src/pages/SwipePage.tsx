@@ -1,5 +1,4 @@
 import TopNav from '../components/layout/TopNav';
-import Footer from '../components/layout/Footer';
 import BottomNav from '../components/layout/BottomNav';
 import QuickMatch from '../components/QuickMatch';
 
