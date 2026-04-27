@@ -16,6 +16,7 @@ class SavedEventCreate(BaseModel):
 
 
 SwipeDirection = Literal["left", "right"]
+RecommendationContext = Literal["swipe", "chat"]
 
 
 class SwipeEventCreate(BaseModel):
@@ -23,6 +24,8 @@ class SwipeEventCreate(BaseModel):
     direction: SwipeDirection
     swiped_at: datetime | None = None
     dwell_ms: int | None = Field(default=None, ge=0)
+    session_id: str | None = None
+    recommendation_context: RecommendationContext | None = None
 
 
 class SwipeEventAccepted(BaseModel):

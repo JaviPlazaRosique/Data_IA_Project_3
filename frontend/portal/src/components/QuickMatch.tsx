@@ -7,9 +7,11 @@ import {
   apiSwipeEvent,
   cleanLabel,
   type EventCatalogItem,
+  type RecommendationContext,
   type SavedEventRead,
   type SwipeDirection,
 } from '../api';
+import { getSessionId } from '../session';
 
 const IMAGE_FALLBACK = 'https://picsum.photos/seed/quick-match/600/800';
 const DECK_STORAGE_KEY = 'quickmatch_deck_v1';
@@ -29,7 +31,12 @@ function dedupe(events: EventCatalogItem[]): EventCatalogItem[] {
   return Array.from(seen.values());
 }
 
-export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRead) => void } = {}) {
+type QuickMatchProps = {
+  onSaved?: (saved: SavedEventRead) => void;
+  recommendationContext?: RecommendationContext;
+};
+
+export default function QuickMatch({ onSaved, recommendationContext = 'swipe' }: QuickMatchProps = {}) {
   const navigate = useNavigate();
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -102,11 +109,13 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
       direction,
       event_id: event.id,
       swiped_at: new Date().toISOString(),
+      session_id: getSessionId(),
+      recommendation_context: recommendationContext,
       ...(dwell_ms != null ? { dwell_ms } : {}),
     }).catch((err) => {
       console.warn('swipe publish failed', err);
     });
-  }, []);
+  }, [recommendationContext]);
 
   const advance = useCallback(
     (dir: SwipeDir) => {
