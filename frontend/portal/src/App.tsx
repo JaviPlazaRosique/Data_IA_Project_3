@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { HashRouter, Link, Routes, Route } from 'react-router-dom';
+import { HashRouter, Link, Navigate, Routes, Route } from 'react-router-dom';
 import { isServerAvailable } from './config';
 import ServerOfflineBanner from './components/ServerOfflineBanner';
 import { AuthProvider } from './context/AuthContext';
@@ -44,7 +44,8 @@ export default function App() {
         <StorageNotice />
         <Suspense fallback={<div className="min-h-screen bg-surface" />}>
           <Routes>
-            <Route path="/" element={<SwipePage />} />
+            <Route path="/" element={<Navigate to="/map" replace />} />
+            <Route path="/swipe" element={<SwipePage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/event/:id" element={<EventDetailsPage />} />
             <Route path="/login" element={<LoginPage />} />

@@ -23,7 +23,7 @@ variable "servicios_gcp" {
     "cloudscheduler.googleapis.com",
     "pubsub.googleapis.com"
   ]
-} 
+}
 
 variable "id_proyecto" {
   description = "ID del proyecto de GCP"

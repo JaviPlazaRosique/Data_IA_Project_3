@@ -19,7 +19,7 @@ sources:
           - name: publish_time
             data_type: timestamp
           - name: data
-            description: "Payload JSON serializado por portal-api (event_id, user_id, direction, swiped_at)."
+            description: "Payload JSON serializado por portal-api (event_id, user_id, direction, swiped_at, dwell_ms)."
             data_type: string
           - name: attributes
             data_type: string

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   APIProvider,
   Map as GMap,
@@ -93,6 +93,11 @@ const weatherMetrics = [
 
 export default function EventDetailsPage() {
   const { id: routeId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const handleClose = useCallback(() => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate('/swipe');
+  }, [navigate]);
   const [event, setEvent] = useState<EventCatalogItem | null>(null);
   const [occurrences, setOccurrences] = useState<EventCatalogItem[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
@@ -159,6 +164,14 @@ export default function EventDetailsPage() {
       <main className="relative min-h-screen">
         {/* Hero */}
         <section className="relative h-[60vh] w-full overflow-hidden">
+          <button
+            onClick={handleClose}
+            aria-label="Close"
+            title="Close"
+            className="absolute top-4 right-4 z-20 w-11 h-11 rounded-full bg-surface/80 backdrop-blur-md border border-outline-variant/30 flex items-center justify-center text-on-surface hover:bg-surface transition-colors shadow-lg"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
           <img src={event?.imagen_evento ?? event?.artista_imagen ?? heroImg} alt={event?.nombre ?? 'Event'} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent" />
           <div className="absolute bottom-0 left-0 w-full px-4 md:px-8 pb-12">

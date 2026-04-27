@@ -7,7 +7,7 @@ terraform {
 }
 
 resource "docker_image" "imagen" {
-  name  = "${var.region}-docker.pkg.dev/${var.id_proyecto}/${var.nombre_repo_artifact}/api:latest"
+  name = "${var.region}-docker.pkg.dev/${var.id_proyecto}/${var.nombre_repo_artifact}/api:latest"
   build {
     context    = var.ruta_contexto_docker
     dockerfile = "Dockerfile"

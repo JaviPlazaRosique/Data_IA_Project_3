@@ -18,9 +18,9 @@ resource "google_storage_bucket" "bucket" {
         storage_class = lookup(lifecycle_rule.value, "clase_destino", null)
       }
       condition {
-        age                   = lookup(lifecycle_rule.value, "edad_dias", null)
-        num_newer_versions    = lookup(lifecycle_rule.value, "versiones_recientes", null)
-        with_state            = lookup(lifecycle_rule.value, "estado_objeto", null)
+        age                = lookup(lifecycle_rule.value, "edad_dias", null)
+        num_newer_versions = lookup(lifecycle_rule.value, "versiones_recientes", null)
+        with_state         = lookup(lifecycle_rule.value, "estado_objeto", null)
       }
     }
   }

@@ -1,0 +1,1 @@
+{"_links":{"self":{"href":"/discovery/v2/events.json?startDateTime=2026-04-28T00%3A00%3A00Z&size=50&countryCode=ES&source=ticketmaster&endDateTime=2026-04-28T23%3A59%3A59Z"}},"page":{"size":50,"totalElements":0,"totalPages":0,"number":0}}

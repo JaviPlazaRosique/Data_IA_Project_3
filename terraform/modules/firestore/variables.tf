@@ -32,8 +32,8 @@ variable "politica_borrado_terraform" {
       - "DELETE"  → Terraform elimina la base de datos (requiere proteccion_borrado = false).
       - "ABANDON" → Terraform elimina el recurso del estado pero no lo borra en GCP.
   EOT
-  type    = string
-  default = "DELETE"
+  type        = string
+  default     = "DELETE"
 
   validation {
     condition     = contains(["DELETE", "ABANDON"], var.politica_borrado_terraform)

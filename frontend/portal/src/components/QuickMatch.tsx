@@ -7,11 +7,14 @@ import {
   apiSwipeEvent,
   cleanLabel,
   type EventCatalogItem,
+  type RecommendationContext,
   type SavedEventRead,
   type SwipeDirection,
 } from '../api';
+import { getSessionId } from '../session';
 
 const IMAGE_FALLBACK = 'https://picsum.photos/seed/quick-match/600/800';
+const DECK_STORAGE_KEY = 'quickmatch_deck_v1';
 
 type SwipeDir = 'left' | 'right';
 
@@ -28,7 +31,12 @@ function dedupe(events: EventCatalogItem[]): EventCatalogItem[] {
   return Array.from(seen.values());
 }
 
-export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRead) => void } = {}) {
+type QuickMatchProps = {
+  onSaved?: (saved: SavedEventRead) => void;
+  recommendationContext?: RecommendationContext;
+};
+
+export default function QuickMatch({ onSaved, recommendationContext = 'swipe' }: QuickMatchProps = {}) {
   const navigate = useNavigate();
   const [events, setEvents] = useState<EventCatalogItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -40,10 +48,14 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const pointerIdRef = useRef<number | null>(null);
+  const cardShownAtRef = useRef<number | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((opts?: { reset?: boolean }) => {
     setLoading(true);
     setError(null);
+    if (opts?.reset) {
+      try { sessionStorage.removeItem(DECK_STORAGE_KEY); } catch { /* ignore */ }
+    }
     Promise.all([apiListEvents({ limit: 50 }), apiListSavedEvents().catch(() => [])])
       .then(([data, saved]) => {
         const savedSet = new Set(saved.map((s) => s.event_id));
@@ -57,27 +69,53 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DECK_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { events: EventCatalogItem[]; index: number; savedIds: string[] };
+        if (Array.isArray(parsed.events) && parsed.events.length > 0) {
+          setEvents(parsed.events);
+          setIndex(Math.min(parsed.index ?? 0, parsed.events.length - 1));
+          setSavedIds(new Set(parsed.savedIds ?? []));
+          setLoading(false);
+          return;
+        }
+      }
+    } catch { /* ignore */ }
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (loading || events.length === 0) return;
+    try {
+      sessionStorage.setItem(
+        DECK_STORAGE_KEY,
+        JSON.stringify({ events, index, savedIds: Array.from(savedIds) }),
+      );
+    } catch { /* ignore */ }
+  }, [events, index, savedIds, loading]);
 
   const current = events[index] ?? null;
   const upcoming = useMemo(() => events.slice(index + 1, index + 3), [events, index]);
 
+  useEffect(() => {
+    cardShownAtRef.current = current ? performance.now() : null;
+  }, [current?.id]);
+
   const publishSwipe = useCallback((event: EventCatalogItem, direction: SwipeDirection) => {
+    const shownAt = cardShownAtRef.current;
+    const dwell_ms = shownAt != null ? Math.round(performance.now() - shownAt) : undefined;
     apiSwipeEvent({
       direction,
       event_id: event.id,
-      event_title: event.nombre,
-      event_venue: event.recinto_nombre,
-      event_date: event.fecha,
-      event_time: event.hora,
-      event_image_url: event.imagen_evento ?? event.artista_imagen,
-      event_url: event.url,
       swiped_at: new Date().toISOString(),
+      session_id: getSessionId(),
+      recommendation_context: recommendationContext,
+      ...(dwell_ms != null ? { dwell_ms } : {}),
     }).catch((err) => {
       console.warn('swipe publish failed', err);
     });
-  }, []);
+  }, [recommendationContext]);
 
   const advance = useCallback(
     (dir: SwipeDir) => {
@@ -205,8 +243,8 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
         : null;
 
   return (
-    <div className="bg-surface-container-low rounded-[2rem] p-6 md:p-10 relative overflow-hidden">
-      <div className="flex items-start justify-between mb-6 md:mb-8 gap-4">
+    <div className="bg-surface-container-low rounded-[2rem] p-4 md:p-6 relative overflow-hidden h-full flex flex-col">
+      <div className="flex items-start justify-between mb-3 md:mb-4 gap-4 shrink-0">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold font-headline tracking-tight flex items-center gap-3">
             <span className="material-symbols-outlined text-primary">style</span>
@@ -217,7 +255,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
           </p>
         </div>
         <button
-          onClick={load}
+          onClick={() => load({ reset: true })}
           className="p-3 rounded-full border border-outline-variant/20 hover:border-primary transition-colors"
           aria-label="Reload deck"
           title="Reload deck"
@@ -226,7 +264,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
         </button>
       </div>
 
-      <div className="relative mx-auto w-full max-w-[360px] md:max-w-[420px] aspect-[3/4]">
+      <div className="relative mx-auto w-full max-w-[360px] md:max-w-[420px] flex-1 min-h-0 aspect-[3/4]" style={{ maxHeight: '100%' }}>
         {loading ? (
           <div className="absolute inset-0 rounded-[2rem] bg-surface-container-high animate-pulse" />
         ) : error ? (
@@ -240,7 +278,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
               No more events in the deck. Come back later or reload.
             </p>
             <button
-              onClick={load}
+              onClick={() => load({ reset: true })}
               className="bg-primary text-on-primary font-bold px-6 py-2 rounded-full text-sm"
             >
               Reload
@@ -307,7 +345,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
 
       {/* Action buttons */}
       {current && (
-        <div className="mt-8 flex items-center justify-center gap-4">
+        <div className="mt-4 md:mt-6 flex items-center justify-center gap-4 shrink-0">
           <button
             onClick={() => advance('left')}
             className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-container-high flex items-center justify-center text-error border border-error/20 active:scale-90 transition-transform shadow-xl"
