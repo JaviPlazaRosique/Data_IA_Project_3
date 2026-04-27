@@ -10,58 +10,30 @@ import {
   apiUpdateMe,
   apiListSavedEvents,
   apiUnsaveEvent,
-  apiListEventCategories,
   type SavedEventRead,
 } from '../api';
-
-const budgetOptions = ['€', '€€', '€€€', '€€€€'];
-
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const { t } = useLang();
-  const [activeBudget, setActiveBudget] = useState(user?.preferred_budget ?? '€');
   const [locationDraft, setLocationDraft] = useState(user?.preferred_location ?? '');
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    user?.preferred_categories ?? [],
-  );
+  const [showAvatarEdit, setShowAvatarEdit] = useState(false);
+  const [avatarDraft, setAvatarDraft] = useState(user?.avatar_url ?? '');
 
   useEffect(() => {
-    setSelectedCategories(user?.preferred_categories ?? []);
-  }, [user?.preferred_categories]);
+    setLocationDraft(user?.preferred_location ?? '');
+  }, [user?.preferred_location]);
+
+  useEffect(() => {
+    setAvatarDraft(user?.avatar_url ?? '');
+  }, [user?.avatar_url]);
 
   useEffect(() => {
     apiListSavedEvents()
       .then(setSavedEvents)
       .catch(() => { /* silent */ });
   }, []);
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    apiListEventCategories({}, { signal: ctrl.signal })
-      .then(setCategoryOptions)
-      .catch(() => { /* silent */ });
-    return () => ctrl.abort();
-  }, []);
-
-  async function toggleCategory(cat: string) {
-    const next = selectedCategories.includes(cat)
-      ? selectedCategories.filter((c) => c !== cat)
-      : [...selectedCategories, cat];
-    setSelectedCategories(next);
-    try {
-      const updated = await apiUpdateMe({ preferred_categories: next });
-      setUser(updated);
-    } catch {
-      setSelectedCategories(selectedCategories);
-    }
-  }
-
-  useEffect(() => {
-    setLocationDraft(user?.preferred_location ?? '');
-  }, [user?.preferred_location]);
 
   async function handleLocationBlur() {
     const value = locationDraft.trim();
@@ -72,11 +44,12 @@ export default function ProfilePage() {
     } catch { /* silent */ }
   }
 
-  async function handleBudgetChange(opt: string) {
-    setActiveBudget(opt);
+  async function handleAvatarSave() {
+    const url = avatarDraft.trim() || null;
     try {
-      const updated = await apiUpdateMe({ preferred_budget: opt });
+      const updated = await apiUpdateMe({ avatar_url: url });
       setUser(updated);
+      setShowAvatarEdit(false);
     } catch { /* silent */ }
   }
 
@@ -86,6 +59,17 @@ export default function ProfilePage() {
       setSavedEvents((prev) => prev.filter((e) => e.event_id !== eventId));
     } catch { /* silent */ }
   }
+
+  const categories = user?.preferred_categories ?? [];
+
+  const profileSteps = [
+    { label: 'Foto de perfil', done: !!user?.avatar_url },
+    { label: 'Nombre completo', done: !!user?.full_name },
+    { label: 'Ciudad', done: !!user?.preferred_location },
+    { label: 'Categorías', done: categories.length > 0 },
+  ];
+  const completedSteps = profileSteps.filter((s) => s.done).length;
+  const completionPct = Math.round((completedSteps / profileSteps.length) * 100);
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -106,9 +90,12 @@ export default function ProfilePage() {
                       <span className="material-symbols-outlined text-5xl text-on-surface-variant">account_circle</span>
                     )}
                   </div>
-                  <div className="absolute bottom-0 right-0 bg-tertiary text-on-tertiary p-1.5 rounded-full shadow-lg border-2 border-surface">
+                  <button
+                    onClick={() => setShowAvatarEdit(true)}
+                    className="absolute bottom-0 right-0 bg-tertiary text-on-tertiary p-1.5 rounded-full shadow-lg border-2 border-surface"
+                  >
                     <span className="material-symbols-outlined text-sm block">edit</span>
-                  </div>
+                  </button>
                 </div>
                 <div>
                   <SectionLabel>{t.profile_title}</SectionLabel>
@@ -117,7 +104,7 @@ export default function ProfilePage() {
                   </h1>
                   <div className="flex items-center gap-3">
                     <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-primary/30">
-                      {user?.is_verified ? 'Verified Member' : 'Member'}
+                      {user?.is_verified ? 'Miembro Verificado' : 'Miembro'}
                     </span>
                     {user?.preferred_location && (
                       <span className="text-on-surface-variant text-sm flex items-center gap-1">
@@ -133,14 +120,55 @@ export default function ProfilePage() {
                 className="bg-primary text-on-primary font-bold px-8 py-3 rounded-full hover:scale-95 active:opacity-80 transition-transform flex items-center gap-2 w-fit"
               >
                 <span className="material-symbols-outlined text-xl">bolt</span>
-                Surprise Me
+                Sorpréndeme
               </Link>
             </div>
           </header>
 
+          {/* Modal edición de avatar */}
+          {showAvatarEdit && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-surface-container-low rounded-[2rem] p-8 w-full max-w-md space-y-4">
+                <h3 className="text-lg font-bold">Cambiar foto de perfil</h3>
+                <p className="text-sm text-on-surface-variant">Introduce la URL de tu nueva foto de perfil.</p>
+                <input
+                  type="url"
+                  value={avatarDraft}
+                  onChange={(e) => setAvatarDraft(e.target.value)}
+                  placeholder="https://ejemplo.com/foto.jpg"
+                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
+                />
+                {avatarDraft && (
+                  <div className="w-24 h-24 rounded-full overflow-hidden mx-auto border-4 border-primary/30">
+                    <img
+                      src={avatarDraft}
+                      alt="Vista previa"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowAvatarEdit(false)}
+                    className="flex-1 border border-outline-variant/30 py-3 rounded-full text-sm font-bold hover:bg-surface-container-high transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleAvatarSave}
+                    className="flex-1 bg-primary text-on-primary py-3 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left: Preferences */}
+            {/* Left: Preferencias */}
             <section className="lg:col-span-4 space-y-8">
               <div className="bg-surface-container-low p-8 rounded-[2rem] relative group">
                 <div className="absolute inset-0 rounded-[2rem] overflow-hidden pointer-events-none">
@@ -152,46 +180,20 @@ export default function ProfilePage() {
                 </h2>
                 <div className="space-y-6">
                   <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Budget Range</label>
-                    <div className="bg-surface-container-lowest p-1 rounded-full flex gap-1">
-                      {budgetOptions.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => handleBudgetChange(opt)}
-                          className={`flex-1 py-2 text-xs font-bold rounded-full transition-colors ${
-                            activeBudget === opt
-                              ? 'bg-surface-container-high text-primary'
-                              : 'text-on-surface/40 hover:text-on-surface'
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Favorite Categories</label>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Categorías</label>
                     <div className="flex flex-wrap gap-2">
-                      {categoryOptions.length === 0 && (
-                        <span className="text-on-surface-variant/50 text-sm italic">Loading categories…</span>
-                      )}
-                      {categoryOptions.map((cat) => {
-                        const active = selectedCategories.includes(cat);
-                        return (
-                          <button
+                      {categories.length === 0 ? (
+                        <span className="text-on-surface-variant/50 text-sm italic">Sin categorías seleccionadas</span>
+                      ) : (
+                        categories.map((cat) => (
+                          <span
                             key={cat}
-                            type="button"
-                            onClick={() => toggleCategory(cat)}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                              active
-                                ? 'bg-primary/20 text-primary border-primary/30'
-                                : 'bg-surface-container-high border-outline-variant/10 hover:border-primary/30'
-                            }`}
+                            className="px-4 py-2 rounded-xl text-sm font-medium border bg-primary/20 text-primary border-primary/30"
                           >
                             {cat}
-                          </button>
-                        );
-                      })}
+                          </span>
+                        ))
+                      )}
                     </div>
                   </div>
                   <div>
@@ -210,40 +212,44 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
-
-              {/* Curator Insight */}
+              {/* Completitud del perfil */}
               <div className="glass-panel p-8 rounded-[2rem]">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-tertiary">auto_awesome</span>
-                  Curator Insight
+                  Tu perfil
                 </h2>
-                <p className="text-on-surface-variant text-sm leading-relaxed mb-6">
-                  "Elena, your recent visits suggest a growing interest in{' '}
-                  <span className="text-primary">Neon-Retroism</span>. We've adjusted your dashboard to prioritize high-contrast sensory experiences."
-                </p>
+                <ul className="space-y-2 mb-6">
+                  {profileSteps.map((step) => (
+                    <li key={step.label} className="flex items-center gap-2 text-sm">
+                      <span className={`material-symbols-outlined text-base ${step.done ? 'text-primary' : 'text-on-surface-variant/30'}`}>
+                        {step.done ? 'check_circle' : 'radio_button_unchecked'}
+                      </span>
+                      <span className={step.done ? 'text-on-surface' : 'text-on-surface-variant/50'}>{step.label}</span>
+                    </li>
+                  ))}
+                </ul>
                 <div className="h-1 bg-surface-container rounded-full overflow-hidden">
-                  <div className="h-full bg-primary w-2/3" />
+                  <div className="h-full bg-primary transition-all duration-500" style={{ width: `${completionPct}%` }} />
                 </div>
                 <p className="text-[10px] text-on-surface-variant mt-2 text-right uppercase tracking-tighter">
-                  Profile Alignment: 67% Complete
+                  Perfil completado: {completionPct}%
                 </p>
               </div>
             </section>
 
-            {/* Right: History & Saved */}
+            {/* Right: Eventos guardados */}
             <section className="lg:col-span-8 space-y-12">
-              {/* Saved Events */}
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-3">
                     <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>bookmark</span>
                     {t.profile_saved}
                   </h2>
-                  <a href="#" className="text-primary text-sm font-bold hover:underline">View All</a>
+                  <a href="#" className="text-primary text-sm font-bold hover:underline">Ver todos</a>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {savedEvents.length === 0 && (
-                    <p className="text-on-surface-variant/50 text-sm italic col-span-2">No saved events yet.</p>
+                    <p className="text-on-surface-variant/50 text-sm italic col-span-2">Aún no tienes eventos guardados.</p>
                   )}
                   {savedEvents.map((event) => (
                     <Link
@@ -275,7 +281,7 @@ export default function ProfilePage() {
                             handleUnsave(event.event_id);
                           }}
                           className="absolute top-4 right-4 w-8 h-8 bg-surface/80 backdrop-blur-md rounded-full flex items-center justify-center text-on-surface-variant hover:text-error transition-colors"
-                          title="Remove bookmark"
+                          title="Eliminar guardado"
                         >
                           <span className="material-symbols-outlined text-sm">close</span>
                         </button>
@@ -293,7 +299,7 @@ export default function ProfilePage() {
                             onClick={(e) => e.stopPropagation()}
                             className="block text-center w-full border border-outline-variant/30 py-2.5 rounded-full text-xs font-bold hover:bg-on-surface hover:text-surface transition-colors"
                           >
-                            Book Now
+                            Reservar
                           </a>
                         ) : (
                           <button
@@ -301,7 +307,7 @@ export default function ProfilePage() {
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             className="w-full border border-outline-variant/20 py-2.5 rounded-full text-xs font-bold text-on-surface-variant/50 cursor-not-allowed"
                           >
-                            No tickets available
+                            Sin entradas disponibles
                           </button>
                         )}
                       </div>
@@ -309,7 +315,6 @@ export default function ProfilePage() {
                   ))}
                 </div>
               </div>
-
             </section>
           </div>
         </div>
