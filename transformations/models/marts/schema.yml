@@ -4,16 +4,53 @@ models:
   - name: fct_swipes
     description: "Tabla de hechos de swipes enriquecida con metadatos del evento."
     columns:
-      - name: message_id
+      - name: interaction_id
+        description: "ID único de la interacción (Pub/Sub message_id)."
         tests: [not_null, unique]
-      - name: event_id
+      - name: event_timestamp
+        description: "Momento del swipe."
         tests: [not_null]
       - name: user_id
+        description: "Usuario autenticado."
         tests: [not_null]
-      - name: direction
+      - name: session_id
+        description: "Sesión cuando no hay usuario autenticado o como apoyo analítico."
+      - name: event_id
+        description: "Evento mostrado."
+        tests: [not_null]
+      - name: interaction_type
+        description: "Siempre 'swipe' en este caso."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['swipe']
+      - name: swipe_direction
+        description: "'right' o 'left'."
         tests:
           - not_null
           - accepted_values:
               values: ['left', 'right']
-      - name: swiped_at
+      - name: liked
+        description: "true si right, false si left."
+        tests: [not_null]
+      - name: recommendation_context
+        description: "Origen de la recomendación: discover, map, planner, etc."
+      - name: segmento
+        description: "Segmento del evento."
+      - name: genero
+        description: "Género del evento."
+      - name: subgenero
+        description: "Subgénero del evento."
+      - name: ciudad
+        description: "Ciudad del evento."
+      - name: precio_min
+        description: "Precio mínimo del evento."
+      - name: precio_max
+        description: "Precio máximo del evento."
+      - name: fecha_evento
+        description: "Fecha del evento."
+      - name: recinto_id
+        description: "ID del recinto."
+      - name: ingestion_timestamp
+        description: "Momento de escritura técnica (Pub/Sub publish_time)."
         tests: [not_null]

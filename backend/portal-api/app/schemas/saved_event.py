@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SavedEventCreate(BaseModel):
@@ -16,11 +16,16 @@ class SavedEventCreate(BaseModel):
 
 
 SwipeDirection = Literal["left", "right"]
+RecommendationContext = Literal["swipe", "chat"]
 
 
-class SwipeEventCreate(SavedEventCreate):
+class SwipeEventCreate(BaseModel):
+    event_id: str
     direction: SwipeDirection
     swiped_at: datetime | None = None
+    dwell_ms: int | None = Field(default=None, ge=0)
+    session_id: str | None = None
+    recommendation_context: RecommendationContext | None = None
 
 
 class SwipeEventAccepted(BaseModel):

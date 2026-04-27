@@ -29,8 +29,8 @@ resource "docker_registry_image" "push" {
 }
 
 resource "google_storage_bucket_object" "spec" {
-  name    = var.ruta_spec
-  bucket  = var.nombre_bucket_spec
+  name   = var.ruta_spec
+  bucket = var.nombre_bucket_spec
   content = jsonencode({
     image = docker_image.launcher.name
     sdkInfo = {

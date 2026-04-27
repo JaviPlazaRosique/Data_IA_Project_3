@@ -16,5 +16,5 @@ variable "id_proyecto" {
 variable "cuenta_servicio_roles" {
   description = "Roles de IAM, que tendrá la cuenta de servicio"
   type        = list(string)
-  default = []
+  default     = []
 }
