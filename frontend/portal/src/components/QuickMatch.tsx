@@ -12,6 +12,7 @@ import {
 } from '../api';
 
 const IMAGE_FALLBACK = 'https://picsum.photos/seed/quick-match/600/800';
+const DECK_STORAGE_KEY = 'quickmatch_deck_v1';
 
 type SwipeDir = 'left' | 'right';
 
@@ -42,9 +43,12 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
   const pointerIdRef = useRef<number | null>(null);
   const cardShownAtRef = useRef<number | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((opts?: { reset?: boolean }) => {
     setLoading(true);
     setError(null);
+    if (opts?.reset) {
+      try { sessionStorage.removeItem(DECK_STORAGE_KEY); } catch { /* ignore */ }
+    }
     Promise.all([apiListEvents({ limit: 50 }), apiListSavedEvents().catch(() => [])])
       .then(([data, saved]) => {
         const savedSet = new Set(saved.map((s) => s.event_id));
@@ -58,8 +62,31 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DECK_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { events: EventCatalogItem[]; index: number; savedIds: string[] };
+        if (Array.isArray(parsed.events) && parsed.events.length > 0) {
+          setEvents(parsed.events);
+          setIndex(Math.min(parsed.index ?? 0, parsed.events.length - 1));
+          setSavedIds(new Set(parsed.savedIds ?? []));
+          setLoading(false);
+          return;
+        }
+      }
+    } catch { /* ignore */ }
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (loading || events.length === 0) return;
+    try {
+      sessionStorage.setItem(
+        DECK_STORAGE_KEY,
+        JSON.stringify({ events, index, savedIds: Array.from(savedIds) }),
+      );
+    } catch { /* ignore */ }
+  }, [events, index, savedIds, loading]);
 
   const current = events[index] ?? null;
   const upcoming = useMemo(() => events.slice(index + 1, index + 3), [events, index]);
@@ -219,7 +246,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
           </p>
         </div>
         <button
-          onClick={load}
+          onClick={() => load({ reset: true })}
           className="p-3 rounded-full border border-outline-variant/20 hover:border-primary transition-colors"
           aria-label="Reload deck"
           title="Reload deck"
@@ -242,7 +269,7 @@ export default function QuickMatch({ onSaved }: { onSaved?: (saved: SavedEventRe
               No more events in the deck. Come back later or reload.
             </p>
             <button
-              onClick={load}
+              onClick={() => load({ reset: true })}
               className="bg-primary text-on-primary font-bold px-6 py-2 rounded-full text-sm"
             >
               Reload
