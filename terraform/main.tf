@@ -744,3 +744,75 @@ module "scheduler_ingesta_medio_dia" {
     module.batch_ingesta_template
   ]
 }
+
+module "dbt_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "dbt-transformations-sa"
+  nombre_despliege   = "Cuenta de servicio para el Cloud Run Job de dbt"
+  cuenta_servicio_roles = [
+    "roles/bigquery.dataEditor",
+    "roles/bigquery.jobUser",
+    "roles/artifactregistry.reader",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "dbt_transformations_job" {
+  source                = "./modules/cloud_run_job"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_job            = "dbt-transformations"
+  nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
+  nombre_imagen         = "dbt-transformations"
+  ruta_contexto_docker  = "${path.root}/../transformations"
+  email_cuenta_servicio = module.dbt_sa.email_cuenta_servicio
+
+  cpu     = "1"
+  memoria = "1Gi"
+
+  variables_entorno = {
+    GCP_PROJECT = var.id_proyecto
+    DBT_DATASET = "recomendacion_planes"
+  }
+
+  depends_on = [
+    module.repo_artifact,
+    module.dbt_sa,
+    module.bigquery
+  ]
+}
+
+module "scheduler_dbt_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "scheduler-dbt-sa"
+  nombre_despliege   = "Cuenta de servicio para el scheduler del Cloud Run Job de dbt"
+  cuenta_servicio_roles = [
+    "roles/run.invoker"
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "scheduler_dbt_lunes_jueves_media_noche" {
+  source       = "./modules/scheduler"
+  id_proyecto  = var.id_proyecto
+  region       = var.region
+  nombre_job   = "dbt-transformations-lunes-jueves-00h"
+  descripcion  = "Lanza dbt build (Cloud Run Job) lunes y jueves a las 00:00h (Europe/Madrid)"
+  cron         = "0 0 * * 1,4"
+  zona_horaria = "Europe/Madrid"
+  url_destino  = "https://${var.region}-run.googleapis.com/v2/projects/${var.id_proyecto}/locations/${var.region}/jobs/${module.dbt_transformations_job.nombre_job}:run"
+  metodo_http  = "POST"
+  cabeceras    = { "Content-Type" = "application/json" }
+
+  email_cuenta_servicio = module.scheduler_dbt_sa.email_cuenta_servicio
+  depends_on = [
+    module.scheduler_dbt_sa,
+    module.dbt_transformations_job
+  ]
+}
