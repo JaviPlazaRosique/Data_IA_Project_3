@@ -1,31 +1,5 @@
 locals {
   cors_origins = "https://storage.googleapis.com,${module.frontend_usuarios.url_web}"
-
-  flex_template_launch_url = "https://dataflow.googleapis.com/v1b3/projects/${var.id_proyecto}/locations/${var.region}/flexTemplates:launch"
-
-  flex_template_parametros = {
-    id_proyecto                  = var.id_proyecto
-    coleccion_firestore_eventos  = "eventos"
-    coleccion_firestore_recintos = "recintos"
-    coleccion_gemini_cache       = "gemini_cache"
-    dataset_bigquery             = module.bigquery.id_dataset
-    tabla_eventos_bigquery       = "eventos"
-    bucket_gcs                   = "${module.bucket_eventos_raw.url}/eventos"
-    id_secreto_ticketmaster      = "api-key-ticketmaster"
-    id_secreto_google_places     = "api-key-google-places"
-  }
-
-  flex_template_body = {
-    launchParameter = {
-      containerSpecGcsPath = module.batch_ingesta_template.spec_gcs_path
-      parameters           = local.flex_template_parametros
-      environment = {
-        serviceAccountEmail = module.dataflow_sa.email_cuenta_servicio
-        tempLocation        = "${module.bucket_ejecucion_dataflow.url}/temp"
-        stagingLocation     = "${module.bucket_ejecucion_dataflow.url}/staging"
-      }
-    }
-  }
 }
 
 module "setup" {
@@ -256,26 +230,6 @@ module "cloud_run_portal_api" {
   ]
 }
 
-module "dataflow_sa" {
-  source             = "./modules/iam"
-  id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "dataflow-ingestion-sa"
-  nombre_despliege   = "Cuenta de servicio para el pipeline de ingestión de Dataflow"
-  cuenta_servicio_roles = [
-    "roles/dataflow.worker",
-    "roles/storage.objectAdmin",
-    "roles/bigquery.dataEditor",
-    "roles/bigquery.jobUser",
-    "roles/datastore.user",
-    "roles/secretmanager.secretAccessor",
-    "roles/artifactregistry.reader",
-    "roles/aiplatform.user",
-  ]
-  depends_on = [
-    module.setup,
-    module.secretos_proyecto
-  ]
-}
 
 module "firestore" {
   source             = "./modules/firestore"
@@ -606,16 +560,6 @@ module "bigquery" {
   ]
 }
 
-module "bucket_ejecucion_dataflow" {
-  source      = "./modules/bucket"
-  nombre      = "ejecucion-dataflow-${var.id_proyecto}"
-  id_proyecto = var.id_proyecto
-  ubicacion   = upper(var.region)
-  depends_on = [
-    module.setup
-  ]
-}
-
 module "bucket_eventos_raw" {
   source      = "./modules/bucket"
   nombre      = "copia-eventos-raw-${var.id_proyecto}"
@@ -637,111 +581,6 @@ module "bucket_eventos_raw" {
 
   depends_on = [
     module.setup
-  ]
-}
-
-module "scheduler_ingesta_sa" {
-  source             = "./modules/iam"
-  id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "scheduler-ingesta-sa"
-  nombre_despliege   = "Cuenta de servicio para el scheduler del batch de ingestión en Dataflow"
-  cuenta_servicio_roles = [
-    "roles/dataflow.admin",
-    "roles/iam.serviceAccountUser"
-  ]
-  depends_on = [
-    module.setup
-  ]
-}
-
-module "cicd_batch_ingesta" {
-  source             = "./modules/wif_workflow"
-  id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "cicd-batch-ingesta"
-  nombre_despliege   = "Cuenta de servicio para el CI/CD del batch de ingestión"
-  cuenta_servicio_roles = [
-    "roles/artifactregistry.writer",
-    "roles/storage.objectAdmin",
-  ]
-  nombre_pool     = module.setup.nombre_pool
-  nombre_workflow = "cicd_batch_ingesta"
-  depends_on = [
-    module.setup
-  ]
-}
-
-module "batch_ingesta_template" {
-  source               = "./modules/dataflow_flex_template"
-  id_proyecto          = var.id_proyecto
-  region               = var.region
-  nombre_repo_artifact = module.repo_artifact.id_repo_artifact
-  nombre_imagen        = "batch-ingesta"
-  ruta_contexto_docker = "${path.root}/../ingestion"
-  ruta_metadata        = "${path.root}/../ingestion/metadata.json"
-  nombre_bucket_spec   = module.bucket_ejecucion_dataflow.nombre
-  ruta_spec            = "templates/batch-ingesta.json"
-
-  depends_on = [
-    module.repo_artifact,
-    module.bucket_ejecucion_dataflow
-  ]
-}
-
-module "scheduler_ingesta_media_noche" {
-  source       = "./modules/scheduler"
-  id_proyecto  = var.id_proyecto
-  region       = var.region
-  nombre_job   = "ingesta-eventos-00h"
-  descripcion  = "Lanza el batch de ingestión de eventos a las 00:00h (Europe/Madrid)"
-  cron         = "0 0 * * *"
-  zona_horaria = "Europe/Madrid"
-  url_destino  = local.flex_template_launch_url
-  metodo_http  = "POST"
-  cabeceras    = { "Content-Type" = "application/json" }
-  cuerpo_peticion = jsonencode(merge(local.flex_template_body, {
-    launchParameter = merge(local.flex_template_body.launchParameter, {
-      jobName = "ingesta-eventos-00h"
-    })
-  }))
-  email_cuenta_servicio = module.scheduler_ingesta_sa.email_cuenta_servicio
-  depends_on = [
-    module.scheduler_ingesta_sa,
-    module.dataflow_sa,
-    module.bucket_ejecucion_dataflow,
-    module.bucket_eventos_raw,
-    module.bigquery,
-    module.firestore,
-    module.secretos_proyecto,
-    module.batch_ingesta_template
-  ]
-}
-
-module "scheduler_ingesta_medio_dia" {
-  source       = "./modules/scheduler"
-  id_proyecto  = var.id_proyecto
-  region       = var.region
-  nombre_job   = "ingesta-eventos-12h"
-  descripcion  = "Lanza el batch de ingestión de eventos a las 12:00h (Europe/Madrid)"
-  cron         = "0 12 * * *"
-  zona_horaria = "Europe/Madrid"
-  url_destino  = local.flex_template_launch_url
-  metodo_http  = "POST"
-  cabeceras    = { "Content-Type" = "application/json" }
-  cuerpo_peticion = jsonencode(merge(local.flex_template_body, {
-    launchParameter = merge(local.flex_template_body.launchParameter, {
-      jobName = "ingesta-eventos-12h"
-    })
-  }))
-  email_cuenta_servicio = module.scheduler_ingesta_sa.email_cuenta_servicio
-  depends_on = [
-    module.scheduler_ingesta_sa,
-    module.dataflow_sa,
-    module.bucket_ejecucion_dataflow,
-    module.bucket_eventos_raw,
-    module.bigquery,
-    module.firestore,
-    module.secretos_proyecto,
-    module.batch_ingesta_template
   ]
 }
 
@@ -814,5 +653,71 @@ module "scheduler_dbt_lunes_jueves_media_noche" {
   depends_on = [
     module.scheduler_dbt_sa,
     module.dbt_transformations_job
+  ]
+}
+
+module "cicd_ingesta_eventos" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-ingesta-eventos"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del Cloud Run Job de ingestión de eventos"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_ingesta_eventos"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "ingesta_eventos_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "ingesta-eventos-sa"
+  nombre_despliege   = "Cuenta de servicio para el Cloud Run Job de ingestión de eventos"
+  cuenta_servicio_roles = [
+    "roles/secretmanager.secretAccessor",
+    "roles/storage.objectAdmin",
+    "roles/datastore.user",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "ingesta_eventos_job" {
+  source                = "./modules/cloud_run_job"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_job            = "ingesta-eventos"
+  nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
+  nombre_imagen         = "ingesta-eventos"
+  ruta_contexto_docker  = "${path.root}/../ingestion/eventos"
+  email_cuenta_servicio = module.ingesta_eventos_sa.email_cuenta_servicio
+
+  cpu     = "1"
+  memoria = "512Mi"
+  timeout = "3600s"
+
+  variables_entorno = {
+    ID_PROYECTO                          = var.id_proyecto
+    ID_SECRETO_APIKEY_TICKETMASTER       = "api-key-ticketmaster"
+    BUCKET_GCS                           = module.bucket_eventos_raw.nombre
+    DIAS_OBTENER_EVENTOS                 = "30"
+    CODIGO_PAIS                          = "ES"
+    LONGITUD_RESPUESTA_API_TICKETMASTER  = "200"
+    URL_API_TICKETMASTER                 = "https://app.ticketmaster.com/discovery/v2/events.json"
+    COLECCION_FIRESTORE_EVENTOS          = "eventos"
+  }
+
+  depends_on = [
+    module.repo_artifact,
+    module.ingesta_eventos_sa,
+    module.bucket_eventos_raw,
+    module.firestore,
+    module.secretos_proyecto
   ]
 }
