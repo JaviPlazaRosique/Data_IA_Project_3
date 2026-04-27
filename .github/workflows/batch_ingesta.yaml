@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'ingestion/**'
+      - 'ingestion/dataflow/**'
   pull_request:
     branches:
       - main
     paths:
-      - 'ingestion/**'
+      - 'ingestion/dataflow/**'
 
 permissions:
   id-token: write
@@ -60,7 +60,7 @@ jobs:
       - name: Build y push imagen
         run: |
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE_NAME }}"
-          docker build -t "${IMAGE}:latest" ingestion/
+          docker build -t "${IMAGE}:latest" ingestion/dataflow/
           docker push "${IMAGE}:latest"
 
       - name: Crear Flex Template
@@ -70,5 +70,5 @@ jobs:
           gcloud dataflow flex-template build "${SPEC_PATH}" \
             --image "${IMAGE}" \
             --sdk-language "PYTHON" \
-            --metadata-file "ingestion/metadata.json" \
+            --metadata-file "ingestion/dataflow/metadata.json" \
             --project "${{ secrets.GCP_PROJECT_ID }}"

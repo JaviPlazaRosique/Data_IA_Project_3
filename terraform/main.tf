@@ -676,8 +676,8 @@ module "batch_ingesta_template" {
   region               = var.region
   nombre_repo_artifact = module.repo_artifact.id_repo_artifact
   nombre_imagen        = "batch-ingesta"
-  ruta_contexto_docker = "${path.root}/../ingestion"
-  ruta_metadata        = "${path.root}/../ingestion/metadata.json"
+  ruta_contexto_docker = "${path.root}/../ingestion/dataflow"
+  ruta_metadata        = "${path.root}/../ingestion/dataflow/metadata.json"
   nombre_bucket_spec   = module.bucket_ejecucion_dataflow.nombre
   ruta_spec            = "templates/batch-ingesta.json"
 
