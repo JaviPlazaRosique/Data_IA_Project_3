@@ -9,7 +9,7 @@ export default function SwipePage() {
       <TopNav />
       <main className="flex-1 min-h-0 overflow-hidden px-4 md:px-12 pt-2 pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-2">
         <div className="max-w-4xl mx-auto h-full">
-          <QuickMatch />
+          <QuickMatch recommendationContext="swipe" />
         </div>
       </main>
       <BottomNav />

@@ -2,22 +2,28 @@ version: 2
 
 models:
   - name: stg_swipes
-    description: "Parseo del envelope Pub/Sub a columnas tipadas."
+    description: "Parseo del envelope Pub/Sub a columnas tipadas, alineadas con el schema final de fct_swipes."
     columns:
-      - name: message_id
+      - name: interaction_id
         tests: [not_null, unique]
       - name: event_id
         tests: [not_null]
       - name: user_id
         tests: [not_null]
-      - name: direction
+      - name: swipe_direction
         tests:
           - not_null
           - accepted_values:
               values: ['left', 'right']
-      - name: swiped_at
+      - name: event_timestamp
         tests: [not_null]
-      - name: ingested_at
+      - name: ingestion_timestamp
         tests: [not_null]
-      - name: dwell_ms
-        description: "Milisegundos que la card estuvo visible antes del swipe. Nullable: mensajes antiguos o races no lo incluyen."
+      - name: liked
+        description: "true si right, false si left."
+      - name: session_id
+        description: "Nullable: solo presente si el cliente lo envía."
+      - name: recommendation_context
+        description: "Nullable: 'discover', 'map', 'planner', etc."
+      - name: interaction_type
+        description: "Default 'swipe' si el payload no lo trae."

@@ -274,11 +274,15 @@ export interface SavedEventCreate {
 
 export type SwipeDirection = 'left' | 'right';
 
+export type RecommendationContext = 'swipe' | 'chat';
+
 export interface SwipeEventCreate {
   event_id: string;
   direction: SwipeDirection;
   swiped_at?: string;
   dwell_ms?: number;
+  session_id?: string;
+  recommendation_context?: RecommendationContext;
 }
 
 export interface SwipeEventAccepted {
