@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Pub/Sub
     PUBSUB_TOPIC_SWIPE_EVENTS: str = "swipe-events"
 
+    # GCS — avatares de usuario
+    AVATAR_BUCKET_NAME: str = ""
+
     @model_validator(mode="after")
     def validate_db_config(self) -> "Settings":
         has_full_url = bool(self.DATABASE_URL)

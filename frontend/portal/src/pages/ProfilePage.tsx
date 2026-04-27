@@ -8,6 +8,7 @@ import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
 import {
   apiUpdateMe,
+  apiUploadAvatar,
   apiListSavedEvents,
   apiUnsaveEvent,
   type SavedEventRead,
@@ -19,15 +20,13 @@ export default function ProfilePage() {
   const [locationDraft, setLocationDraft] = useState(user?.preferred_location ?? '');
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
   const [showAvatarEdit, setShowAvatarEdit] = useState(false);
-  const [avatarDraft, setAvatarDraft] = useState(user?.avatar_url ?? '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   useEffect(() => {
     setLocationDraft(user?.preferred_location ?? '');
   }, [user?.preferred_location]);
-
-  useEffect(() => {
-    setAvatarDraft(user?.avatar_url ?? '');
-  }, [user?.avatar_url]);
 
   useEffect(() => {
     apiListSavedEvents()
@@ -35,21 +34,36 @@ export default function ProfilePage() {
       .catch(() => { /* silent */ });
   }, []);
 
+  function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setAvatarFile(file);
+    if (file) {
+      setAvatarPreview(URL.createObjectURL(file));
+    } else {
+      setAvatarPreview(null);
+    }
+  }
+
+  async function handleAvatarSave() {
+    if (!avatarFile) return;
+    setAvatarUploading(true);
+    try {
+      const updated = await apiUploadAvatar(avatarFile);
+      setUser(updated);
+      setShowAvatarEdit(false);
+      setAvatarFile(null);
+      setAvatarPreview(null);
+    } catch { /* silent */ } finally {
+      setAvatarUploading(false);
+    }
+  }
+
   async function handleLocationBlur() {
     const value = locationDraft.trim();
     if (value === (user?.preferred_location ?? '')) return;
     try {
       const updated = await apiUpdateMe({ preferred_location: value || null });
       setUser(updated);
-    } catch { /* silent */ }
-  }
-
-  async function handleAvatarSave() {
-    const url = avatarDraft.trim() || null;
-    try {
-      const updated = await apiUpdateMe({ avatar_url: url });
-      setUser(updated);
-      setShowAvatarEdit(false);
     } catch { /* silent */ }
   }
 
@@ -130,36 +144,31 @@ export default function ProfilePage() {
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-surface-container-low rounded-[2rem] p-8 w-full max-w-md space-y-4">
                 <h3 className="text-lg font-bold">Cambiar foto de perfil</h3>
-                <p className="text-sm text-on-surface-variant">Introduce la URL de tu nueva foto de perfil.</p>
-                <input
-                  type="url"
-                  value={avatarDraft}
-                  onChange={(e) => setAvatarDraft(e.target.value)}
-                  placeholder="https://ejemplo.com/foto.jpg"
-                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
-                />
-                {avatarDraft && (
-                  <div className="w-24 h-24 rounded-full overflow-hidden mx-auto border-4 border-primary/30">
-                    <img
-                      src={avatarDraft}
-                      alt="Vista previa"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  </div>
-                )}
+                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-outline-variant/40 rounded-2xl cursor-pointer hover:border-primary/50 transition-colors bg-surface-container-lowest">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Vista previa" className="h-full w-full object-cover rounded-2xl" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-on-surface-variant/60">
+                      <span className="material-symbols-outlined text-4xl">upload</span>
+                      <span className="text-sm">Haz clic para seleccionar una imagen</span>
+                      <span className="text-xs">JPEG, PNG, WEBP o GIF</span>
+                    </div>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
+                </label>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setShowAvatarEdit(false)}
+                    onClick={() => { setShowAvatarEdit(false); setAvatarFile(null); setAvatarPreview(null); }}
                     className="flex-1 border border-outline-variant/30 py-3 rounded-full text-sm font-bold hover:bg-surface-container-high transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleAvatarSave}
-                    className="flex-1 bg-primary text-on-primary py-3 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+                    disabled={!avatarFile || avatarUploading}
+                    className="flex-1 bg-primary text-on-primary py-3 rounded-full text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Guardar
+                    {avatarUploading ? 'Subiendo…' : 'Guardar'}
                   </button>
                 </div>
               </div>
