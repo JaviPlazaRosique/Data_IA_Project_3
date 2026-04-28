@@ -1,10 +1,13 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
+from google.cloud import storage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.security import hash_password
 from app.db.firestore import get_firestore
 from app.dependencies import get_current_user, get_db
@@ -75,6 +78,61 @@ async def update_me(
     await db.commit()
     await db.refresh(current_user)
     return current_user
+
+
+_ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+
+@router.post("/me/avatar", response_model=UserRead)
+async def upload_avatar(
+    request: Request,
+    file: UploadFile,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    if file.content_type not in _ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Formato no admitido. Usa JPEG, PNG, WEBP o GIF.",
+        )
+    if not settings.AVATAR_BUCKET_NAME:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Almacenamiento de avatares no configurado.",
+        )
+
+    object_name = f"avatars/{current_user.id}"
+    data = await file.read()
+
+    gcs = storage.Client()
+    bucket = gcs.bucket(settings.AVATAR_BUCKET_NAME)
+    blob = bucket.blob(object_name)
+    blob.upload_from_string(data, content_type=file.content_type)
+
+    base = str(request.base_url).rstrip("/")
+    avatar_url = f"{base}/api/v1/users/{current_user.id}/avatar"
+    current_user.avatar_url = avatar_url
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.get("/{user_id}/avatar")
+async def get_avatar(user_id: str) -> StreamingResponse:
+    if not settings.AVATAR_BUCKET_NAME:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sin avatar.")
+
+    object_name = f"avatars/{user_id}"
+    try:
+        gcs = storage.Client()
+        bucket = gcs.bucket(settings.AVATAR_BUCKET_NAME)
+        blob = bucket.blob(object_name)
+        data = blob.download_as_bytes()
+        content_type = blob.content_type or "image/jpeg"
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar no encontrado.")
+
+    return StreamingResponse(iter([data]), media_type=content_type)
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
