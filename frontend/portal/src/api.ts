@@ -181,6 +181,23 @@ export async function apiLogout(): Promise<void> {
   await authFetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => {});
 }
 
+export async function apiUploadAvatar(file: File): Promise<UserRead> {
+  await awaitConfig();
+  const token = getToken();
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${getBackendUrl()}/api/v1/users/me/avatar`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, err.detail ?? 'Avatar upload failed');
+  }
+  return res.json();
+}
+
 export async function apiGetMe(): Promise<UserRead> {
   const res = await authFetch('/api/v1/users/me');
   if (!res.ok) throw new ApiError(res.status, 'Failed to load user');
