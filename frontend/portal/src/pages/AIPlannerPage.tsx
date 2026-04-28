@@ -26,6 +26,7 @@ export default function AIPlannerPage() {
   );
   const [input, setInput] = useState('');
   const [showItinerary, setShowItinerary] = useState(false);
+  const [mode, setMode] = useState<'surprise' | 'idea' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load most recent plan on mount
@@ -49,6 +50,26 @@ export default function AIPlannerPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  function handleSelectMode(selected: 'surprise' | 'idea') {
+    setMode(selected);
+    if (selected === 'surprise') {
+      const surpriseText = '¡Sorpréndeme! Prepárame un plan para hoy.';
+      setInput(surpriseText);
+      // auto-send on next tick so input state is set
+      setTimeout(() => {
+        const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        const newMsg: Message = { id: Date.now().toString(), role: 'user', content: surpriseText, timestamp };
+        const updated = [newMsg];
+        setMessages(updated);
+        setInput('');
+        const planMessages = updated.map((m) => ({ role: m.role, content: m.content, timestamp: m.timestamp }));
+        apiCreatePlan({ title: surpriseText.slice(0, 60), messages: planMessages })
+          .then((plan) => setActivePlanId(plan.plan_id))
+          .catch(() => {});
+      }, 0);
+    }
+  }
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -118,7 +139,34 @@ export default function AIPlannerPage() {
           {/* Chat Panel */}
           <section className="flex-1 min-w-0 w-full flex flex-col bg-surface relative overflow-hidden">
             <div className="flex-1 overflow-y-auto overflow-x-hidden py-6 space-y-6">
-              {messages.length === 0 && (
+              {messages.length === 0 && mode === null && (
+                <div className="flex flex-col items-center justify-center h-full px-4 md:px-8 pt-12 pb-8 gap-10">
+                  <div className="text-center space-y-3">
+                    <SectionLabel>{t.nav.planner}</SectionLabel>
+                    <h2 className="font-serif text-3xl md:text-4xl tracking-tight mt-3">{t.planner_greeting}</h2>
+                    <p className="text-on-surface-variant text-sm max-w-xs mx-auto">{t.planner_sub}</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+                    <button
+                      onClick={() => handleSelectMode('surprise')}
+                      className="flex-1 flex flex-col items-center gap-3 bg-primary text-on-primary rounded-[2rem] px-6 py-8 hover:opacity-90 active:scale-95 transition-all shadow-lg"
+                    >
+                      <span className="material-symbols-outlined text-4xl">auto_awesome</span>
+                      <span className="font-bold text-lg">Sorpresa</span>
+                      <span className="text-xs opacity-75 text-center">Déjame elegir por ti</span>
+                    </button>
+                    <button
+                      onClick={() => handleSelectMode('idea')}
+                      className="flex-1 flex flex-col items-center gap-3 bg-surface-container-low border border-outline-variant/20 rounded-[2rem] px-6 py-8 hover:bg-surface-container-high active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-4xl text-secondary">edit_note</span>
+                      <span className="font-bold text-lg">Mi idea</span>
+                      <span className="text-xs text-on-surface-variant text-center">Cuéntame qué tienes en mente</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              {messages.length === 0 && mode === 'idea' && (
                 <div className="px-4 md:px-8">
                   <SectionLabel>{t.nav.planner}</SectionLabel>
                   <h2 className="font-serif text-3xl md:text-4xl tracking-tight mt-3">{t.planner_greeting}</h2>

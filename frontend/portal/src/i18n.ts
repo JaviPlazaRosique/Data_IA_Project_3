@@ -67,7 +67,7 @@ export interface I18n {
 }
 
 const es: I18n = {
-  nav: { discover: 'Descubre', planner: 'Planea con IA', map: 'Mapa', profile: 'Perfil', roadmap: 'Próximo' },
+  nav: { discover: '¿Sí o No?', planner: 'Discover', map: 'Mapa', profile: 'Perfil', roadmap: 'Próximo' },
   brand_tagline: 'Planes que encajan con tu día, tu gente y el tiempo que hace.',
   cta_plan: 'Planéame la noche',
   cta_surprise: 'Sorpréndeme',
