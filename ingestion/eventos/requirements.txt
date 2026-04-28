@@ -1,0 +1,4 @@
+requests==2.33.1
+google-cloud-secret-manager==2.27.0
+google-cloud-storage==2.19.0
+google-cloud-firestore==2.20.2

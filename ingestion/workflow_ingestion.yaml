@@ -1,0 +1,36 @@
+main:
+  steps:
+    - init:
+        assign:
+          - project_id: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - location: "europe-west1"
+          - job_names:
+              - "ingesta-eventos"
+              - "enriquecimiento-eventos"
+              - "guardar-bigquery-eventos"
+
+    - execute_jobs_sequentially:
+        for:
+          value: job_name
+          in: ${job_names}
+          steps:
+            - log_start:
+                call: sys.log
+                args:
+                  text: ${"Iniciando la ejecución del Cloud Run Job: " + job_name}
+                  severity: INFO
+
+            - trigger_and_wait_job:
+                call: googleapis.run.v2.projects.locations.jobs.run
+                args:
+                  name: ${"projects/" + project_id + "/locations/" + location + "/jobs/" + job_name}
+                result: job_result
+
+            - log_finish:
+                call: sys.log
+                args:
+                  text: ${"Finalizada con éxito la ejecución de " + job_name}
+                  severity: INFO
+
+    - workflow_completed:
+        return: "Todos los procesos se ejecutaron correctamente y en orden."
