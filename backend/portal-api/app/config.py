@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # GCS — avatares de usuario
     AVATAR_BUCKET_NAME: str = ""
 
+    # Cloud Tasks — emails de valoración
+    CLOUD_TASKS_QUEUE_PATH: str = ""
+    RATING_EMAIL_FUNCTION_URL: str = ""
+    RATING_FUNCTION_SA_EMAIL: str = ""
+
     @model_validator(mode="after")
     def validate_db_config(self) -> "Settings":
         has_full_url = bool(self.DATABASE_URL)
