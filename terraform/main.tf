@@ -792,3 +792,132 @@ module "enriquecimiento_eventos_job" {
     module.secretos_proyecto
   ]
 }
+
+module "cicd_guardar_bigquery_eventos" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-guardar-bigquery-eventos"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del Cloud Run Job de guardado de eventos en BigQuery"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser"
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_guardar_bigquery_eventos"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "guardar_bigquery_eventos_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "guardar-bigquery-eventos-sa"
+  nombre_despliege   = "Cuenta de servicio para el Cloud Run Job de guardado de eventos en BigQuery con sus embeddings"
+  cuenta_servicio_roles = [
+    "roles/bigquery.dataEditor",
+    "roles/bigquery.jobUser"
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "guardar_bigquery_eventos_job" {
+  source                = "./modules/cloud_run_job"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_job            = "guardar-bigquery-eventos"
+  nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
+  nombre_imagen         = "guardar-bigquery-eventos"
+  ruta_contexto_docker  = "${path.root}/../ingestion/guardar_bigquery"
+  email_cuenta_servicio = module.guardar_bigquery_eventos_sa.email_cuenta_servicio
+
+  cpu = "1"
+  memoria = "1Gi"
+  timeout = "3600s"
+#ToDo: Variables de entorno
+  depends_on = [
+    module.repo_artifact,
+    module.guardar_bigquery_eventos_sa,
+    module.bigquery
+  ]
+}
+
+module "workflow_ingestion_sa" {
+  source = "./modules/iam"
+  id_proyecto = var.id_proyecto
+  id_cuenta_servicio = "workflow-ingestion-sa"
+  nombre_despliege = "Cuenta de servicio para el workflow de ingesta y enriquecimiento de eventos"
+  cuenta_servicio_roles = [
+    "roles/logging.logWriter",
+    "roles/run.invoker"
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "workflow_ingestion" {
+  source = "./modules/workflows"
+  id_proyecto = var.id_proyecto
+  region = var.region
+  description = "Workflow de ingesta y enriquecimiento de eventos"
+  nombre_workflow = "workflow-ingestion"
+  contenido_workflow = file("${path.root}/../ingestion/workflow_ingestion.yaml")
+  email_cuenta_servicio = module.workflow_ingestion_sa.email_cuenta_servicio
+  depends_on = [
+    module.workflow_ingestion_sa
+  ]
+}
+
+module "scheduler_workflow_ingestion_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "scheduler-workflow-ingestion-sa"
+  nombre_despliege   = "Cuenta de servicio para el scheduler del Workflow de ingesta"
+  cuenta_servicio_roles = [
+    "roles/workflows.invoker"
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "scheduler_workflow_ingestion_00h" {
+  source       = "./modules/scheduler"
+  id_proyecto  = var.id_proyecto
+  region       = var.region
+  nombre_job   = "workflow-ingestion-00h"
+  descripcion  = "Lanza el workflow de ingesta y enriquecimiento de eventos a las 00:00h (Europe/Madrid)"
+  cron         = "0 0 * * *"
+  zona_horaria = "Europe/Madrid"
+  url_destino  = "https://workflow.googleapis.com/v1/projects/${var.id_proyecto}/locations/${var.region}/workflows/${module.workflow_ingestion.nombre_workflow}:run"
+  metodo_http  = "POST"
+  cabeceras    = { "Content-Type" = "application/json" }
+
+  email_cuenta_servicio = module.scheduler_workflow_ingestion_sa.email_cuenta_servicio
+  depends_on = [
+    module.scheduler_workflow_ingestion_sa,
+    module.workflow_ingestion
+  ]
+}
+
+module "scheduler_workflow_ingestion_12h" {
+  source                = "./modules/scheduler"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_job            = "workflow-ingestion-12h"
+  descripcion           = "Lanza el workflow de ingesta y enriquecimiento de eventos a las 12:00h (Europe/Madrid)"
+  cron                  = "0 12 * * *"
+  zona_horaria          = "Europe/Madrid"
+  url_destino           = "https://workflow.googleapis.com/v1/projects/${var.id_proyecto}/locations/${var.region}/workflows/${module.workflow_ingestion.nombre_workflow}:run"
+  metodo_http           = "POST"
+  cabeceras             = { "Content-Type" = "application/json" }
+  email_cuenta_servicio = module.scheduler_workflow_ingestion_sa.email_cuenta_servicio
+  depends_on = [
+    module.scheduler_workflow_ingestion_sa,
+    module.workflow_ingestion
+  ]
+}
