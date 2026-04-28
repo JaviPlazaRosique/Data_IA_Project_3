@@ -43,6 +43,16 @@ output "ingesta_eventos_job_id" {
   value       = module.ingesta_eventos_job.job_id
 }
 
+output "enriquecimiento_eventos_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del job de enriquecimiento de eventos (GitHub Secret: ENRIQUECIMIENTO_EVENTOS_CUENTA_SERVICIO)"
+  value       = module.cicd_enriquecimiento_eventos.email_cuenta_servicio
+}
+
+output "enriquecimiento_eventos_job_id" {
+  description = "ID completo del Cloud Run Job de enriquecimiento de eventos"
+  value       = module.enriquecimiento_eventos_job.job_id
+}
+
 output "migrate_bd_cuenta_servicio" {
   description = "Cuenta de servicio del CI/CD de migraciones de base de datos (GitHub Secret: MIGRATE_BD_CUENTA_SERVICIO)"
   value       = module.cicd_migrate_bd.email_cuenta_servicio

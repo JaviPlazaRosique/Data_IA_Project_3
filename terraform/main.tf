@@ -721,3 +721,74 @@ module "ingesta_eventos_job" {
     module.secretos_proyecto
   ]
 }
+
+module "cicd_enriquecimiento_eventos" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-enriquecimiento-eventos"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del Cloud Run Job de enriquecimiento de eventos"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_enriquecimiento_eventos"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "enriquecimiento_eventos_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "enriquecimiento-eventos-sa"
+  nombre_despliege   = "Cuenta de servicio para el Cloud Run Job de enriquecimiento de eventos"
+  cuenta_servicio_roles = [
+    "roles/secretmanager.secretAccessor",
+    "roles/datastore.user",
+    "roles/aiplatform.user",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "enriquecimiento_eventos_job" {
+  source                = "./modules/cloud_run_job"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_job            = "enriquecimiento-eventos"
+  nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
+  nombre_imagen         = "enriquecimiento-eventos"
+  ruta_contexto_docker  = "${path.root}/../ingestion/enriquecimiento"
+  email_cuenta_servicio = module.enriquecimiento_eventos_sa.email_cuenta_servicio
+
+  cpu     = "1"
+  memoria = "1Gi"
+  timeout = "3600s"
+
+  variables_entorno = {
+    ID_PROYECTO                      = var.id_proyecto
+    REGION                           = var.region
+    ID_SECRETO_APIKEY_PLACES         = "api-key-google-places"
+    COLECCION_FIRESTORE_EVENTOS      = "eventos"
+    COLECCION_FIRESTORE_RECINTOS     = "recintos"
+    COLECCION_FIRESTORE_CACHE_GEMINI = "gemini_cache"
+    TOP_RECINTOS_ENRIQUECIMIENTO     = "20"
+    RADIO_RESTAURANTES_METROS        = "1000"
+    RADIO_ALOJAMIENTOS_METROS        = "5000"
+    DIAS_BORRADO_RECINTOS            = "14"
+    DIAS_MAX_PREVISION_TIEMPO        = "14"
+    MODELO_GEMINI                    = "gemini-2.5-flash"
+    URL_GOOGLE_PLACES                = "https://places.googleapis.com/v1/places:searchNearby"
+    URL_OPEN_METEO                   = "https://api.open-meteo.com/v1/forecast"
+  }
+
+  depends_on = [
+    module.repo_artifact,
+    module.enriquecimiento_eventos_sa,
+    module.firestore,
+    module.secretos_proyecto
+  ]
+}

@@ -6,6 +6,11 @@ from datetime import datetime, timedelta, timezone
 from google.cloud import secretmanager, storage, firestore
 from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 
+logging.basicConfig(
+    level = logging.INFO, 
+    format = "%(asctime)s %(levelname)s %(message)s"
+)
+
 id_proyecto = os.getenv("ID_PROYECTO")
 id_secreto_apikey_ticketmaster = os.getenv("ID_SECRETO_APIKEY_TICKETMASTER")
 bucket_gcs = os.getenv("BUCKET_GCS")
