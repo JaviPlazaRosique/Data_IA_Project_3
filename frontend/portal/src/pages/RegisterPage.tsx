@@ -1,32 +1,102 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ApiError } from '../api';
 import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
 
+const PW_RULES = {
+  length: (v: string) => v.length >= 8,
+  upper: (v: string) => /[A-Z]/.test(v),
+  lower: (v: string) => /[a-z]/.test(v),
+  digit: (v: string) => /\d/.test(v),
+  symbol: (v: string) => /[^A-Za-z0-9]/.test(v),
+};
+
+function mapAuthError(code: string | undefined): string {
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'Este email ya está registrado';
+    case 'auth/invalid-email':
+      return 'Email no válido';
+    case 'auth/weak-password':
+      return 'Contraseña demasiado débil';
+    default:
+      return 'Algo ha ido mal';
+  }
+}
+
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { registerEmail, loginGoogle, loginMicrosoft, user } = useAuth();
   const navigate = useNavigate();
+  const [pendingRedirect, setPendingRedirect] = useState(false);
+
+  useEffect(() => {
+    if (pendingRedirect && user) {
+      setPendingRedirect(false);
+      navigate('/onboarding');
+    }
+  }, [pendingRedirect, user, navigate]);
 
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const checks = useMemo(() => ({
+    length: PW_RULES.length(password),
+    upper: PW_RULES.upper(password),
+    lower: PW_RULES.lower(password),
+    digit: PW_RULES.digit(password),
+    symbol: PW_RULES.symbol(password),
+  }), [password]);
+
+  const pwValid = Object.values(checks).every(Boolean);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setInfo('');
+    if (!pwValid) {
+      setError('La contraseña no cumple los requisitos');
+      return;
+    }
     setLoading(true);
     try {
-      await register({ email, username, password, full_name: fullName || undefined });
+      await registerEmail(email, password);
       localStorage.setItem('np_new_user', '1');
-      navigate('/onboarding');
+      setInfo('Cuenta creada. Revisa tu email para verificar antes de iniciar sesión.');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Algo ha ido mal');
+      setError(mapAuthError((err as { code?: string })?.code));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogle() {
+    setError('');
+    setLoading(true);
+    try {
+      await loginGoogle();
+      localStorage.setItem('np_new_user', '1');
+      setPendingRedirect(true);
+    } catch (err) {
+      setError(mapAuthError((err as { code?: string })?.code));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleMicrosoft() {
+    setError('');
+    setLoading(true);
+    try {
+      await loginMicrosoft();
+      localStorage.setItem('np_new_user', '1');
+      setPendingRedirect(true);
+    } catch (err) {
+      setError(mapAuthError((err as { code?: string })?.code));
     } finally {
       setLoading(false);
     }
@@ -39,7 +109,6 @@ export default function RegisterPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="relative w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-4">
           <Link to="/" className="text-2xl font-extrabold tracking-tighter text-on-surface font-headline">
             NextPlan
@@ -47,7 +116,6 @@ export default function RegisterPage() {
           <p className="text-on-surface-variant text-sm mt-2">Crea tu cuenta</p>
         </div>
 
-        {/* Card */}
         <form
           onSubmit={handleSubmit}
           className="bg-surface-container-low rounded-[2rem] p-5 md:p-8 space-y-3 md:space-y-5 border border-outline-variant/10"
@@ -57,35 +125,11 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
-              Nombre completo <span className="text-on-surface-variant/40 normal-case font-normal">(opcional)</span>
-            </label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              autoComplete="name"
-              className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/20 focus:border-secondary focus:outline-none px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-colors"
-              placeholder="Ej. Elena Vance"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
-              Usuario
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoComplete="username"
-              className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/20 focus:border-secondary focus:outline-none px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-colors"
-              placeholder="elena_vance"
-            />
-          </div>
+          {info && (
+            <div className="bg-primary/10 border border-primary/30 text-on-surface text-sm px-4 py-3 rounded-xl">
+              {info}
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
@@ -104,7 +148,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
-              Contraseña <span className="text-on-surface-variant/40 normal-case font-normal">(mín. 8 caracteres)</span>
+              Contraseña
             </label>
             <input
               type="password"
@@ -115,6 +159,13 @@ export default function RegisterPage() {
               className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/20 focus:border-secondary focus:outline-none px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-colors"
               placeholder="••••••••"
             />
+            <ul className="text-xs space-y-0.5 mt-2">
+              <li className={checks.length ? 'text-primary' : 'text-on-surface-variant/60'}>• Mínimo 8 caracteres</li>
+              <li className={checks.upper ? 'text-primary' : 'text-on-surface-variant/60'}>• Una mayúscula</li>
+              <li className={checks.lower ? 'text-primary' : 'text-on-surface-variant/60'}>• Una minúscula</li>
+              <li className={checks.digit ? 'text-primary' : 'text-on-surface-variant/60'}>• Un número</li>
+              <li className={checks.symbol ? 'text-primary' : 'text-on-surface-variant/60'}>• Un símbolo</li>
+            </ul>
           </div>
 
           <label className="flex items-start gap-3 cursor-pointer">
@@ -135,10 +186,34 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading || !privacyAccepted}
+            disabled={loading || !privacyAccepted || !pwValid}
             className="w-full bg-primary text-on-primary font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
             {loading ? 'Creando cuenta…' : 'Crear cuenta'}
+          </button>
+
+          <div className="flex items-center gap-3 text-xs text-on-surface-variant/60">
+            <div className="flex-1 h-px bg-outline-variant/20" />
+            <span>o</span>
+            <div className="flex-1 h-px bg-outline-variant/20" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogle}
+            disabled={loading || !privacyAccepted}
+            className="w-full bg-surface-container-lowest border border-outline-variant/20 text-on-surface font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continuar con Google
+          </button>
+
+          <button
+            type="button"
+            onClick={handleMicrosoft}
+            disabled={loading || !privacyAccepted}
+            className="w-full bg-surface-container-lowest border border-outline-variant/20 text-on-surface font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continuar con Microsoft
           </button>
 
           <p className="text-center text-sm text-on-surface-variant">
