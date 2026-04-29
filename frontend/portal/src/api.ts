@@ -1,20 +1,12 @@
 import { awaitConfig, getBackendUrl } from './config';
+import { getFirebaseAuth } from './lib/firebase';
 
-// ─── Token storage ────────────────────────────────────────────────────────────
-
-const TOKEN_KEY = 'access_token';
-const REFRESH_KEY = 'refresh_token';
-
-export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-export const getRefreshToken = (): string | null => localStorage.getItem(REFRESH_KEY);
-export const setTokens = (access: string, refresh: string): void => {
-  localStorage.setItem(TOKEN_KEY, access);
-  localStorage.setItem(REFRESH_KEY, refresh);
-};
-export const clearTokens = (): void => {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
-};
+async function getIdToken(): Promise<string | null> {
+  const auth = await getFirebaseAuth();
+  const u = auth.currentUser;
+  if (!u) return null;
+  return u.getIdToken();
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,24 +38,6 @@ export interface UserRead {
   updated_at: string;
 }
 
-export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-}
-
-export interface RegisterData {
-  email: string;
-  username: string;
-  password: string;
-  full_name?: string;
-}
-
-export interface LoginData {
-  email: string;
-  password: string;
-}
-
 export interface UpdateMeData {
   full_name?: string | null;
   avatar_url?: string | null;
@@ -72,118 +46,26 @@ export interface UpdateMeData {
   preferred_location_lat?: number | null;
   preferred_location_lng?: number | null;
   preferred_categories?: string[] | null;
-  password?: string | null;
 }
 
-// ─── Base fetch ───────────────────────────────────────────────────────────────
-
-async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  await awaitConfig();
-  const base = getBackendUrl();
-  return fetch(`${base}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers ?? {}),
-    },
-  });
-}
-
-// ─── Authenticated fetch (auto-refresh on 401) ────────────────────────────────
-
-let isRefreshing = false;
-let refreshPromise: Promise<boolean> | null = null;
-
-async function attemptRefresh(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
-  try {
-    const res = await apiFetch('/api/v1/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-    if (!res.ok) return false;
-    const data: TokenResponse = await res.json();
-    setTokens(data.access_token, data.refresh_token);
-    return true;
-  } catch {
-    return false;
-  }
-}
+// ─── Authenticated fetch ──────────────────────────────────────────────────────
 
 export async function authFetch(path: string, options: RequestInit = {}): Promise<Response> {
   await awaitConfig();
-  const token = getToken();
+  const token = await getIdToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> ?? {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const res = await fetch(`${getBackendUrl()}${path}`, { ...options, headers });
-
-  if (res.status !== 401) return res;
-
-  // Single concurrent refresh
-  if (!isRefreshing) {
-    isRefreshing = true;
-    refreshPromise = attemptRefresh().finally(() => { isRefreshing = false; });
-  }
-  const refreshed = await refreshPromise!;
-  if (!refreshed) {
-    clearTokens();
-    window.location.hash = '#/login';
-    return res;
-  }
-
-  // Retry with new token
-  const newToken = getToken();
-  headers['Authorization'] = `Bearer ${newToken}`;
   return fetch(`${getBackendUrl()}${path}`, { ...options, headers });
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 
-export async function apiRegister(data: RegisterData): Promise<UserRead> {
-  const res = await apiFetch('/api/v1/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, err.detail ?? 'Registration failed');
-  }
-  return res.json();
-}
-
-export async function apiLogin(data: LoginData): Promise<TokenResponse> {
-  const res = await apiFetch('/api/v1/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, err.detail ?? 'Login failed');
-  }
-  return res.json();
-}
-
-export async function apiRefresh(refreshToken: string): Promise<TokenResponse> {
-  const res = await apiFetch('/api/v1/auth/refresh', {
-    method: 'POST',
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
-  if (!res.ok) throw new ApiError(res.status, 'Session expired');
-  return res.json();
-}
-
-export async function apiLogout(): Promise<void> {
-  await authFetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => {});
-}
-
 export async function apiUploadAvatar(file: File): Promise<UserRead> {
   await awaitConfig();
-  const token = getToken();
+  const token = await getIdToken();
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`${getBackendUrl()}/api/v1/users/me/avatar`, {
