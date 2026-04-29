@@ -13,16 +13,16 @@ class Settings(BaseSettings):
     DB_USER: str = ""
     DB_PASSWORD: str = ""
 
-    JWT_SECRET_KEY: str
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ENVIRONMENT: str = "development"
     CORS_ORIGINS: str = ""
 
     # Firestore / Firebase — optional; empty string uses Application Default Credentials
     GOOGLE_CLOUD_PROJECT: str = ""
     FIREBASE_CREDENTIALS_JSON: str = ""  # path to service account JSON file
+    # Firebase Auth project (audience for ID-token verification). Falls back to
+    # GOOGLE_CLOUD_PROJECT when empty. Distinct because Firestore may use an
+    # emulator with a different project ID locally.
+    FIREBASE_AUTH_PROJECT_ID: str = ""
 
     # Pub/Sub
     PUBSUB_TOPIC_SWIPE_EVENTS: str = "swipe-events"

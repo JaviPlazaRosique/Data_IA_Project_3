@@ -70,13 +70,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             try:
-                payload = jwt.decode(
-                    auth_header[7:],
-                    settings.JWT_SECRET_KEY,
-                    algorithms=[settings.JWT_ALGORITHM],
-                    options={"verify_exp": False},
-                )
-                user_id = payload.get("sub")
+                payload = jwt.get_unverified_claims(auth_header[7:])
+                user_id = payload.get("user_id") or payload.get("uid") or payload.get("sub")
             except JWTError:
                 pass
 

@@ -1,28 +1,80 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { ApiError } from '../api';
+import { useAuth, EmailNotVerifiedError } from '../context/AuthContext';
 import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
 
+function mapAuthError(code: string | undefined): string {
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'Email o contraseña incorrectos';
+    case 'auth/too-many-requests':
+      return 'Demasiados intentos. Inténtalo más tarde.';
+    case 'auth/popup-closed-by-user':
+      return 'Inicio de sesión cancelado';
+    default:
+      return 'Algo ha ido mal';
+  }
+}
+
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { loginEmail, loginGoogle, loginMicrosoft, user } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingRedirect, setPendingRedirect] = useState(false);
+
+  useEffect(() => {
+    if (pendingRedirect && user) {
+      setPendingRedirect(false);
+      const onboarded =
+        !!user.preferred_location ||
+        (user.preferred_categories?.length ?? 0) > 0;
+      navigate(onboarded ? '/map' : '/onboarding');
+    }
+  }, [pendingRedirect, user, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/profile');
+      await loginEmail(email, password);
+      setPendingRedirect(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Algo ha ido mal');
+      if (err instanceof EmailNotVerifiedError) setError(err.message);
+      else setError(mapAuthError((err as { code?: string })?.code));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogle() {
+    setError('');
+    setLoading(true);
+    try {
+      await loginGoogle();
+      setPendingRedirect(true);
+    } catch (err) {
+      setError(mapAuthError((err as { code?: string })?.code));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleMicrosoft() {
+    setError('');
+    setLoading(true);
+    try {
+      await loginMicrosoft();
+      setPendingRedirect(true);
+    } catch (err) {
+      setError(mapAuthError((err as { code?: string })?.code));
     } finally {
       setLoading(false);
     }
@@ -35,7 +87,6 @@ export default function LoginPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="relative w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-6">
           <Link to="/" className="text-2xl font-extrabold tracking-tighter text-on-surface font-headline">
             NextPlan
@@ -43,7 +94,6 @@ export default function LoginPage() {
           <p className="text-on-surface-variant text-sm mt-2">Inicia sesión en tu cuenta</p>
         </div>
 
-        {/* Card */}
         <form
           onSubmit={handleSubmit}
           className="bg-surface-container-low rounded-[2rem] p-6 md:p-8 space-y-4 md:space-y-5 border border-outline-variant/10"
@@ -90,6 +140,30 @@ export default function LoginPage() {
             className="w-full bg-primary text-on-primary font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
             {loading ? 'Iniciando sesión…' : 'Iniciar sesión'}
+          </button>
+
+          <div className="flex items-center gap-3 text-xs text-on-surface-variant/60">
+            <div className="flex-1 h-px bg-outline-variant/20" />
+            <span>o</span>
+            <div className="flex-1 h-px bg-outline-variant/20" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogle}
+            disabled={loading}
+            className="w-full bg-surface-container-lowest border border-outline-variant/20 text-on-surface font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continuar con Google
+          </button>
+
+          <button
+            type="button"
+            onClick={handleMicrosoft}
+            disabled={loading}
+            className="w-full bg-surface-container-lowest border border-outline-variant/20 text-on-surface font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continuar con Microsoft
           </button>
 
           <p className="text-center text-sm text-on-surface-variant">

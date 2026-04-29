@@ -27,6 +27,25 @@ vi.mock('@googlemaps/markerclusterer', () => ({
   })),
 }))
 
+vi.mock('./lib/firebase', () => ({
+  getFirebaseAuth: vi.fn().mockResolvedValue({}),
+  googleProvider: {},
+  microsoftProvider: {},
+}))
+
+vi.mock('firebase/auth', () => ({
+  onAuthStateChanged: () => () => {},
+  signInWithEmailAndPassword: vi.fn(),
+  createUserWithEmailAndPassword: vi.fn(),
+  signInWithPopup: vi.fn(),
+  sendEmailVerification: vi.fn(),
+  signOut: vi.fn(),
+}))
+
+vi.mock('./api', () => ({
+  apiGetMe: vi.fn().mockResolvedValue(null),
+}))
+
 import { render } from '@testing-library/react'
 import App from './App'
 

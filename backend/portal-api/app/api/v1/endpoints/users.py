@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.security import hash_password
 from app.db.firestore import get_firestore
 from app.dependencies import get_current_user, get_db
 from app.models.saved_event import SavedEvent
@@ -54,9 +53,6 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     update_data = body.model_dump(exclude_unset=True)
-
-    if "password" in update_data:
-        current_user.hashed_password = hash_password(update_data.pop("password"))
 
     if "preferred_location" in update_data:
         location = update_data["preferred_location"]
@@ -142,8 +138,6 @@ async def delete_me(
 ) -> None:
     """Soft-delete (deactivate) the account. Data is retained. Use /me/data for full erasure."""
     current_user.is_active = False
-    current_user.refresh_token = None
-    current_user.refresh_token_expires_at = None
     await db.commit()
 
 
