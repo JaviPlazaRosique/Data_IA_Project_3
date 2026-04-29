@@ -659,6 +659,16 @@ module "bigquery" {
   ]
 }
 
+module "bucket_funciones_cloud_run" {
+  source      = "./modules/bucket"
+  nombre      = "funciones-cloud-run-${var.id_proyecto}"
+  id_proyecto = var.id_proyecto
+  ubicacion   = upper(var.region)
+  depends_on = [
+    module.setup
+  ]
+}
+
 module "bucket_ejecucion_dataflow" {
   source      = "./modules/bucket"
   nombre      = "ejecucion-dataflow-${var.id_proyecto}"
@@ -903,7 +913,9 @@ module "rating_functions_sa" {
     "roles/cloudfunctions.invoker",
     "roles/bigquery.dataEditor",
   ]
-  depends_on = [module.setup]
+  depends_on = [
+    module.setup
+  ]
 }
 
 module "fn_envio_email" {
@@ -915,7 +927,7 @@ module "fn_envio_email" {
   runtime               = "python312"
   punto_entrada         = "enviar_email_valoracion"
   ruta_codigo           = "${path.root}/../backend/valoracion/envio_email"
-  bucket_codigo         = module.bucket_ejecucion_dataflow.nombre
+  bucket_codigo         = module.bucket_funciones_cloud_run.nombre
   email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
   id_conector_vpc       = module.vpc_portal.vpc_connector_id
 
@@ -942,6 +954,7 @@ module "fn_envio_email" {
     module.cloudsql_portal,
     module.secretos_proyecto,
     module.frontend_usuarios,
+    module.bucket_funciones_cloud_run,
   ]
 }
 
@@ -954,7 +967,7 @@ module "fn_recepcion_email" {
   runtime               = "python312"
   punto_entrada         = "recibir_valoracion"
   ruta_codigo           = "${path.root}/../backend/valoracion/recepcion_email"
-  bucket_codigo         = module.bucket_ejecucion_dataflow.nombre
+  bucket_codigo         = module.bucket_funciones_cloud_run.nombre
   email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
 
   configuracion_ingress = "ALLOW_ALL"
@@ -974,5 +987,38 @@ module "fn_recepcion_email" {
     module.rating_functions_sa,
     module.bigquery,
     module.secretos_proyecto,
+    module.bucket_funciones_cloud_run,
+  ]
+}
+
+module "cicd_valoracion_recepcion_email" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-valoracion-recepcion-email"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD de la Cloud Function de recepción de valoraciones"
+  cuenta_servicio_roles = [
+    "roles/cloudfunctions.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_valoracion_recepcion_email"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "cicd_valoracion_envio_email" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-valoracion-envio-email"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD de la Cloud Function de envío de emails de valoración"
+  cuenta_servicio_roles = [
+    "roles/cloudfunctions.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_valoracion_envio_email"
+  depends_on = [
+    module.setup
   ]
 }
