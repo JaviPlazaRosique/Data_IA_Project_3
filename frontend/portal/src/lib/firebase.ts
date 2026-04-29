@@ -17,3 +17,4 @@ export async function getFirebaseAuth(): Promise<Auth> {
 
 export const googleProvider = new GoogleAuthProvider();
 export const microsoftProvider = new OAuthProvider('microsoft.com');
+microsoftProvider.setCustomParameters({ tenant: 'common' });
