@@ -1,0 +1,74 @@
+name: cicd_valoracion_recepcion_email
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/valoracion/recepcion_email/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/valoracion/recepcion_email/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: europe-west1
+  FUNCION: recepcion-valoracion-email
+  ENTRY_POINT: recibir_valoracion
+  RUNTIME: python312
+  DIRECTORIO: backend/valoracion/recepcion_email
+
+jobs:
+  ci:
+    name: Validar sintaxis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install -r ${{ env.DIRECTORIO }}/requirements.txt
+
+      - name: Validar sintaxis
+        run: python -m py_compile ${{ env.DIRECTORIO }}/main.py
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Desplegar Cloud Run Function
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.VALORACION_RECEPCION_EMAIL_CUENTA_SERVICIO }}
+
+      - name: Configurar Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Desplegar en Cloud Run Functions
+        run: |
+          gcloud functions deploy ${{ env.FUNCION }} \
+            --gen2 \
+            --runtime=${{ env.RUNTIME }} \
+            --region=${{ env.REGION }} \
+            --source=${{ env.DIRECTORIO }} \
+            --entry-point=${{ env.ENTRY_POINT }} \
+            --trigger-http \
+            --project=${{ secrets.GCP_PROJECT_ID }}
