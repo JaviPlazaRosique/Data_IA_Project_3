@@ -68,8 +68,18 @@ migrate:
 dev:
 	cd ../frontend/portal && npm run dev
 
+FIREBASE_API_KEY ?=
+FIREBASE_AUTH_DOMAIN ?=
+FIREBASE_PROJECT_ID ?=
+
 frontend-config:
-	@echo '{"backendUrl": "http://localhost:8080"}' > ../frontend/portal/public/public-config.json
+	@jq -n \
+	  --arg backend "http://localhost:8080" \
+	  --arg apiKey "$(FIREBASE_API_KEY)" \
+	  --arg authDomain "$(FIREBASE_AUTH_DOMAIN)" \
+	  --arg projectId "$(FIREBASE_PROJECT_ID)" \
+	  '{backendUrl: $$backend, firebase: {apiKey: $$apiKey, authDomain: $$authDomain, projectId: $$projectId}}' \
+	  > ../frontend/portal/public/public-config.json
 	@echo "Wrote frontend/portal/public/public-config.json"
 
 psql:

@@ -126,6 +126,7 @@ services:
       CORS_ORIGINS: http://localhost:5173,http://localhost:5174
       ENVIRONMENT: development
       GOOGLE_CLOUD_PROJECT: demo-local
+      FIREBASE_AUTH_PROJECT_ID: project3grupo3
       FIRESTORE_EMULATOR_HOST: firebase:8081
       PUBSUB_EMULATOR_HOST: pubsub:8681
       PUBSUB_TOPIC_SWIPE_EVENTS: swipe-events
