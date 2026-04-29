@@ -1,9 +1,13 @@
+import asyncio
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db.firestore import get_firestore
+from app.dependencies import get_current_user
+from app.models.user import User
 from app.schemas.event import EventRead
+from app.services import tasks
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -111,3 +115,28 @@ async def get_event(event_id: str) -> EventRead:
     if not doc.exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento no encontrado")
     return _doc_to_event(doc.id, doc.to_dict())
+
+
+@router.post("/{event_id}/registro-visita", status_code=status.HTTP_202_ACCEPTED)
+async def registrar_visita(
+    event_id: str,
+    usuario: User = Depends(get_current_user),
+) -> dict:
+    db = get_firestore()
+    doc = await db.collection(COLLECTION).document(event_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento no encontrado")
+
+    evento = _doc_to_event(doc.id, doc.to_dict())
+
+    if evento.fecha:
+        asyncio.get_event_loop().run_in_executor(
+            None,
+            tasks.programar_email_valoracion,
+            str(usuario.id),
+            event_id,
+            evento.nombre or "el evento",
+            evento.fecha,
+        )
+
+    return {"status": "accepted"}

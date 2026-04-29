@@ -72,3 +72,13 @@ output "usuario_bd" {
   description = "Usuario de la base de datos (GitHub Secret: USUARIO_BD)"
   value       = module.cloudsql_portal.db_user
 }
+
+output "valoracion_envio_email_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD de la Cloud Function de envío de emails de valoración (GitHub Secret: VALORACION_ENVIO_EMAIL_CUENTA_SERVICIO)"
+  value       = module.cicd_valoracion_envio_email.email_cuenta_servicio
+}
+
+output "valoracion_recepcion_email_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD de la Cloud Function de recepción de valoraciones (GitHub Secret: VALORACION_RECEPCION_EMAIL_CUENTA_SERVICIO)"
+  value       = module.cicd_valoracion_recepcion_email.email_cuenta_servicio
+}

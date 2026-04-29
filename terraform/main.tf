@@ -168,6 +168,7 @@ module "portal_api_sa" {
     "roles/cloudsql.client",
     "roles/secretmanager.secretAccessor",
     "roles/datastore.user",
+    "roles/cloudtasks.enqueuer",
   ]
   depends_on = [
     module.setup
@@ -222,6 +223,7 @@ module "secretos_proyecto" {
     "portal-api-jwt-secret-key" = var.clave_jwt
     "api-key-ticketmaster"      = var.ticketmaster_apikey
     "api-key-google-places"     = module.setup.google_places_key_string
+    "sendgrid-api-key"          = var.sendgrid_api_key
   }
   depends_on = [
     module.setup
@@ -252,6 +254,9 @@ module "cloud_run_portal_api" {
     GOOGLE_CLOUD_PROJECT      = var.id_proyecto
     PUBSUB_TOPIC_SWIPE_EVENTS = module.pubsub_swipe_events.nombre
     AVATAR_BUCKET_NAME        = module.bucket_avatares.nombre
+    CLOUD_TASKS_QUEUE_PATH      = module.cola_valoracion_emails.id_cola
+    RATING_EMAIL_FUNCTION_URL   = module.fn_envio_email.url_funcion
+    RATING_FUNCTION_SA_EMAIL    = module.rating_functions_sa.email_cuenta_servicio
   }
 
   secretos_entorno = {
@@ -575,6 +580,37 @@ module "bigquery" {
       ])
     },
     {
+      id_tabla        = "valoraciones_eventos"
+      campo_particion = "fecha_valoracion"
+      schema_json = jsonencode([
+        {
+          name = "id_usuario",
+          type = "STRING",
+          mode = "REQUIRED"
+        },
+        {
+          name = "id_evento",
+          type = "STRING",
+          mode = "REQUIRED"
+        },
+        {
+          name = "nombre_evento",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "valoracion",
+          type = "STRING",
+          mode = "REQUIRED"
+        },
+        {
+          name = "fecha_valoracion",
+          type = "TIMESTAMP",
+          mode = "REQUIRED"
+        }
+      ])
+    },
+    {
       id_tabla        = "swipes_raw"
       campo_particion = "publish_time"
       schema_json = jsonencode([
@@ -618,6 +654,16 @@ module "bigquery" {
     }
   ]
 
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "bucket_funciones_cloud_run" {
+  source      = "./modules/bucket"
+  nombre      = "funciones-cloud-run-${var.id_proyecto}"
+  id_proyecto = var.id_proyecto
+  ubicacion   = upper(var.region)
   depends_on = [
     module.setup
   ]
@@ -831,5 +877,148 @@ module "scheduler_dbt_lunes_jueves_media_noche" {
   depends_on = [
     module.scheduler_dbt_sa,
     module.dbt_transformations_job
+  ]
+}
+
+module "cola_valoracion_emails" {
+  source      = "./modules/cloud_tasks"
+  id_proyecto = var.id_proyecto
+  region      = var.region
+  nombre_cola = "email-valoracion-queue"
+
+  max_despachos_por_segundo  = 10
+  max_despachos_concurrentes = 5
+  max_intentos               = 3
+  espera_minima_reintento    = "30s"
+  espera_maxima_reintento    = "600s"
+
+  email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
+  audiencia_oidc        = module.fn_envio_email.url_funcion
+
+  depends_on = [
+    module.setup, 
+    module.rating_functions_sa, 
+    module.fn_envio_email
+  ]
+}
+
+module "rating_functions_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "rating-functions-sa"
+  nombre_despliege   = "Cuenta de servicio para las Cloud Functions de valoración de eventos"
+  cuenta_servicio_roles = [
+    "roles/cloudsql.client",
+    "roles/secretmanager.secretAccessor",
+    "roles/cloudfunctions.invoker",
+    "roles/bigquery.dataEditor",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "fn_envio_email" {
+  source                = "./modules/cloud_run_function"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_funcion        = "envio-email-valoracion"
+  descripcion           = "Envía el email de valoración de un evento al usuario al día siguiente de visitar su página"
+  runtime               = "python312"
+  punto_entrada         = "enviar_email_valoracion"
+  ruta_codigo           = "${path.root}/../backend/valoracion/envio_email"
+  bucket_codigo         = module.bucket_funciones_cloud_run.nombre
+  email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
+  id_conector_vpc       = module.vpc_portal.vpc_connector_id
+
+  configuracion_ingress = "ALLOW_INTERNAL_ONLY"
+  acceso_publico        = false
+
+  variables_entorno = {
+    DB_HOST                      = module.cloudsql_portal.private_ip
+    DB_NAME                      = module.cloudsql_portal.database_name
+    DB_USER                      = module.cloudsql_portal.db_user
+    SENDGRID_FROM_EMAIL          = var.sendgrid_from_email
+    RECEPCION_EMAIL_FUNCTION_URL = module.fn_recepcion_email.url_funcion
+  }
+
+  secretos_entorno = {
+    DB_PASSWORD      = { secret = module.secretos_proyecto.ids_secretos["portal-api-db-password"], version = "latest" }
+    JWT_SECRET_KEY   = { secret = module.secretos_proyecto.ids_secretos["portal-api-jwt-secret-key"], version = "latest" }
+    SENDGRID_API_KEY = { secret = module.secretos_proyecto.ids_secretos["sendgrid-api-key"], version = "latest" }
+  }
+
+  depends_on = [
+    module.rating_functions_sa,
+    module.vpc_portal,
+    module.cloudsql_portal,
+    module.secretos_proyecto,
+    module.frontend_usuarios,
+    module.bucket_funciones_cloud_run,
+  ]
+}
+
+module "fn_recepcion_email" {
+  source                = "./modules/cloud_run_function"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_funcion        = "recepcion-valoracion-email"
+  descripcion           = "Recibe la valoración de un evento desde el email y la guarda en BigQuery"
+  runtime               = "python312"
+  punto_entrada         = "recibir_valoracion"
+  ruta_codigo           = "${path.root}/../backend/valoracion/recepcion_email"
+  bucket_codigo         = module.bucket_funciones_cloud_run.nombre
+  email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
+
+  configuracion_ingress = "ALLOW_ALL"
+  acceso_publico        = true
+
+  variables_entorno = {
+    GOOGLE_CLOUD_PROJECT = var.id_proyecto
+    BQ_DATASET_ID        = module.bigquery.id_dataset
+    BQ_TABLE_ID          = "valoraciones_eventos"
+  }
+
+  secretos_entorno = {
+    JWT_SECRET_KEY = { secret = module.secretos_proyecto.ids_secretos["portal-api-jwt-secret-key"], version = "latest" }
+  }
+
+  depends_on = [
+    module.rating_functions_sa,
+    module.bigquery,
+    module.secretos_proyecto,
+    module.bucket_funciones_cloud_run,
+  ]
+}
+
+module "cicd_valoracion_recepcion_email" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-valoracion-recepcion-email"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD de la Cloud Function de recepción de valoraciones"
+  cuenta_servicio_roles = [
+    "roles/cloudfunctions.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_valoracion_recepcion_email"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "cicd_valoracion_envio_email" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-valoracion-envio-email"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD de la Cloud Function de envío de emails de valoración"
+  cuenta_servicio_roles = [
+    "roles/cloudfunctions.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_valoracion_envio_email"
+  depends_on = [
+    module.setup
   ]
 }
