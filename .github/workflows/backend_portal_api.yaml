@@ -73,19 +73,14 @@ jobs:
         env:
           BUCKET: ${{ secrets.BUCKET_FRONTEND_USUARIOS }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          FB_API_KEY: ${{ vars.FIREBASE_API_KEY }}
-          FB_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
-          FB_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
           BACKEND_URL=$(gcloud run services describe portal-api \
             --region=europe-west1 \
             --project="$GCP_PROJECT_ID" \
             --format='value(status.url)')
-          jq -n \
+          gsutil cp "gs://$BUCKET/public-config.json" public-config.json || echo '{}' > public-config.json
+          jq \
             --arg backend "$BACKEND_URL" \
-            --arg apiKey "$FB_API_KEY" \
-            --arg authDomain "$FB_AUTH_DOMAIN" \
-            --arg projectId "$FB_PROJECT_ID" \
-            '{backendUrl: $backend, firebase: {apiKey: $apiKey, authDomain: $authDomain, projectId: $projectId}}' \
-            > public-config.json
+            '.backendUrl = $backend' \
+            public-config.json > tmp.json && mv tmp.json public-config.json
           gsutil -h "Cache-Control:no-cache" cp public-config.json "gs://$BUCKET/public-config.json"
