@@ -1,5 +1,12 @@
+export interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+}
+
 interface PublicConfig {
   backendUrl: string;
+  firebase?: FirebaseConfig;
 }
 
 let config: PublicConfig = { backendUrl: '' };
@@ -31,4 +38,8 @@ export function getBackendUrl(): string {
 
 export function isServerAvailable(): boolean {
   return serverAvailable;
+}
+
+export function getFirebaseConfig(): FirebaseConfig | null {
+  return config.firebase ?? null;
 }

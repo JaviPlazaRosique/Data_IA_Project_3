@@ -72,10 +72,15 @@ jobs:
       - name: Subir public-config.json
         env:
           BUCKET: ${{ secrets.BUCKET_FRONTEND_USUARIOS }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           BACKEND_URL=$(gcloud run services describe portal-api \
             --region=europe-west1 \
-            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --project="$GCP_PROJECT_ID" \
             --format='value(status.url)')
-          echo "{\"backendUrl\": \"$BACKEND_URL\"}" > public-config.json
-          gsutil -h "Cache-Control:no-cache" cp public-config.json gs://$BUCKET/public-config.json
+          gsutil cp "gs://$BUCKET/public-config.json" public-config.json || echo '{}' > public-config.json
+          jq \
+            --arg backend "$BACKEND_URL" \
+            '.backendUrl = $backend' \
+            public-config.json > tmp.json && mv tmp.json public-config.json
+          gsutil -h "Cache-Control:no-cache" cp public-config.json "gs://$BUCKET/public-config.json"
