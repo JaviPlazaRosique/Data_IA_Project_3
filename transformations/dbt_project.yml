@@ -11,6 +11,7 @@ macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 analysis-paths: ["analyses"]
 
+
 target-path: "target"
 clean-targets:
   - "target"
