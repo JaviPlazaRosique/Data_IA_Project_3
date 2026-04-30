@@ -75,7 +75,7 @@ def pagina_confirmacion(nombre_evento, valoracion):
             <p style="color:#6b7280;font-size:15px;margin:0;line-height:1.6;">
               {mensaje} Tu opinión sobre
               <strong style="color:#1a1a2e;">{nombre_evento}</strong>
-              nos ayuda a mejorar las recomendaciones.
+              nos ayuda a mejorar tus recomendaciones personalizadas. Muchas gracias.
             </p>
           </td>
         </tr>
