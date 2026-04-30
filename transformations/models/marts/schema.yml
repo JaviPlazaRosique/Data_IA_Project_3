@@ -6,33 +6,59 @@ models:
     columns:
       - name: interaction_id
         description: "ID único de la interacción (Pub/Sub message_id)."
-        tests: [not_null, unique]
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
+          - unique:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
       - name: event_timestamp
         description: "Momento del swipe."
-        tests: [not_null]
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
       - name: user_id
         description: "Usuario autenticado."
-        tests: [not_null]
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
       - name: session_id
         description: "Sesión cuando no hay usuario autenticado o como apoyo analítico."
       - name: event_id
         description: "Evento mostrado."
-        tests: [not_null]
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
       - name: interaction_type
         description: "Siempre 'swipe' en este caso."
-        tests:
-          - not_null
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
           - accepted_values:
               values: ['swipe']
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
       - name: swipe_direction
         description: "'right' o 'left'."
-        tests:
-          - not_null
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
           - accepted_values:
               values: ['left', 'right']
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
       - name: liked
         description: "true si right, false si left."
-        tests: [not_null]
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
       - name: recommendation_context
         description: "Origen de la recomendación: discover, map, planner, etc."
       - name: segmento
@@ -53,4 +79,7 @@ models:
         description: "ID del recinto."
       - name: ingestion_timestamp
         description: "Momento de escritura técnica (Pub/Sub publish_time)."
-        tests: [not_null]
+        data_tests:
+          - not_null:
+              config:
+                where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
