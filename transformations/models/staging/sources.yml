@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: raw
     database: "{{ env_var('GCP_PROJECT') }}"
-    schema: raw
+    schema: recomendacion_planes
     tables:
       - name: swipes_raw
         description: "Mensajes crudos de Pub/Sub topic swipe-events. Schema fijado por la suscripción BQ con write_metadata=true."
