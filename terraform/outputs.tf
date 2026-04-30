@@ -58,6 +58,11 @@ output "migrate_bd_cuenta_servicio" {
   value       = module.cicd_migrate_bd.email_cuenta_servicio
 }
 
+output "dbt_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del Cloud Run Job de dbt (GitHub Secret: DBT_CUENTA_SERVICIO)"
+  value       = module.cicd_dbt_transformations.email_cuenta_servicio
+}
+
 output "host_bd" {
   description = "IP privada de CloudSQL (GitHub Secret: HOST_BD)"
   value       = module.cloudsql_portal.private_ip
