@@ -1,0 +1,4 @@
+functions-framework==3.10.1
+psycopg2-binary==2.9.12
+python-jose[cryptography]==3.5.0
+sendgrid==6.12.5

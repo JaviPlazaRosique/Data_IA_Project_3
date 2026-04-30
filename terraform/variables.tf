@@ -54,3 +54,14 @@ variable "ticketmaster_apikey" {
   type        = string
   sensitive   = true
 }
+
+variable "sendgrid_api_key" {
+  description = "API Key de SendGrid para el envío de emails de valoración"
+  type        = string
+  sensitive   = true
+}
+
+variable "sendgrid_from_email" {
+  description = "Dirección de email verificada en SendGrid usada como remitente"
+  type        = string
+}
