@@ -58,13 +58,8 @@ resource "google_cloudfunctions2_function" "funcion" {
       }
     }
 
-    dynamic "vpc_connector" {
-      for_each = var.id_conector_vpc != null ? [1] : []
-      content {
-        connector       = var.id_conector_vpc
-        egress_settings = var.egress_vpc
-      }
-    }
+    vpc_connector                  = var.id_conector_vpc
+    vpc_connector_egress_settings  = var.id_conector_vpc != null ? var.egress_vpc : null
   }
 
   dynamic "event_trigger" {
