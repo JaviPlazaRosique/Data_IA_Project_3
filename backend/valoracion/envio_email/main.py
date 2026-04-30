@@ -93,7 +93,7 @@ def construir_email(nombre_evento, url_base):
               </tr>
             </table>
             <p style="color:#9ca3af;font-size:12px;margin:36px 0 0;line-height:1.6;">
-              Tu opinión nos ayuda a mejorar las recomendaciones.<br>
+              Tu opinión nos ayuda a mejorar las recomendaciones. Serán datos privados<br>
               Este enlace es válido durante {dias_expiracion} días.
             </p>
           </td>
