@@ -181,11 +181,6 @@ schema_bq = {
             "mode": "NULLABLE"
         },
         {
-            "name": "estado",
-            "type": "STRING",
-            "mode": "NULLABLE"
-        },
-        {
             "name": "venta_inicio",
             "type": "TIMESTAMP",
             "mode": "NULLABLE"
@@ -338,19 +333,6 @@ schema_bq = {
             "name": "subcategoria",
             "type": "STRING",
             "mode": "NULLABLE"
-        },
-        {
-            "name": "tiempo",
-            "type": "RECORD",
-            "mode": "NULLABLE",
-            "fields": [
-                {"name": "temp_max",         "type": "FLOAT64", "mode": "NULLABLE"},
-                {"name": "temp_min",         "type": "FLOAT64", "mode": "NULLABLE"},
-                {"name": "precipitacion_mm", "type": "FLOAT64", "mode": "NULLABLE"},
-                {"name": "codigo_wmo",       "type": "INTEGER", "mode": "NULLABLE"},
-                {"name": "descripcion",      "type": "STRING",  "mode": "NULLABLE"},
-                {"name": "viento_max_kmh",   "type": "FLOAT64", "mode": "NULLABLE"},
-            ],
         },
     ]
 }
