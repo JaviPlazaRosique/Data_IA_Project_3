@@ -823,6 +823,23 @@ module "dbt_sa" {
   ]
 }
 
+module "cicd_dbt_transformations" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-dbt-transformations"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del Cloud Run Job de dbt"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_dbt_transformations"
+  depends_on = [
+    module.setup
+  ]
+}
+
 module "dbt_transformations_job" {
   source                = "./modules/cloud_run_job"
   id_proyecto           = var.id_proyecto
