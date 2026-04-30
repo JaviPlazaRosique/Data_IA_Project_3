@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import Footer from '../components/layout/Footer';
@@ -8,11 +8,16 @@ import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
 import {
   apiUpdateMe,
+  apiCheckUsername,
   apiUploadAvatar,
   apiListSavedEvents,
   apiUnsaveEvent,
+  ApiError,
   type SavedEventRead,
 } from '../api';
+
+const USERNAME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{2,29}$/;
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
@@ -24,9 +29,18 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
+  const [usernameDraft, setUsernameDraft] = useState(user?.username ?? '');
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
+  const [usernameSaving, setUsernameSaving] = useState(false);
+  const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     setLocationDraft(user?.preferred_location ?? '');
   }, [user?.preferred_location]);
+
+  useEffect(() => {
+    setUsernameDraft(user?.username ?? '');
+  }, [user?.username]);
 
   useEffect(() => {
     apiListSavedEvents()
@@ -55,6 +69,45 @@ export default function ProfilePage() {
       setAvatarPreview(null);
     } catch { /* silent */ } finally {
       setAvatarUploading(false);
+    }
+  }
+
+  function handleUsernameChange(value: string) {
+    setUsernameDraft(value);
+    setUsernameStatus('idle');
+    if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === (user?.username ?? '')) return;
+    if (!trimmed) return;
+    if (!USERNAME_REGEX.test(trimmed)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+    setUsernameStatus('checking');
+    usernameTimerRef.current = setTimeout(async () => {
+      try {
+        const { available } = await apiCheckUsername(trimmed);
+        setUsernameStatus(available ? 'available' : 'taken');
+      } catch {
+        setUsernameStatus('idle');
+      }
+    }, 500);
+  }
+
+  async function handleUsernameSave() {
+    const trimmed = usernameDraft.trim().toLowerCase();
+    if (trimmed === (user?.username ?? '') || usernameStatus !== 'available') return;
+    setUsernameSaving(true);
+    try {
+      const updated = await apiUpdateMe({ username: trimmed });
+      setUser(updated);
+      setUsernameStatus('idle');
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        setUsernameStatus('taken');
+      }
+    } finally {
+      setUsernameSaving(false);
     }
   }
 
@@ -188,6 +241,58 @@ export default function ProfilePage() {
                   {t.profile_prefs}
                 </h2>
                 <div className="space-y-6">
+                  {/* Username */}
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-2">
+                      Nombre de usuario
+                    </label>
+                    <div className={`bg-surface-container-lowest flex items-center gap-2 rounded-xl border transition-colors px-3 py-2 ${
+                      usernameStatus === 'taken' || usernameStatus === 'invalid'
+                        ? 'border-error/60'
+                        : usernameStatus === 'available'
+                          ? 'border-primary/60'
+                          : 'border-outline-variant/30 focus-within:border-primary'
+                    }`}>
+                      <span className="text-on-surface-variant/60 text-sm select-none">@</span>
+                      <input
+                        type="text"
+                        value={usernameDraft}
+                        onChange={(e) => handleUsernameChange(e.target.value)}
+                        maxLength={30}
+                        className="flex-1 bg-transparent text-sm font-medium focus:outline-none placeholder:text-on-surface-variant/40"
+                      />
+                      {usernameStatus === 'checking' && (
+                        <span className="material-symbols-outlined text-base text-on-surface-variant animate-spin">progress_activity</span>
+                      )}
+                      {usernameStatus === 'available' && (
+                        <span className="material-symbols-outlined text-base text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                      )}
+                      {(usernameStatus === 'taken' || usernameStatus === 'invalid') && (
+                        <span className="material-symbols-outlined text-base text-error" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
+                      )}
+                    </div>
+                    {usernameStatus === 'taken' && (
+                      <p className="text-xs text-error mt-1 px-1">Este nombre de usuario ya está en uso.</p>
+                    )}
+                    {usernameStatus === 'invalid' && (
+                      <p className="text-xs text-error mt-1 px-1">3–30 caracteres. Solo letras, números, _ y -.</p>
+                    )}
+                    {usernameStatus === 'available' && (
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-primary px-1">¡Disponible!</p>
+                        <button
+                          onClick={handleUsernameSave}
+                          disabled={usernameSaving}
+                          className="text-xs bg-primary text-on-primary px-3 py-1.5 rounded-full font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
+                        >
+                          {usernameSaving ? 'Guardando…' : 'Guardar'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-outline-variant/20" />
+
                   <div>
                     <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Categorías</label>
                     <div className="flex flex-wrap gap-2">
