@@ -399,9 +399,13 @@ class EscribirEnFirestore(beam.DoFn):
         self.cliente = firestore.Client(project=self.id_proyecto)
         logging.info(f"[Firestore] Cliente inicializado — colección: {self.coleccion}")
 
-    def process(self, evento: dict):
-        self.cliente.collection(self.coleccion).document(evento["id"]).set(evento, merge=True)
-        logging.debug(f"[Firestore] Evento guardado — id={evento['id']} | nombre={evento.get('nombre')}")
+    def process(self, batch: list[dict]):
+        lote = self.cliente.batch()
+        for evento in batch:
+            ref = self.cliente.collection(self.coleccion).document(evento["id"])
+            lote.set(ref, evento, merge=True)
+        lote.commit()
+        logging.info(f"[Firestore] Lote guardado — {len(batch)} eventos")
 
 
 precios_rest_alojamiento = {
@@ -671,7 +675,7 @@ schema_salida_enriquecimiento_gemini = {
     ],
 }
 
-gemini_semaforo = threading.Semaphore(2)
+gemini_semaforo = threading.Semaphore(10)
 
 SUBCATEGORIAS_POR_CATEGORIA = {
     "Música": [
@@ -773,11 +777,11 @@ class EnriquecerConGemini(beam.DoFn):
         self.db = firestore.Client(project=self.id_proyecto)
         logging.info("[Gemini] Worker inicializado — modelo: gemini-2.5-flash (Vertex AI, proyecto=%s)", self.id_proyecto)
 
-    def _id_cache(self, nombre: str) -> str:
+    def id_cache(self, nombre: str) -> str:
         return nombre.replace("/", "_")
 
-    def _leer_cache(self, nombre: str) -> dict | None:
-        doc = self.db.collection(self.coleccion_gemini_cache).document(self._id_cache(nombre)).get()
+    def leer_cache(self, nombre: str) -> dict | None:
+        doc = self.db.collection(self.coleccion_gemini_cache).document(self.id_cache(nombre)).get()
         if not doc.exists:
             return None
         datos = doc.to_dict()
@@ -785,13 +789,13 @@ class EnriquecerConGemini(beam.DoFn):
             return None
         return datos
 
-    def _guardar_cache(self, nombre: str, enriquecimiento: dict) -> None:
-        self.db.collection(self.coleccion_gemini_cache).document(self._id_cache(nombre)).set(enriquecimiento)
+    def guardar_cache(self, nombre: str, enriquecimiento: dict) -> None:
+        self.db.collection(self.coleccion_gemini_cache).document(self.id_cache(nombre)).set(enriquecimiento)
 
     def process(self, evento: dict):
         nombre = evento.get("nombre")
 
-        cache = self._leer_cache(nombre)
+        cache = self.leer_cache(nombre)
         if cache is not None:
             logging.info("[Gemini] Caché HIT — id=%s | nombre=%s", evento.get("id"), nombre)
             yield {**evento, **{campo: cache[campo] for campo in CAMPOS_GEMINI | {"antelacion_recomendada"} if campo in cache}}
@@ -842,7 +846,7 @@ class EnriquecerConGemini(beam.DoFn):
             "subcategoria":               enriquecimiento.get("subcategoria"),
         }
 
-        self._guardar_cache(nombre, datos_cache)
+        self.guardar_cache(nombre, datos_cache)
         yield {**evento, **datos_cache}
 
 
@@ -906,35 +910,35 @@ def consultar_tiempo_evento(lat: float, lng: float, fecha: str) -> dict | None:
     }
 
 
-class EnriquecerConTiempo(beam.DoFn):
-    def setup(self):
-        self._cache: dict[tuple, dict | None] = {}
-        logging.info("[Tiempo] Worker inicializado")
+def clave_tiempo(evento: dict):
+    lat   = evento.get("latitud")
+    lng   = evento.get("longitud")
+    fecha = evento.get("fecha")
+    if lat is not None and lng is not None and fecha:
+        return (round(lat, 3), round(lng, 3), fecha)
+    return None
 
-    def process(self, evento: dict):
-        lat   = evento.get("latitud")
-        lng   = evento.get("longitud")
-        fecha = evento.get("fecha")
 
-        if lat is None or lng is None or not fecha:
-            logging.warning(f"[Tiempo] Evento sin coordenadas o fecha — id={evento.get('id')}")
-            yield {**evento, "tiempo": None}
+class ConsultarTiempoPorGrupo(beam.DoFn):
+    def process(self, element):
+        clave, _ = element
+        if clave is None:
+            yield (None, None)
             return
-
-        clave = (round(lat, 3), round(lng, 3), fecha)
-        if clave not in self._cache:
-            try:
-                self._cache[clave] = consultar_tiempo_evento(lat, lng, fecha)
-                t = self._cache[clave]
-                logging.info(
-                    f"[Tiempo] Consultado — id={evento.get('id')} | fecha={fecha} | "
-                    f"{t.get('descripcion')} | {t.get('temp_min')}–{t.get('temp_max')}°C"
-                )
-            except Exception as e:
-                logging.error(f"[Tiempo] Error — id={evento.get('id')} | {e}", exc_info=True)
-                self._cache[clave] = None
-
-        yield {**evento, "tiempo": self._cache[clave]}
+        lat, lng, fecha = clave
+        try:
+            tiempo = consultar_tiempo_evento(lat, lng, fecha)
+            logging.info(
+                "[Tiempo] Consultado — lat=%.3f lng=%.3f fecha=%s | %s | %.1f–%.1f°C",
+                lat, lng, fecha,
+                (tiempo or {}).get("descripcion", "N/A"),
+                (tiempo or {}).get("temp_min", 0.0),
+                (tiempo or {}).get("temp_max", 0.0),
+            )
+        except Exception as e:
+            logging.error("[Tiempo] Error — lat=%.3f lng=%.3f fecha=%s | %s", lat, lng, fecha, e, exc_info=True)
+            tiempo = None
+        yield (clave, tiempo)
 
 
 def run():
@@ -1054,7 +1058,7 @@ def run():
             )
         )
 
-        eventos_enriquecidos = (
+        eventos_gemini = (
             resultado_transformacion.validos
             | "FiltrarEventosTest" >> beam.Filter(lambda e: not e.get("es_test"))
             | "EnriquecerConRecinto" >> beam.ParDo(
@@ -1067,20 +1071,40 @@ def run():
             | "EnriquecerConGemini" >> beam.ParDo(
                 EnriquecerConGemini(argumentos.id_proyecto, argumentos.coleccion_gemini_cache)
             )
-            | "EnriquecerConTiempo" >> beam.ParDo(EnriquecerConTiempo())
+        )
+
+        eventos_conclave_tiempo = (
+            eventos_gemini
+            | "AsignarClaveTiempo" >> beam.Map(lambda e: (clave_tiempo(e), e))
+        )
+
+        tiempo_por_clave = (
+            eventos_conclave_tiempo
+            | "AgruparPorClaveTiempo" >> beam.GroupByKey()
+            | "ConsultarTiempoAPI" >> beam.ParDo(ConsultarTiempoPorGrupo())
+        )
+
+        eventos_enriquecidos = (
+            eventos_conclave_tiempo
+            | "UnirTiempo" >> beam.Map(
+                lambda kv, tiempos: {**kv[1], "tiempo": tiempos.get(kv[0])},
+                tiempos=beam.pvalue.AsDict(tiempo_por_clave),
+            )
         )
 
         _ = (
             eventos_enriquecidos
+            | "AgruparParaFirestore" >> beam.BatchElements(min_batch_size=1, max_batch_size=500)
             | "GuardarEventosFirestore" >> beam.ParDo(
                 EscribirEnFirestore(argumentos.id_proyecto, argumentos.coleccion_firestore_eventos)
             )
         )
 
+        fecha_limite = (datetime.now(timezone.utc) - timedelta(days=15)).strftime("%Y-%m-%d")
         ids_existentes = (
             p
             | "LeerIDsExistentes" >> ReadFromBigQuery(
-                query=f"SELECT id FROM `{ref_tabla_bq}`",
+                query=f"SELECT id FROM `{ref_tabla_bq}` WHERE fecha >= '{fecha_limite}'",
                 use_standard_sql=True,
             )
             | "ExtraerIDs" >> beam.Map(lambda row: row["id"])

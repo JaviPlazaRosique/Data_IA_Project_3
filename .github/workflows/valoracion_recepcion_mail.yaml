@@ -1,16 +1,16 @@
-name: cicd_valoracion_recepcion_email
+name: cicd_valoracion_recepcion_mail
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'backend/valoracion/recepcion_email/**'
+      - 'backend/valoracion/recepcion_mail/**'
   pull_request:
     branches:
       - main
     paths:
-      - 'backend/valoracion/recepcion_email/**'
+      - 'backend/valoracion/recepcion_mail/**'
 
 permissions:
   id-token: write
@@ -18,10 +18,10 @@ permissions:
 
 env:
   REGION: europe-west1
-  FUNCION: recepcion-valoracion-email
+  FUNCION: recepcion-valoracion-mail
   ENTRY_POINT: recibir_valoracion
   RUNTIME: python312
-  DIRECTORIO: backend/valoracion/recepcion_email
+  DIRECTORIO: backend/valoracion/recepcion_mail
 
 jobs:
   ci:
@@ -57,7 +57,7 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.VALORACION_RECEPCION_EMAIL_CUENTA_SERVICIO }}
+          service_account: ${{ secrets.VALORACION_RECEPCION_MAIL_CUENTA_SERVICIO }}
 
       - name: Configurar Cloud SDK
         uses: google-github-actions/setup-gcloud@v2

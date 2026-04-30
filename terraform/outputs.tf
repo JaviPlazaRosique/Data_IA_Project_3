@@ -83,7 +83,7 @@ output "valoracion_envio_email_cuenta_servicio" {
   value       = module.cicd_valoracion_envio_email.email_cuenta_servicio
 }
 
-output "valoracion_recepcion_email_cuenta_servicio" {
-  description = "Cuenta de servicio del CI/CD de la Cloud Function de recepción de valoraciones (GitHub Secret: VALORACION_RECEPCION_EMAIL_CUENTA_SERVICIO)"
-  value       = module.cicd_valoracion_recepcion_email.email_cuenta_servicio
+output "valoracion_recepcion_mail_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD de la Cloud Function de recepción de valoraciones (GitHub Secret: VALORACION_RECEPCION_MAIL_CUENTA_SERVICIO)"
+  value       = module.cicd_valoracion_recepcion_mail.email_cuenta_servicio
 }

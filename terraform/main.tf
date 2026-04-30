@@ -256,7 +256,7 @@ module "cloud_run_portal_api" {
     AVATAR_BUCKET_NAME        = module.bucket_avatares.nombre
     CLOUD_TASKS_QUEUE_PATH      = module.cola_valoracion_emails.id_cola
     RATING_EMAIL_FUNCTION_URL   = module.fn_envio_email.url_funcion
-    RATING_FUNCTION_SA_EMAIL    = module.rating_functions_sa.email_cuenta_servicio
+    RATING_FUNCTION_SA_EMAIL    = module.envio_email_valoracion_sa.email_cuenta_servicio
   }
 
   secretos_entorno = {
@@ -909,25 +909,38 @@ module "cola_valoracion_emails" {
   espera_minima_reintento    = "30s"
   espera_maxima_reintento    = "600s"
 
-  email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
+  email_cuenta_servicio = module.envio_email_valoracion_sa.email_cuenta_servicio
   audiencia_oidc        = module.fn_envio_email.url_funcion
 
   depends_on = [
-    module.setup, 
-    module.rating_functions_sa, 
+    module.setup,
+    module.envio_email_valoracion_sa,
     module.fn_envio_email
   ]
 }
 
-module "rating_functions_sa" {
+module "envio_email_valoracion_sa" {
   source             = "./modules/iam"
   id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "rating-functions-sa"
-  nombre_despliege   = "Cuenta de servicio para las Cloud Functions de valoración de eventos"
+  id_cuenta_servicio = "envio-email-valoracion-sa"
+  nombre_despliege   = "Cuenta de servicio para la Cloud Function de envío de email de valoración"
   cuenta_servicio_roles = [
     "roles/cloudsql.client",
     "roles/secretmanager.secretAccessor",
     "roles/cloudfunctions.invoker",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "recepcion_valoracion_mail_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "recepcion-valoracion-mail-sa"
+  nombre_despliege   = "Cuenta de servicio para la Cloud Function de recepción de valoraciones"
+  cuenta_servicio_roles = [
+    "roles/secretmanager.secretAccessor",
     "roles/bigquery.dataEditor",
   ]
   depends_on = [
@@ -945,7 +958,7 @@ module "fn_envio_email" {
   punto_entrada         = "enviar_email_valoracion"
   ruta_codigo           = "${path.root}/../backend/valoracion/envio_email"
   bucket_codigo         = module.bucket_funciones_cloud_run.nombre
-  email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
+  email_cuenta_servicio = module.envio_email_valoracion_sa.email_cuenta_servicio
   id_conector_vpc       = module.vpc_portal.vpc_connector_id
 
   configuracion_ingress = "ALLOW_INTERNAL_ONLY"
@@ -956,7 +969,7 @@ module "fn_envio_email" {
     DB_NAME                      = module.cloudsql_portal.database_name
     DB_USER                      = module.cloudsql_portal.db_user
     SENDGRID_FROM_EMAIL          = var.sendgrid_from_email
-    RECEPCION_EMAIL_FUNCTION_URL = module.fn_recepcion_email.url_funcion
+    RECEPCION_EMAIL_FUNCTION_URL = module.fn_recepcion_mail.url_funcion
   }
 
   secretos_entorno = {
@@ -966,7 +979,7 @@ module "fn_envio_email" {
   }
 
   depends_on = [
-    module.rating_functions_sa,
+    module.envio_email_valoracion_sa,
     module.vpc_portal,
     module.cloudsql_portal,
     module.secretos_proyecto,
@@ -975,17 +988,17 @@ module "fn_envio_email" {
   ]
 }
 
-module "fn_recepcion_email" {
+module "fn_recepcion_mail" {
   source                = "./modules/cloud_run_function"
   id_proyecto           = var.id_proyecto
   region                = var.region
-  nombre_funcion        = "recepcion-valoracion-email"
+  nombre_funcion        = "recepcion-valoracion-mail"
   descripcion           = "Recibe la valoración de un evento desde el email y la guarda en BigQuery"
   runtime               = "python312"
   punto_entrada         = "recibir_valoracion"
-  ruta_codigo           = "${path.root}/../backend/valoracion/recepcion_email"
+  ruta_codigo           = "${path.root}/../backend/valoracion/recepcion_mail"
   bucket_codigo         = module.bucket_funciones_cloud_run.nombre
-  email_cuenta_servicio = module.rating_functions_sa.email_cuenta_servicio
+  email_cuenta_servicio = module.recepcion_valoracion_mail_sa.email_cuenta_servicio
 
   configuracion_ingress = "ALLOW_ALL"
   acceso_publico        = true
@@ -1001,24 +1014,24 @@ module "fn_recepcion_email" {
   }
 
   depends_on = [
-    module.rating_functions_sa,
+    module.recepcion_valoracion_mail_sa,
     module.bigquery,
     module.secretos_proyecto,
     module.bucket_funciones_cloud_run,
   ]
 }
 
-module "cicd_valoracion_recepcion_email" {
+module "cicd_valoracion_recepcion_mail" {
   source             = "./modules/wif_workflow"
   id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "cicd-valoracion-recepcion-email"
+  id_cuenta_servicio = "cicd-valoracion-recepcion-mail"
   nombre_despliege   = "Cuenta de servicio para el CI/CD de la Cloud Function de recepción de valoraciones"
   cuenta_servicio_roles = [
     "roles/cloudfunctions.developer",
     "roles/iam.serviceAccountUser",
   ]
   nombre_pool     = module.setup.nombre_pool
-  nombre_workflow = "cicd_valoracion_recepcion_email"
+  nombre_workflow = "cicd_valoracion_recepcion_mail"
   depends_on = [
     module.setup
   ]
