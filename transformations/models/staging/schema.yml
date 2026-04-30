@@ -5,20 +5,20 @@ models:
     description: "Parseo del envelope Pub/Sub a columnas tipadas, alineadas con el schema final de fct_swipes."
     columns:
       - name: interaction_id
-        tests: [not_null, unique]
+        data_tests: [not_null, unique]
       - name: event_id
-        tests: [not_null]
+        data_tests: [not_null]
       - name: user_id
-        tests: [not_null]
+        data_tests: [not_null]
       - name: swipe_direction
-        tests:
+        data_tests:
           - not_null
           - accepted_values:
               values: ['left', 'right']
       - name: event_timestamp
-        tests: [not_null]
+        data_tests: [not_null]
       - name: ingestion_timestamp
-        tests: [not_null]
+        data_tests: [not_null]
       - name: liked
         description: "true si right, false si left."
       - name: session_id

@@ -6,19 +6,24 @@
     incremental_strategy='merge',
     require_partition_filter=true,
     incremental_predicates=[
-      "DBT_INTERNAL_DEST.ingestion_timestamp > timestamp_sub(current_timestamp(), interval 3 day)"
-    ]
+      "DBT_INTERNAL_DEST.ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
+    ],
+    post_hook="DELETE FROM {{ this }} WHERE ingestion_timestamp < timestamp_sub(current_timestamp(), interval 365 day)"
 ) }}
+
+{% set retention_days = var('retention_days', 365) %}
+{% set lookback_days  = var('lookback_days', 7) %}
 
 with swipes as (
     select * from {{ ref('stg_swipes') }}
+    where ingestion_timestamp > timestamp_sub(current_timestamp(), interval {{ retention_days }} day)
     {% if is_incremental() %}
-      where ingestion_timestamp > timestamp_sub(current_timestamp(), interval 3 day)
-        and ingestion_timestamp > (
-          select coalesce(max(ingestion_timestamp), timestamp('1970-01-01'))
-          from {{ this }}
-          where ingestion_timestamp > timestamp_sub(current_timestamp(), interval 3 day)
-        )
+      and ingestion_timestamp > timestamp_sub(current_timestamp(), interval {{ lookback_days }} day)
+      and ingestion_timestamp > (
+        select coalesce(max(ingestion_timestamp), timestamp('1970-01-01'))
+        from {{ this }}
+        where ingestion_timestamp > timestamp_sub(current_timestamp(), interval {{ lookback_days }} day)
+      )
     {% endif %}
 ),
 
