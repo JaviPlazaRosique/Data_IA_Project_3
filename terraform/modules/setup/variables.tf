@@ -21,7 +21,10 @@ variable "servicios_gcp" {
     "places.googleapis.com",
     "aiplatform.googleapis.com",
     "cloudscheduler.googleapis.com",
-    "pubsub.googleapis.com"
+    "pubsub.googleapis.com",
+    "bigquery.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudtasks.googleapis.com"
   ]
 }
 
