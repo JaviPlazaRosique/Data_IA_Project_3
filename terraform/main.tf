@@ -69,6 +69,12 @@ resource "google_storage_bucket_object" "public_config" {
       projectId  = var.id_proyecto
     }
   })
+
+  depends_on = [
+    module.frontend_usuarios,
+    module.cloud_run_portal_api,
+    module.setup,
+  ]
 }
 
 module "cicd_frontend_usuarios" {
