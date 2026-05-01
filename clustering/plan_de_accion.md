@@ -9,6 +9,44 @@ Construir una capacidad de clustering que agrupe usuarios segun sus gustos obser
 - recalcular segmentos de forma periodica y automatizable;
 - llevar el prototipo local a Google Cloud sin rehacer arquitectura.
 
+## Estado actual
+
+Actualmente ya existe un prototipo local funcional en `clustering/prototipo_local` que cubre la fase 1 del plan.
+
+Lo que ya esta implementado:
+
+- generacion de usuarios, eventos e interacciones sinteticas inspiradas en `fct_swipes`;
+- construccion de features por usuario en ventanas de 30 y 90 dias;
+- entrenamiento de un baseline con estandarizacion y `KMeans`;
+- seleccion de `k` mediante metricas offline;
+- generacion de clusters cercanos;
+- produccion de artefactos y tablas de salida del prototipo;
+- informe final del experimento local.
+
+Estructura actual del prototipo:
+
+- `step_1_generate_synthetic_data.py`
+- `step_2_build_user_features.py`
+- `step_3_train_baseline_model.py`
+- `step_4_build_cluster_outputs.py`
+- `step_5_write_report.py`
+- `run_prototype.py`
+
+Artefactos ya disponibles:
+
+- `data/synthetic_users.csv`
+- `data/synthetic_events_catalog.csv`
+- `data/synthetic_fct_swipes.csv`
+- `output/user_features.csv`
+- `output/user_cluster_assignments.csv`
+- `output/cluster_profiles.csv`
+- `output/cluster_neighbors.csv`
+- `output/cluster_event_affinity.csv`
+- `output/model_selection_metrics.csv`
+- `output/prototype_report.md`
+- `artifacts/user_features_metadata.json`
+- `artifacts/model_artifacts.json`
+
 ## Punto de partida actual del proyecto
 
 El repositorio ya tiene gran parte del flujo base necesario:
@@ -42,11 +80,15 @@ Aunque la base es buena, todavia hay huecos que conviene cerrar para que el clus
 
 ## Fase 1. Prototipo local con datos de prueba
 
+Estado: completada en version inicial.
+
+Resultado: existe ya un pipeline local por pasos, reproducible y sin dependencias externas, preparado para validar el enfoque antes de conectarlo a datos reales.
+
 ### 1.1. Dataset local de trabajo
 
 Usar como base la estructura analitica ya preparada para swipes y generar un dataset sintetico con suficiente variabilidad de usuarios.
 
-Acciones:
+Estado actual:
 
 - crear una muestra local con usuarios y eventos sinteticos inspirados en la forma de `fct_swipes`;
 - asegurar que haya diversidad realista en `segmento`, `genero`, `subgenero`, `ciudad`, precio, antelacion al evento y frecuencia de swipe;
@@ -57,7 +99,7 @@ Acciones:
 
 Construir una tabla de features a nivel usuario, idealmente sobre ventanas de 30 y 90 dias.
 
-Features recomendadas:
+Estado actual:
 
 - volumen: `total_swipes`, `total_right_swipes`, `right_swipe_rate`;
 - afinidad por contenido: tasas de like por `segmento`, `genero` y `subgenero`;
@@ -72,7 +114,7 @@ Features recomendadas:
 
 Entrenar primero un baseline con `StandardScaler + KMeans`.
 
-Acciones:
+Estado actual:
 
 - probar varios valores de `k`;
 - comparar `silhouette`, `davies_bouldin`, tamano de clusters y estabilidad entre semillas;
@@ -83,7 +125,7 @@ Acciones:
 
 Para poder recomendar planes de clusters vecinos, calcular cercania entre centroides.
 
-Regla inicial recomendada:
+Estado actual:
 
 - distancia coseno o euclidea entre centroides escalados;
 - guardar para cada cluster sus `top_n` clusters mas cercanos;
@@ -100,9 +142,36 @@ El prototipo local debe producir como minimo:
 - tabla de afinidad cluster -> tipos de evento;
 - informe corto con conclusion de si el clustering es interpretable y util.
 
+Estado de outputs:
+
+- completado: `user_features.csv`
+- completado: `user_cluster_assignments.csv`
+- completado: `cluster_profiles.csv`
+- completado: `cluster_neighbors.csv`
+- completado: `cluster_event_affinity.csv`
+- completado: `prototype_report.md`
+
+### 1.6. Cierre de fase 1
+
+La fase 1 queda suficientemente cubierta para pasar al siguiente bloque de trabajo porque ya tenemos:
+
+- un flujo ejecutable de punta a punta;
+- un baseline interpretable;
+- salidas comparables con las tablas objetivo de produccion;
+- separacion clara entre generacion, features, entrenamiento, outputs e informe.
+
+Lo que no resuelve aun la fase 1:
+
+- no trabaja todavia con datos reales del proyecto;
+- no publica resultados en BigQuery;
+- no se integra aun con dbt ni con el backend;
+- no sirve recomendaciones reales a usuarios.
+
 ## Fase 2. Diseno de recomendacion apoyada en clusters
 
 El clustering no debe recomendar eventos por si solo; debe actuar como senal de priorizacion.
+
+Estado: pendiente. Ya esta definido a nivel conceptual, pero todavia no esta implementado sobre datos reales ni conectado a la app.
 
 ### 2.1. Estrategia de recomendacion
 
@@ -133,6 +202,8 @@ Conviene terminar con tablas consumibles por producto:
 
 ## Fase 3. Integracion en la aplicacion
 
+Estado: siguiente bloque recomendado de trabajo.
+
 ### 3.1. Captura de datos
 
 Ampliar la calidad del dato que llega desde swipes.
@@ -142,6 +213,10 @@ Cambios recomendados:
 - revisar `SwipePage.tsx` para asegurar que cada swipe envia siempre contexto consistente;
 - enriquecer el evento publicado con mas snapshot analitico si hace falta: `segmento`, `genero`, `subgenero`, `ciudad`, precio, fecha del evento y posicion en ranking;
 - decidir si `dwell_ms` va a ser una feature real y asegurar su calidad.
+
+Siguiente paso concreto:
+
+- revisar el payload actual del endpoint y decidir el contrato minimo necesario para soportar clustering sin depender de demasiados joins posteriores.
 
 ### 3.2. Capa analitica dbt
 
@@ -156,6 +231,10 @@ Propuesta de modelos:
 - `dim_cluster_profile`;
 - `dim_cluster_neighbors`.
 
+Siguiente paso concreto:
+
+- traducir las features del prototipo local a modelos dbt reales construidos sobre `fct_swipes`.
+
 ### 3.3. Capa de producto
 
 Definir como consulta la app el cluster del usuario.
@@ -168,7 +247,13 @@ Opciones viables:
 
 Para este proyecto, la opcion mas limpia suele ser: materializar recomendaciones batch en BigQuery y servirlas desde backend con una consulta controlada.
 
+Siguiente paso concreto:
+
+- definir si primero vamos a servir solo `cluster_id` y afinidades, o si daremos ya una tabla materializada de candidatos recomendados por usuario.
+
 ## Fase 4. Paso de local a Google Cloud
+
+Estado: pendiente, pero con la ruta bastante clara gracias al prototipo local ya estabilizado.
 
 ### 4.1. Servicios GCP recomendados
 
@@ -206,6 +291,8 @@ Cuadra mejor si:
 
 ## Fase 5. Infraestructura a crear en Terraform
 
+Estado: pendiente.
+
 Propuesta minima:
 
 1. nuevas tablas BigQuery para features, asignaciones, perfiles y vecinos;
@@ -221,6 +308,8 @@ Si queremos cerrar el ciclo completo, despues se puede anadir:
 - monitorizacion de drift y calidad.
 
 ## Fase 6. Validacion y medicion
+
+Estado: pendiente. La validacion offline inicial ya existe sobre datos sinteticos, pero falta validacion con datos reales y medicion en producto.
 
 ### 6.1. Validacion offline
 
@@ -245,18 +334,18 @@ Metricas recomendadas:
 
 ### Sprint 1. Prototipo local
 
-- generar dataset sintetico;
-- construir features;
-- entrenar y evaluar KMeans;
-- definir clusters cercanos;
-- documentar decision de `k` y primeras lecturas de negocio.
+- completado: generar dataset sintetico;
+- completado: construir features;
+- completado: entrenar y evaluar KMeans;
+- completado: definir clusters cercanos;
+- completado: documentar decision de `k` y primeras lecturas de negocio.
 
 ### Sprint 2. Integracion analitica
 
-- reforzar payload de swipes si hace falta;
-- anadir modelos dbt de features;
-- definir tablas de salida;
-- preparar script batch reproducible con inputs y outputs claros.
+- revisar si el payload de swipes necesita enriquecimiento adicional;
+- anadir modelos dbt de features reales sobre `fct_swipes`;
+- definir tablas de salida analiticas reales en BigQuery;
+- adaptar el pipeline batch para que lea datos reales en lugar de sinteticos.
 
 ### Sprint 3. Despliegue GCP
 
@@ -271,6 +360,24 @@ Metricas recomendadas:
 - conectar backend con las tablas de recomendaciones;
 - activar ranking por cluster en un entorno controlado;
 - medir impacto frente a una baseline sin clustering.
+
+## Proximos pasos recomendados
+
+Orden recomendado a partir de hoy:
+
+1. Mapear las features del prototipo local contra columnas reales de `fct_swipes` y detectar gaps exactos.
+2. Decidir si hay que ampliar el payload del swipe para guardar snapshot del evento y precio.
+3. Crear en dbt los modelos `int_user_swipe_features_30d` e `int_user_swipe_features_90d`.
+4. Adaptar el entrenamiento para leer esas tablas reales y escribir salidas con la misma estructura que el prototipo local.
+5. Definir las tablas finales de producto: asignaciones, perfiles, vecinos y afinidades.
+6. Desplegar el batch de clustering como `Cloud Run Job` y programarlo con `Cloud Scheduler`.
+
+## Siguiente entregable recomendado
+
+El siguiente entregable con mejor relacion valor/esfuerzo es:
+
+- transformar el prototipo local para que, en vez de leer CSVs sinteticos, lea datos reales derivados de `fct_swipes`;
+- y dejar preparadas en dbt las dos primeras tablas de features por usuario.
 
 ## Decisiones tecnicas recomendadas desde el inicio
 
