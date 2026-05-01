@@ -1,0 +1,73 @@
+prototype_feature,status,source_table,source_columns,blocking_reason,proposed_expression
+total_swipes_30d,available_now,fct_swipes,"user_id, event_timestamp",,count(*)
+total_right_swipes_30d,available_now,fct_swipes,liked,,countif(liked)
+right_swipe_rate_30d,available_now,fct_swipes,liked,,"safe_divide(countif(liked), count(*))"
+avg_dwell_ms_30d,needs_staging_enrichment,raw.swipes_raw -> stg_swipes -> fct_swipes,data.dwell_ms,"The raw payload already includes dwell_ms, but stg_swipes and fct_swipes do not expose it yet.","avg(dwell_ms) or avg(if(liked, dwell_ms, null))"
+avg_right_dwell_ms_30d,needs_staging_enrichment,raw.swipes_raw -> stg_swipes -> fct_swipes,data.dwell_ms,"The raw payload already includes dwell_ms, but stg_swipes and fct_swipes do not expose it yet.","avg(dwell_ms) or avg(if(liked, dwell_ms, null))"
+distinct_segments_liked_30d,available_now,fct_swipes,"segmento, liked",,"count(distinct if(liked, segmento, null))"
+distinct_genres_liked_30d,available_now,fct_swipes,"genero, liked",,"count(distinct if(liked, genero, null))"
+distinct_cities_liked_30d,available_now,fct_swipes,"ciudad, liked",,"count(distinct if(liked, ciudad, null))"
+local_like_rate_30d,needs_user_profile_join,fct_swipes + user profile source,ciudad + user preferred/home city,"The event city exists, but the analytical model does not currently have the user's home/preferred city joined in.",compare event ciudad against user preferred/home city
+local_swipe_share_30d,needs_user_profile_join,fct_swipes + user profile source,ciudad + user preferred/home city,"The event city exists, but the analytical model does not currently have the user's home/preferred city joined in.",compare event ciudad against user preferred/home city
+avg_days_until_event_liked_30d,available_now,fct_swipes,"event_timestamp, fecha_evento, liked",,"avg(if(liked, date_diff(fecha_evento, date(event_timestamp), day), null))"
+avg_price_mid_liked_30d,needs_event_price_enrichment,catalog.eventos -> fct_swipes,"precio_min, precio_max or banda_precio",fct_swipes currently sets precio_min and precio_max to null for all rows.,avg((precio_min + precio_max) / 2) or a band-based proxy
+median_price_mid_liked_30d,needs_event_price_enrichment,catalog.eventos -> fct_swipes,"precio_min, precio_max or banda_precio",fct_swipes currently sets precio_min and precio_max to null for all rows.,avg((precio_min + precio_max) / 2) or a band-based proxy
+avg_price_mid_disliked_30d,needs_event_price_enrichment,catalog.eventos -> fct_swipes,"precio_min, precio_max or banda_precio",fct_swipes currently sets precio_min and precio_max to null for all rows.,avg((precio_min + precio_max) / 2) or a band-based proxy
+chat_swipe_share_30d,available_now,fct_swipes,"recommendation_context, liked",,share of chat interactions or likes inside chat context
+chat_right_rate_30d,available_now,fct_swipes,"recommendation_context, liked",,share of chat interactions or likes inside chat context
+days_since_last_right_swipe_30d,available_now,fct_swipes,"event_timestamp, liked",,"timestamp_diff(current_timestamp(), max(if(liked, event_timestamp, null)), day)"
+like_rate_segment_music_30d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_segment_sports_30d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_segment_arts_theatre_30d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_segment_family_30d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_genre_rock_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_pop_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_electronic_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_urban_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_football_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_basketball_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_tennis_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_theatre_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_musical_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_comedy_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_classical_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_kids_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_circus_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_exhibition_30d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+total_swipes_90d,available_now,fct_swipes,"user_id, event_timestamp",,count(*)
+total_right_swipes_90d,available_now,fct_swipes,liked,,countif(liked)
+right_swipe_rate_90d,available_now,fct_swipes,liked,,"safe_divide(countif(liked), count(*))"
+avg_dwell_ms_90d,needs_staging_enrichment,raw.swipes_raw -> stg_swipes -> fct_swipes,data.dwell_ms,"The raw payload already includes dwell_ms, but stg_swipes and fct_swipes do not expose it yet.","avg(dwell_ms) or avg(if(liked, dwell_ms, null))"
+avg_right_dwell_ms_90d,needs_staging_enrichment,raw.swipes_raw -> stg_swipes -> fct_swipes,data.dwell_ms,"The raw payload already includes dwell_ms, but stg_swipes and fct_swipes do not expose it yet.","avg(dwell_ms) or avg(if(liked, dwell_ms, null))"
+distinct_segments_liked_90d,available_now,fct_swipes,"segmento, liked",,"count(distinct if(liked, segmento, null))"
+distinct_genres_liked_90d,available_now,fct_swipes,"genero, liked",,"count(distinct if(liked, genero, null))"
+distinct_cities_liked_90d,available_now,fct_swipes,"ciudad, liked",,"count(distinct if(liked, ciudad, null))"
+local_like_rate_90d,needs_user_profile_join,fct_swipes + user profile source,ciudad + user preferred/home city,"The event city exists, but the analytical model does not currently have the user's home/preferred city joined in.",compare event ciudad against user preferred/home city
+local_swipe_share_90d,needs_user_profile_join,fct_swipes + user profile source,ciudad + user preferred/home city,"The event city exists, but the analytical model does not currently have the user's home/preferred city joined in.",compare event ciudad against user preferred/home city
+avg_days_until_event_liked_90d,available_now,fct_swipes,"event_timestamp, fecha_evento, liked",,"avg(if(liked, date_diff(fecha_evento, date(event_timestamp), day), null))"
+avg_price_mid_liked_90d,needs_event_price_enrichment,catalog.eventos -> fct_swipes,"precio_min, precio_max or banda_precio",fct_swipes currently sets precio_min and precio_max to null for all rows.,avg((precio_min + precio_max) / 2) or a band-based proxy
+median_price_mid_liked_90d,needs_event_price_enrichment,catalog.eventos -> fct_swipes,"precio_min, precio_max or banda_precio",fct_swipes currently sets precio_min and precio_max to null for all rows.,avg((precio_min + precio_max) / 2) or a band-based proxy
+avg_price_mid_disliked_90d,needs_event_price_enrichment,catalog.eventos -> fct_swipes,"precio_min, precio_max or banda_precio",fct_swipes currently sets precio_min and precio_max to null for all rows.,avg((precio_min + precio_max) / 2) or a band-based proxy
+chat_swipe_share_90d,available_now,fct_swipes,"recommendation_context, liked",,share of chat interactions or likes inside chat context
+chat_right_rate_90d,available_now,fct_swipes,"recommendation_context, liked",,share of chat interactions or likes inside chat context
+days_since_last_right_swipe_90d,available_now,fct_swipes,"event_timestamp, liked",,"timestamp_diff(current_timestamp(), max(if(liked, event_timestamp, null)), day)"
+like_rate_segment_music_90d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_segment_sports_90d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_segment_arts_theatre_90d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_segment_family_90d,available_now,fct_swipes,"segmento, liked",,"coalesce(safe_divide(countif(liked and segmento = X), countif(segmento = X)), 0.0)"
+like_rate_genre_rock_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_pop_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_electronic_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_urban_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_football_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_basketball_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_tennis_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_theatre_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_musical_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_comedy_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_classical_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_kids_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_circus_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+like_rate_genre_exhibition_90d,available_now,fct_swipes,"genero, liked",,"coalesce(safe_divide(countif(liked and genero = X), countif(genero = X)), 0.0)"
+right_swipe_rate_delta_30_vs_90,derived_after_feature_models,dim_user_cluster_features_current,int_user_swipe_features_30d + int_user_swipe_features_90d,,difference between 30d and 90d aggregated features
+total_swipes_delta_30_vs_90,derived_after_feature_models,dim_user_cluster_features_current,int_user_swipe_features_30d + int_user_swipe_features_90d,,difference between 30d and 90d aggregated features

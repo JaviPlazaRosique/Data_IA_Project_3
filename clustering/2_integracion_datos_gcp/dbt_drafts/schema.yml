@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: int_user_swipe_features_30d
+    description: "Borrador de features de clustering agregadas a 30 dias sobre fct_swipes."
+    columns:
+      - name: user_id
+        description: "Usuario agregado."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: int_user_swipe_features_90d
+    description: "Borrador de features de clustering agregadas a 90 dias sobre fct_swipes."
+    columns:
+      - name: user_id
+        description: "Usuario agregado."
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_user_cluster_features_current
+    description: "Borrador de vista/tabla base para alimentar el entrenamiento del clustering."
+    columns:
+      - name: user_id
+        description: "Usuario listo para clustering."
+        data_tests:
+          - not_null
+          - unique
