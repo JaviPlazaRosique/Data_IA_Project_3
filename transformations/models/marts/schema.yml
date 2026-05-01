@@ -19,6 +19,8 @@ models:
           - not_null:
               config:
                 where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
+      - name: schema_version
+        description: "Version del contrato del payload original, si fue informada por el cliente."
       - name: user_id
         description: "Usuario autenticado."
         data_tests:
@@ -59,27 +61,53 @@ models:
           - not_null:
               config:
                 where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
+      - name: dwell_ms
+        description: "Milisegundos que la tarjeta estuvo visible antes de hacer swipe."
       - name: recommendation_context
-        description: "Origen de la recomendación: discover, map, planner, etc."
+        description: "Origen de la recomendacion: swipe, chat, etc."
+      - name: rank_position
+        description: "Posicion del evento en el ranking o deck cuando se mostro."
+      - name: recommendation_id
+        description: "ID de trazabilidad de la recomendacion."
+      - name: producer_surface
+        description: "Superficie cliente que produjo el evento."
+      - name: producer_client_version
+        description: "Version del cliente frontend, si esta disponible."
       - name: segmento
-        description: "Segmento del evento."
+        description: "Segmento del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: genero
-        description: "Género del evento."
+        description: "Genero del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: subgenero
-        description: "Subgénero del evento."
+        description: "Subgenero del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: ciudad
-        description: "Ciudad del evento."
+        description: "Ciudad del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: precio_min
-        description: "Precio mínimo del evento."
+        description: "Precio minimo del evento enviado en el snapshot."
       - name: precio_max
-        description: "Precio máximo del evento."
+        description: "Precio maximo del evento enviado en el snapshot."
+      - name: banda_precio
+        description: "Banda de precio del evento, priorizando snapshot y usando catalogo como fallback."
       - name: fecha_evento
-        description: "Fecha del evento."
+        description: "Fecha del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: recinto_id
-        description: "ID del recinto."
+        description: "ID del recinto, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: ingestion_timestamp
         description: "Momento de escritura técnica (Pub/Sub publish_time)."
         data_tests:
           - not_null:
               config:
                 where: "ingestion_timestamp > timestamp_sub(current_timestamp(), interval 7 day)"
+
+  - name: dim_user_cluster_features_current
+    description: "Tabla actual de features por usuario lista para exportar y entrenar clustering."
+    columns:
+      - name: user_id
+        data_tests: [not_null, unique]
+      - name: total_swipes_30d
+        description: "Volumen de swipes en 30 dias."
+      - name: total_swipes_90d
+        description: "Volumen de swipes en 90 dias."
+      - name: right_swipe_rate_delta_30_vs_90
+        description: "Cambio de afinidad reciente frente a la ventana larga."
+      - name: total_swipes_delta_30_vs_90
+        description: "Cambio de volumen reciente frente a la ventana larga."

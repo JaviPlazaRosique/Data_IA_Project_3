@@ -35,6 +35,9 @@ class EventRead(BaseModel):
     recinto_id: str | None = None
     recinto_nombre: str | None = None
     ciudad: str | None = None
+    precio_min: float | None = None
+    precio_max: float | None = None
+    banda_precio: str | None = None
     direccion: str | None = None
     latitud: float | None = None
     longitud: float | None = None
