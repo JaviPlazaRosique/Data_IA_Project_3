@@ -35,7 +35,7 @@ module "setup" {
   usuario_github = var.usuario_github
   referidores_maps = [
     "https://storage.googleapis.com/*",
-    "${module.frontend_usuarios.url_web}/*",
+    "https://app-recomendacion-eventos-${var.id_proyecto}.storage.googleapis.com/*",
   ]
 
   providers = {
