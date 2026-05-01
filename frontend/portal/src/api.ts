@@ -175,13 +175,36 @@ export type SwipeDirection = 'left' | 'right';
 
 export type RecommendationContext = 'swipe' | 'chat';
 
+export interface SwipeEventSnapshot {
+  event_id: string;
+  segmento?: string | null;
+  genero?: string | null;
+  subgenero?: string | null;
+  ciudad?: string | null;
+  recinto_id?: string | null;
+  fecha_evento?: string | null;
+  precio_min?: number | null;
+  precio_max?: number | null;
+  banda_precio?: string | null;
+}
+
+export interface SwipeEventProducer {
+  surface: RecommendationContext;
+  client_version?: string | null;
+}
+
 export interface SwipeEventCreate {
+  schema_version: '2.0';
   event_id: string;
   direction: SwipeDirection;
-  swiped_at?: string;
+  swiped_at: string;
   dwell_ms?: number;
-  session_id?: string;
-  recommendation_context?: RecommendationContext;
+  session_id: string;
+  recommendation_context: RecommendationContext;
+  rank_position?: number | null;
+  recommendation_id?: string | null;
+  producer?: SwipeEventProducer;
+  event_snapshot: SwipeEventSnapshot;
 }
 
 export interface SwipeEventAccepted {
@@ -199,7 +222,11 @@ export interface EventCatalogItem {
   fecha_utc: string | null;
   estado: string | null;
   ciudad: string | null;
+  recinto_id: string | null;
   recinto_nombre: string | null;
+  precio_min: number | null;
+  precio_max: number | null;
+  banda_precio: string | null;
   direccion: string | null;
   latitud: number | null;
   longitud: number | null;
