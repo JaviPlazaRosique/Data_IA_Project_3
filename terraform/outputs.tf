@@ -87,3 +87,25 @@ output "valoracion_recepcion_mail_cuenta_servicio" {
   description = "Cuenta de servicio del CI/CD de la Cloud Function de recepción de valoraciones (GitHub Secret: VALORACION_RECEPCION_MAIL_CUENTA_SERVICIO)"
   value       = module.cicd_valoracion_recepcion_mail.email_cuenta_servicio
 }
+
+output "firebase_api_key" {
+  description = "API Key de Firebase para el frontend (GitHub Secret: FIREBASE_API_KEY)"
+  value       = module.setup.firebase_api_key
+  sensitive   = true
+}
+
+output "firebase_auth_domain" {
+  description = "Auth domain de Firebase (GitHub Variable: FIREBASE_AUTH_DOMAIN)"
+  value       = module.setup.firebase_auth_domain
+}
+
+output "firebase_project_id" {
+  description = "Project ID de Firebase (GitHub Variable: FIREBASE_PROJECT_ID)"
+  value       = var.id_proyecto
+}
+
+output "maps_api_key" {
+  description = "API Key de Google Maps JavaScript para el frontend (GitHub Secret: MAPS_API_KEY)"
+  value       = module.setup.google_maps_key_string
+  sensitive   = true
+}
