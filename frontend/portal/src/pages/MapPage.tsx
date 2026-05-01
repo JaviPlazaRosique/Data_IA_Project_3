@@ -20,6 +20,7 @@ import {
 } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
+import { awaitConfig, getMapsApiKey } from '../config';
 
 const CITY_COORDS: Record<string, [number, number]> = {
   madrid: [40.4168, -3.7038],
@@ -162,20 +163,6 @@ function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
     }));
 }
 
-const GMAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
-const GMAPS_MAP_ID =
-  (import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined) || undefined;
-
-// AdvancedMarkerElement requires a vector map, which only loads when a
-// Cloud-based map style ID is provided. Without it the map renders raster
-// tiles and AdvancedMarker.setMap throws "Cannot read properties of
-// undefined (reading 'getRootNode')".
-if (!GMAPS_MAP_ID && typeof window !== 'undefined') {
-  // eslint-disable-next-line no-console
-  console.warn(
-    '[MapPage] VITE_GOOGLE_MAPS_MAP_ID is not set. Advanced markers will not render.',
-  );
-}
 
 type Bounds = { south: number; west: number; north: number; east: number };
 
@@ -640,6 +627,14 @@ export default function MapPage() {
   const initialFetchedRef = useRef(false);
   const [initialCenter, setInitialCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
   const initialResolvedRef = useRef(false);
+  const [mapsApiKey, setMapsApiKey] = useState('');
+  // Map ID is a Cloud-based style ID required for AdvancedMarker (vector tiles).
+  // It is not a secret — baked in at build time or falls back to undefined (raster tiles).
+  const mapsMapId = (import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined) || undefined;
+
+  useEffect(() => {
+    awaitConfig().then(() => setMapsApiKey(getMapsApiKey()));
+  }, []);
 
   // Resolve starting map center: geolocation > saved city > Madrid.
   useEffect(() => {
@@ -886,12 +881,12 @@ export default function MapPage() {
         <section className="relative flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row">
 
           <div className="h-[45vh] md:h-auto md:flex-1 relative shrink-0">
-            {initialCenter ? (
-            <APIProvider apiKey={GMAPS_API_KEY}>
+            {initialCenter && mapsApiKey ? (
+            <APIProvider apiKey={mapsApiKey}>
               <GMap
                 defaultCenter={{ lat: initialCenter.lat, lng: initialCenter.lng }}
                 defaultZoom={initialCenter.zoom}
-                mapId={GMAPS_MAP_ID}
+                mapId={mapsMapId}
                 disableDefaultUI
                 gestureHandling="greedy"
                 style={{ width: '100%', height: '100%' }}

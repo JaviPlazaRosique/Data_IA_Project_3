@@ -6,6 +6,7 @@ export interface FirebaseConfig {
 
 interface PublicConfig {
   backendUrl: string;
+  mapsApiKey?: string;
   firebase?: FirebaseConfig;
 }
 
@@ -42,4 +43,8 @@ export function isServerAvailable(): boolean {
 
 export function getFirebaseConfig(): FirebaseConfig | null {
   return config.firebase ?? null;
+}
+
+export function getMapsApiKey(): string {
+  return config.mapsApiKey ?? import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '';
 }
