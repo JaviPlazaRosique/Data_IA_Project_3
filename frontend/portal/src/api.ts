@@ -39,6 +39,7 @@ export interface UserRead {
 }
 
 export interface UpdateMeData {
+  username?: string | null;
   full_name?: string | null;
   avatar_url?: string | null;
   preferred_budget?: string | null;
@@ -77,6 +78,12 @@ export async function apiUploadAvatar(file: File): Promise<UserRead> {
     const err = await res.json().catch(() => ({}));
     throw new ApiError(res.status, err.detail ?? 'Avatar upload failed');
   }
+  return res.json();
+}
+
+export async function apiCheckUsername(username: string): Promise<{ available: boolean }> {
+  const res = await authFetch(`/api/v1/users/check-username?username=${encodeURIComponent(username)}`);
+  if (!res.ok) throw new ApiError(res.status, 'Failed to check username');
   return res.json();
 }
 

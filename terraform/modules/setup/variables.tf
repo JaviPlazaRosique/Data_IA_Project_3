@@ -24,13 +24,22 @@ variable "servicios_gcp" {
     "pubsub.googleapis.com",
     "bigquery.googleapis.com",
     "cloudfunctions.googleapis.com",
-    "cloudtasks.googleapis.com"
+    "cloudtasks.googleapis.com",
+    "maps-backend.googleapis.com",
+    "firebase.googleapis.com",
+    "identitytoolkit.googleapis.com"
   ]
 }
 
 variable "id_proyecto" {
   description = "ID del proyecto de GCP"
   type        = string
+}
+
+variable "referidores_maps" {
+  description = "Lista de dominios permitidos para la API Key de Google Maps (browser restrictions)"
+  type        = list(string)
+  default     = ["*"]
 }
 
 variable "usuario_github" {
