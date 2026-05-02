@@ -3,10 +3,13 @@
 with base as (
     select
         *,
-        case
-            when precio_min is not null and precio_max is not null
-                then (precio_min + precio_max) / 2.0
-        end as price_mid
+        coalesce(
+            case
+                when precio_min is not null and precio_max is not null
+                    then (precio_min + precio_max) / 2.0
+            end,
+            price_proxy_mid
+        ) as price_mid
     from {{ ref('fct_swipes') }}
     where event_timestamp >= timestamp_sub(current_timestamp(), interval 30 day)
 ),

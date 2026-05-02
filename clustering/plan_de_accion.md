@@ -507,7 +507,7 @@ El siguiente entregable con mejor relacion valor/esfuerzo es:
 
 ## Bloqueos actuales mas importantes
 
-- `precio_min` y `precio_max` dependen de que el frontend/catalogo los tenga disponibles; mientras tanto `banda_precio` queda como proxy;
+- `precio_min` y `precio_max` dependen de que el frontend/catalogo los tenga disponibles; mientras tanto `banda_precio` queda codificada como proxy numerico (`bajo=15`, `medio=45`, `alto=90`);
 - falta una referencia analitica clara para la ciudad o localizacion del usuario;
 - falta validar el contrato enriquecido con datos reales en BigQuery.
 
