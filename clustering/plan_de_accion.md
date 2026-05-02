@@ -15,6 +15,7 @@ Actualmente ya existen dos bloques de trabajo principales dentro de `clustering`
 
 - `clustering/1_prototipo_local`: prototipo local funcional que cubre la fase 1 del plan.
 - `clustering/2_integracion_datos_gcp`: fase preparatoria para llevar el clustering a datos reales, dbt y GCP.
+- `clustering/3_generacion_interacciones_demo`: generacion de swipes sinteticos sobre eventos reales para demo y pruebas de clustering.
 
 Lo que ya esta implementado:
 
@@ -32,6 +33,7 @@ Lo que ya esta implementado:
 - adaptacion de `stg_swipes` y `fct_swipes` para `dwell_ms` y `event_snapshot`;
 - adaptacion del entrenamiento para leer exports reales de features;
 - scaffold inicial del batch en GCP con `Cloud Run Job` y `Cloud Scheduler`.
+- generacion y carga en BigQuery de interacciones sinteticas de demo con contrato `v2`.
 
 Estructura actual de `1_prototipo_local`:
 
@@ -66,6 +68,18 @@ Estructura actual de `2_integracion_datos_gcp`:
 - `step_5_preparar_batch_gcp.py`
 - `README.md`
 
+Estructura actual de `3_generacion_interacciones_demo`:
+
+- `step_1_export_real_events.py`
+- `step_2_generate_demo_users.py`
+- `step_3_generate_synthetic_swipes.py`
+- `step_4_load_swipes_to_bigquery.py`
+- `step_5_validate_loaded_swipes.py`
+- `step_6_refresh_analytics_with_bq.py`
+- `step_7_enrich_feature_export_with_demo_metadata.py`
+- `run_generation_pipeline.py`
+- `README.md`
+
 Artefactos ya disponibles en `2_integracion_datos_gcp`:
 
 - `outputs/feature_mapping.csv`
@@ -78,6 +92,15 @@ Artefactos ya disponibles en `2_integracion_datos_gcp`:
 - `gcp_batch/job_main.py`
 - `gcp_batch/terraform_clustering_job_snippet.tf`
 - `gcp_batch/runbook.md`
+
+Artefactos ya disponibles en `3_generacion_interacciones_demo`:
+
+- `outputs/real_events.csv`
+- `outputs/demo_users.csv`
+- `outputs/synthetic_swipes_preview.csv`
+- `outputs/synthetic_swipes_raw_rows.jsonl`
+- `outputs/generation_summary.json`
+- `outputs/validation_summary.json`
 
 ## Punto de partida actual del proyecto
 
@@ -283,6 +306,74 @@ Objetivo:
 
 - preparar el despliegue batch siguiendo el stack actual del repositorio: BigQuery, Cloud Run Job, Scheduler y Terraform.
 
+## Fase 1.6. Interacciones sinteticas sobre eventos reales
+
+Estado: completada para demo inicial.
+
+Resultado: se ha creado `clustering/3_generacion_interacciones_demo` para poblar la tabla de interacciones con usuarios y swipes sinteticos, manteniendo el catalogo de eventos real como fuente.
+
+### 1.6.1. Generacion de datos
+
+Estado: completado.
+
+Entregables:
+
+- export local de 694 eventos reales desde `recomendacion_planes.eventos`;
+- 184 usuarios demo deterministas;
+- 13.069 swipes sinteticos en formato compatible con `swipes_raw`;
+- payloads marcados con `data_origin = synthetic_demo`;
+- identificador de ejecucion `synthetic_run_id = synthetic_demo_20260502`.
+
+### 1.6.2. Contrato y trazabilidad
+
+Estado: validado en BigQuery.
+
+Resultado de validacion:
+
+- filas cargadas: 13.069;
+- usuarios sinteticos: 184;
+- eventos reales cubiertos: 694;
+- filas con `schema_version = 2.0`: 13.069;
+- filas con `event_snapshot`: 13.069;
+- filas con `dwell_ms`: 13.069;
+- `right_swipe_rate` global: 0,481.
+
+### 1.6.3. Decisiones tomadas
+
+- no se modifica la tabla de eventos;
+- no se escriben directamente tablas derivadas como `fct_swipes` o features;
+- las interacciones se insertan en `swipes_raw`, igual que si vinieran de Pub/Sub;
+- el `event_snapshot` normaliza la taxonomia a los valores usados por las features de clustering;
+- los datos sinteticos quedan identificados por `synthetic_run_id` y `data_origin`.
+
+### 1.6.4. Siguiente paso tras la carga
+
+Estado: completado mediante fallback local con `bq`, porque `dbt build` requiere Application Default Credentials en este entorno.
+
+La capa analitica ya se refresco para que los swipes nuevos entren en:
+
+- `stg_swipes`;
+- `fct_swipes`;
+- `int_user_swipe_features_30d`;
+- `int_user_swipe_features_90d`;
+- `dim_user_cluster_features_current`.
+
+Resultado tras refrescar:
+
+- `fct_swipes`: 17.412 filas;
+- swipes `v2` en `fct_swipes`: 13.069;
+- usuarios en features: 196;
+- swipes medios a 90 dias por usuario: 88,84.
+
+Tambien se ejecuto un smoke test de entrenamiento con el export actualizado:
+
+- input: `clustering/2_integracion_datos_gcp/real_exports/dim_user_cluster_features_current_synthetic_demo_20260502_enriched.csv`;
+- output: `clustering/2_integracion_datos_gcp/training_outputs/smoke_synthetic_demo_20260502_enriched`;
+- filas entrenadas: 196;
+- `k` seleccionado: 4;
+- `silhouette`: 0,156;
+- lectura: el pipeline tecnico ya esta cerrado, pero los clusters aun mezclan varias personas sinteticas y conviene mejorar features/segmentacion antes de usarlo como ranking principal.
+
 ## Fase 2. Diseno de recomendacion apoyada en clusters
 
 El clustering no debe recomendar eventos por si solo; debe actuar como senal de priorizacion.
@@ -466,6 +557,7 @@ Metricas recomendadas:
 - completado: promover esos borradores a modelos reales del proyecto;
 - completado: actualizar `stg_swipes` y `fct_swipes` para soportar `dwell_ms`, precio y snapshot enriquecido;
 - completado: implementar `swipe_event_contract_v2` en frontend y backend;
+- completado: generar y cargar swipes sinteticos de demo contra eventos reales en `swipes_raw`;
 - pendiente: definir tablas de salida analiticas reales en BigQuery.
 
 ### Sprint 3. Despliegue GCP
@@ -487,23 +579,23 @@ Metricas recomendadas:
 
 Orden recomendado a partir de hoy:
 
-1. Ejecutar `dbt parse/build` en un entorno con dbt instalado y credenciales de BigQuery.
-2. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
-3. Exportar `dim_user_cluster_features_current` y ejecutar `step_4_entrenar_desde_feature_export.py` contra datos reales.
-4. Resolver la estrategia de precio para clustering:
+1. Revisar perfiles de cluster y comprobar si las personas sinteticas se separan de forma suficientemente interpretable.
+2. Mejorar las features de afinidad para que el modelo no mezcle tanto perfiles de familia, cultura y discovery.
+3. Crear tablas finales de salida del clustering en BigQuery: asignaciones, perfiles, vecinos y afinidad cluster-evento.
+4. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
+5. Resolver la estrategia de precio para clustering:
    usar `precio_min/precio_max` si se incorporan;
    o usar temporalmente `banda_precio` como proxy.
-5. Definir como obtener la ciudad de referencia del usuario para features locales.
-6. Crear las tablas finales de salida del clustering en BigQuery.
+6. Definir como obtener la ciudad de referencia del usuario para features locales.
 7. Promover el scaffold GCP a un `Cloud Run Job` desplegable con Terraform y Scheduler.
 
 ## Siguiente entregable recomendado
 
 El siguiente entregable con mejor relacion valor/esfuerzo es:
 
-- validar el flujo end to end con un swipe real publicado desde la app;
-- materializar `dim_user_cluster_features_current` en BigQuery;
-- ejecutar el entrenamiento con un export real de esa tabla.
+- mejorar las features de clustering para separar mejor perfiles de musica, cultura, familia, discovery y deportes;
+- materializar las tablas de salida del clustering en BigQuery;
+- preparar una primera vista de candidatos recomendados por usuario basada en cluster propio y clusters cercanos.
 
 ## Bloqueos actuales mas importantes
 
