@@ -1,0 +1,5 @@
+cluster_id,cluster_size,share_of_users,dominant_synthetic_persona,dominant_synthetic_persona_share,dominant_home_city,dominant_home_city_share,top_segment_1,top_segment_2,top_genre_1,top_genre_2
+0,9,0.045918,n/a,0.0,n/a,0.0,music_30d,music_90d,pop_30d,pop_90d
+1,110,0.561224,family_weekend_exhibition,0.318182,Barcelona,0.327273,arts_theatre_30d,family_30d,musical_30d,musical_90d
+2,3,0.015306,n/a,0.0,n/a,0.0,sports_30d,sports_90d,basketball_30d,basketball_90d
+3,74,0.377551,flamenco_world_madrid,0.337838,Malaga,0.256757,music_90d,music_30d,pop_30d,pop_90d
