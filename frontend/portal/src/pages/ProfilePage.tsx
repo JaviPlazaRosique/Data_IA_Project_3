@@ -12,6 +12,7 @@ import {
   apiUploadAvatar,
   apiListSavedEvents,
   apiUnsaveEvent,
+  apiRegistrarVisita,
   ApiError,
   type SavedEventRead,
 } from '../api';
@@ -410,7 +411,10 @@ export default function ProfilePage() {
                             href={event.event_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              apiRegistrarVisita(event.event_id).catch(() => {});
+                            }}
                             className="block text-center w-full border border-outline-variant/30 py-2.5 rounded-full text-xs font-bold hover:bg-on-surface hover:text-surface transition-colors"
                           >
                             Reservar
