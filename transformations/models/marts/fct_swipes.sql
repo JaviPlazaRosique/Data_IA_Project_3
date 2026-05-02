@@ -70,6 +70,16 @@ select
     d.snapshot_precio_min as precio_min,
     d.snapshot_precio_max as precio_max,
     coalesce(d.snapshot_banda_precio, e.banda_precio) as banda_precio,
+    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
+        when 'bajo' then 1
+        when 'medio' then 2
+        when 'alto' then 3
+    end as banda_precio_score,
+    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
+        when 'bajo' then 15.0
+        when 'medio' then 45.0
+        when 'alto' then 90.0
+    end as price_proxy_mid,
     coalesce(d.snapshot_fecha_evento, e.fecha_evento) as fecha_evento,
     coalesce(d.snapshot_recinto_id, e.recinto_id) as recinto_id,
     d.ingestion_timestamp

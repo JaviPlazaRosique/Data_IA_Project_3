@@ -82,6 +82,18 @@ Genera en `gcp_batch/`:
 
 Prepara el scaffold del `Cloud Run Job` y del `Scheduler` siguiendo el estilo del repositorio actual.
 
+### 6. `step_6_validar_contrato_v2_bigquery.py`
+
+Valida en BigQuery si los swipes recientes ya cumplen `swipe_event_contract_v2` y si `fct_swipes` tiene disponible el proxy numerico de precio.
+
+Ejemplo:
+
+```bash
+python3 clustering/2_integracion_datos_gcp/step_6_validar_contrato_v2_bigquery.py \
+  --project-id project3grupo3 \
+  --lookback-hours 24
+```
+
 ## Orden recomendado de ejecucion
 
 ```bash
@@ -90,6 +102,9 @@ python3 clustering/2_integracion_datos_gcp/step_3_definir_contrato_swipe_v2.py
 python3 clustering/2_integracion_datos_gcp/step_4_entrenar_desde_feature_export.py \
   --input-csv clustering/1_prototipo_local/output/user_features.csv
 python3 clustering/2_integracion_datos_gcp/step_5_preparar_batch_gcp.py
+python3 clustering/2_integracion_datos_gcp/step_6_validar_contrato_v2_bigquery.py \
+  --project-id project3grupo3 \
+  --lookback-hours 24
 ```
 
 ## Como usar esto para avanzar en el proyecto
@@ -97,8 +112,9 @@ python3 clustering/2_integracion_datos_gcp/step_5_preparar_batch_gcp.py
 1. Revisar `outputs/feature_gap_report.md` y decidir que bloqueos se corrigen primero.
 2. Ejecutar y validar los modelos dbt promovidos en `transformations/models/`.
 3. Validar en datos reales que el contrato `v2` del swipe llega completo a BigQuery.
-4. Exportar el modelo real de features desde BigQuery y probar el entrenamiento con `step_4`.
-5. Promover `gcp_batch/` a una imagen de `Cloud Run Job` cuando el flujo con datos reales ya sea estable.
+4. Validar que `banda_precio` queda codificada como `banda_precio_score` y `price_proxy_mid` mientras no haya precio real.
+5. Exportar el modelo real de features desde BigQuery y probar el entrenamiento con `step_4`.
+6. Promover `gcp_batch/` a una imagen de `Cloud Run Job` cuando el flujo con datos reales ya sea estable.
 
 ## Notas de diseno
 

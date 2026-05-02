@@ -32,6 +32,16 @@ Evitar que el clustering dependa exclusivamente de joins posteriores y guardar e
 - `event_snapshot`: protege de cambios posteriores en el catalogo.
 - `banda_precio`: alternativa temporal mientras no haya precio numerico estable.
 
+## Proxy temporal de precio
+
+Mientras `precio_min` y `precio_max` no esten disponibles de forma estable, la capa analitica codifica `banda_precio` asi:
+
+- `bajo` -> `banda_precio_score = 1`, `price_proxy_mid = 15.0`
+- `medio` -> `banda_precio_score = 2`, `price_proxy_mid = 45.0`
+- `alto` -> `banda_precio_score = 3`, `price_proxy_mid = 90.0`
+
+Las features `avg_price_mid_*` usan primero precio numerico real y, si no existe, este proxy.
+
 ## Implementacion recomendada
 
 1. Frontend:

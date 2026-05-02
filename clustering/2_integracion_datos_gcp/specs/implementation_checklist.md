@@ -26,3 +26,5 @@
   - `event_snapshot.banda_precio`
 - completado: incluir `dwell_ms` en `stg_swipes` y `fct_swipes`.
 - completado: actualizar tests y descripciones de schema.
+- completado: codificar `banda_precio` como proxy numerico en `fct_swipes`.
+- pendiente: desplegar frontend/backend y verificar que BigQuery recibe filas con `schema_version = '2.0'` y `event_snapshot`.
