@@ -15,6 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_DIR = BASE_DIR / "training_outputs" / "real_feature_clustering"
 RANDOM_SEED = 20260501
 RESERVED_METADATA_COLUMNS = {"user_id", "home_city", "synthetic_persona"}
+MIN_FEATURE_STD = 1e-9
 
 
 def mean_or_zero(values: list[float]) -> float:
@@ -64,13 +65,57 @@ def read_feature_rows(path: Path) -> list[dict[str, Any]]:
 
 
 def numeric_feature_columns(rows: list[dict[str, Any]]) -> list[str]:
-    first_row = rows[0]
-    return [column for column in first_row.keys() if column not in RESERVED_METADATA_COLUMNS]
+    columns = [column for column in rows[0].keys() if column not in RESERVED_METADATA_COLUMNS]
+    selected_columns = []
+    for column in columns:
+        values = [float(row[column]) for row in rows]
+        mean_value = mean_or_zero(values)
+        variance = mean_or_zero([(value - mean_value) ** 2 for value in values])
+        if math.sqrt(variance) > MIN_FEATURE_STD:
+            selected_columns.append(column)
+    return selected_columns
 
 
-def standardize_matrix(rows: list[dict[str, Any]], columns: list[str]) -> tuple[list[list[float]], dict[str, float], dict[str, float]]:
+def feature_weight(column: str) -> float:
+    if column.startswith("total_swipes"):
+        return 0.30
+    if column.startswith("total_right_swipes"):
+        return 0.35
+    if column.startswith("total_swipes_delta"):
+        return 0.25
+    if column.startswith("right_swipe_rate"):
+        return 0.85
+    if column.startswith("distinct_"):
+        return 0.70
+    if column.startswith("avg_dwell") or column.startswith("avg_right_dwell"):
+        return 0.65
+    if column.startswith("avg_price") or column.startswith("median_price"):
+        return 0.65
+    if column.startswith("avg_days_until"):
+        return 0.55
+    if column.startswith("days_since"):
+        return 0.45
+    if column.startswith("chat_"):
+        return 0.45
+    if column.startswith("swipe_share_"):
+        return 1.00
+    if column.startswith("like_rate_"):
+        return 1.10
+    if column.startswith("liked_share_"):
+        return 1.80
+    if column.startswith("preference_lift_"):
+        return 1.60
+    if column.startswith("local_"):
+        return 0.40
+    return 1.0
+
+
+def standardize_matrix(
+    rows: list[dict[str, Any]], columns: list[str]
+) -> tuple[list[list[float]], dict[str, float], dict[str, float], dict[str, float]]:
     means: dict[str, float] = {}
     stds: dict[str, float] = {}
+    weights = {column: feature_weight(column) for column in columns}
     for column in columns:
         values = [float(row[column]) for row in rows]
         mean_value = mean_or_zero(values)
@@ -81,8 +126,8 @@ def standardize_matrix(rows: list[dict[str, Any]], columns: list[str]) -> tuple[
 
     matrix = []
     for row in rows:
-        matrix.append([(float(row[column]) - means[column]) / stds[column] for column in columns])
-    return matrix, means, stds
+        matrix.append([((float(row[column]) - means[column]) / stds[column]) * weights[column] for column in columns])
+    return matrix, means, stds, weights
 
 
 def squared_distance(point_a: list[float], point_b: list[float]) -> float:
@@ -241,18 +286,22 @@ def davies_bouldin_score(points: list[list[float]], labels: list[int], centers: 
 def select_best_model(points: list[list[float]], k_values: list[int]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     results = []
     best_model: dict[str, Any] | None = None
+    min_cluster_threshold = max(5, len(points) // 35)
     for k in k_values:
         model = fit_kmeans(points, k, RANDOM_SEED)
         sizes = list(model["cluster_sizes"].values())
+        min_size = min(sizes)
+        balance_penalty = max(0, min_cluster_threshold - min_size) * 0.02
         metrics = {
             "k": k,
             "inertia": model["inertia"],
             "silhouette_score": silhouette_score(points, model["labels"]),
             "davies_bouldin_score": davies_bouldin_score(points, model["labels"], model["centers"]),
-            "min_cluster_size": min(sizes),
+            "min_cluster_size": min_size,
             "max_cluster_size": max(sizes),
             "mean_cluster_size": mean_or_zero([float(size) for size in sizes]),
         }
+        metrics["balanced_silhouette_score"] = metrics["silhouette_score"] - balance_penalty
         model["metrics"] = metrics
         results.append(metrics)
         if best_model is None:
@@ -260,15 +309,15 @@ def select_best_model(points: list[list[float]], k_values: list[int]) -> tuple[l
             continue
         best_metrics = best_model["metrics"]
         candidate_key = (
-            metrics["min_cluster_size"] >= 12,
-            round(metrics["silhouette_score"], 6),
+            metrics["min_cluster_size"] >= min_cluster_threshold,
+            round(metrics["balanced_silhouette_score"], 6),
             -round(metrics["davies_bouldin_score"], 6),
             metrics["min_cluster_size"],
             -metrics["k"],
         )
         best_key = (
-            best_metrics["min_cluster_size"] >= 12,
-            round(best_metrics["silhouette_score"], 6),
+            best_metrics["min_cluster_size"] >= min_cluster_threshold,
+            round(best_metrics["balanced_silhouette_score"], 6),
             -round(best_metrics["davies_bouldin_score"], 6),
             best_metrics["min_cluster_size"],
             -best_metrics["k"],
@@ -293,6 +342,13 @@ def top_labels(feature_row: dict[str, float], prefix: str, top_n: int = 2) -> li
     while len(labels) < top_n:
         labels.append("n/a")
     return labels
+
+
+def top_preference_labels(feature_row: dict[str, float], preferred_prefix: str, fallback_prefix: str) -> list[str]:
+    preferred = top_labels(feature_row, preferred_prefix)
+    if preferred[0] != "n/a":
+        return preferred
+    return top_labels(feature_row, fallback_prefix)
 
 
 def build_assignments(feature_rows: list[dict[str, Any]], points: list[list[float]], centers: list[list[float]], labels: list[int]) -> list[dict[str, Any]]:
@@ -326,8 +382,8 @@ def build_cluster_profiles(feature_rows: list[dict[str, Any]], assignments: list
         aggregate = {column: mean_or_zero([float(member[column]) for member in members]) for column in numeric_columns}
         persona_counter = Counter(str(member.get("synthetic_persona", "")) for member in members if member.get("synthetic_persona"))
         city_counter = Counter(str(member.get("home_city", "")) for member in members if member.get("home_city"))
-        top_segments = top_labels(aggregate, "like_rate_segment_")
-        top_genres = top_labels(aggregate, "like_rate_genre_")
+        top_segments = top_preference_labels(aggregate, "liked_share_segment_", "like_rate_segment_")
+        top_genres = top_preference_labels(aggregate, "liked_share_genre_", "like_rate_genre_")
         dominant_persona, dominant_persona_share = ("n/a", 0.0)
         if persona_counter:
             dominant_persona, persona_count = persona_counter.most_common(1)[0]
@@ -399,7 +455,8 @@ def main() -> None:
 
     feature_rows = read_feature_rows(input_csv)
     numeric_columns = numeric_feature_columns(feature_rows)
-    points, means, stds = standardize_matrix(feature_rows, numeric_columns)
+    total_candidate_features = len([column for column in feature_rows[0].keys() if column not in RESERVED_METADATA_COLUMNS])
+    points, means, stds, weights = standardize_matrix(feature_rows, numeric_columns)
     metrics, best_model = select_best_model(points, k_values)
     assignments = build_assignments(feature_rows, points, best_model["centers"], best_model["labels"])
     profiles = build_cluster_profiles(feature_rows, assignments, numeric_columns)
@@ -416,11 +473,14 @@ def main() -> None:
             "output_dir": str(output_dir),
             "rows": len(feature_rows),
             "numeric_feature_count": len(numeric_columns),
+            "dropped_constant_feature_count": total_candidate_features - len(numeric_columns),
             "selected_k": int(best_model["k"]),
             "silhouette_score": float(best_model["metrics"]["silhouette_score"]),
+            "balanced_silhouette_score": float(best_model["metrics"]["balanced_silhouette_score"]),
             "davies_bouldin_score": float(best_model["metrics"]["davies_bouldin_score"]),
             "feature_means": means,
             "feature_stds": stds,
+            "feature_weights": weights,
         },
     )
 

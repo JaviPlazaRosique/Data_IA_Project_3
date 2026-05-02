@@ -1,5 +1,35 @@
 {{ config(materialized='table') }}
 
+{% set segments = [
+    ('music', 'Music'),
+    ('sports', 'Sports'),
+    ('arts_theatre', 'Arts_Theatre'),
+    ('family', 'Family')
+] %}
+
+{% set genres = [
+    ('rock', 'Rock'),
+    ('pop', 'Pop'),
+    ('electronic', 'Electronic'),
+    ('urban', 'Urban'),
+    ('football', 'Football'),
+    ('basketball', 'Basketball'),
+    ('tennis', 'Tennis'),
+    ('theatre', 'Theatre'),
+    ('musical', 'Musical'),
+    ('comedy', 'Comedy'),
+    ('classical', 'Classical'),
+    ('kids', 'Kids'),
+    ('circus', 'Circus'),
+    ('exhibition', 'Exhibition')
+] %}
+
+{% set price_bands = [
+    ('low', 'bajo'),
+    ('medium', 'medio'),
+    ('high', 'alto')
+] %}
+
 with base as (
     select
         *,
@@ -46,24 +76,27 @@ agg as (
             timestamp_diff(current_timestamp(), max(if(liked, event_timestamp, null)), day),
             97
         ) as days_since_last_right_swipe_90d,
-        coalesce(safe_divide(countif(liked and segmento = 'Music'), countif(segmento = 'Music')), 0.0) as like_rate_segment_music_90d,
-        coalesce(safe_divide(countif(liked and segmento = 'Sports'), countif(segmento = 'Sports')), 0.0) as like_rate_segment_sports_90d,
-        coalesce(safe_divide(countif(liked and segmento = 'Arts_Theatre'), countif(segmento = 'Arts_Theatre')), 0.0) as like_rate_segment_arts_theatre_90d,
-        coalesce(safe_divide(countif(liked and segmento = 'Family'), countif(segmento = 'Family')), 0.0) as like_rate_segment_family_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Rock'), countif(genero = 'Rock')), 0.0) as like_rate_genre_rock_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Pop'), countif(genero = 'Pop')), 0.0) as like_rate_genre_pop_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Electronic'), countif(genero = 'Electronic')), 0.0) as like_rate_genre_electronic_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Urban'), countif(genero = 'Urban')), 0.0) as like_rate_genre_urban_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Football'), countif(genero = 'Football')), 0.0) as like_rate_genre_football_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Basketball'), countif(genero = 'Basketball')), 0.0) as like_rate_genre_basketball_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Tennis'), countif(genero = 'Tennis')), 0.0) as like_rate_genre_tennis_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Theatre'), countif(genero = 'Theatre')), 0.0) as like_rate_genre_theatre_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Musical'), countif(genero = 'Musical')), 0.0) as like_rate_genre_musical_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Comedy'), countif(genero = 'Comedy')), 0.0) as like_rate_genre_comedy_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Classical'), countif(genero = 'Classical')), 0.0) as like_rate_genre_classical_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Kids'), countif(genero = 'Kids')), 0.0) as like_rate_genre_kids_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Circus'), countif(genero = 'Circus')), 0.0) as like_rate_genre_circus_90d,
-        coalesce(safe_divide(countif(liked and genero = 'Exhibition'), countif(genero = 'Exhibition')), 0.0) as like_rate_genre_exhibition_90d
+        {% for feature_name, segment_value in segments %}
+        coalesce(safe_divide(countif(liked and segmento = '{{ segment_value }}'), countif(segmento = '{{ segment_value }}')), 0.0) as like_rate_segment_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(segmento = '{{ segment_value }}'), count(*)), 0.0) as swipe_share_segment_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(liked and segmento = '{{ segment_value }}'), countif(liked)), 0.0) as liked_share_segment_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(liked and segmento = '{{ segment_value }}'), countif(segmento = '{{ segment_value }}')), 0.0)
+            - coalesce(safe_divide(countif(liked), count(*)), 0.0) as preference_lift_segment_{{ feature_name }}_90d,
+        {% endfor %}
+        {% for feature_name, genre_value in genres %}
+        coalesce(safe_divide(countif(liked and genero = '{{ genre_value }}'), countif(genero = '{{ genre_value }}')), 0.0) as like_rate_genre_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(genero = '{{ genre_value }}'), count(*)), 0.0) as swipe_share_genre_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(liked and genero = '{{ genre_value }}'), countif(liked)), 0.0) as liked_share_genre_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(liked and genero = '{{ genre_value }}'), countif(genero = '{{ genre_value }}')), 0.0)
+            - coalesce(safe_divide(countif(liked), count(*)), 0.0) as preference_lift_genre_{{ feature_name }}_90d,
+        {% endfor %}
+        {% for feature_name, band_value in price_bands %}
+        coalesce(safe_divide(countif(liked and lower(banda_precio) = '{{ band_value }}'), countif(lower(banda_precio) = '{{ band_value }}')), 0.0) as like_rate_price_band_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(lower(banda_precio) = '{{ band_value }}'), count(*)), 0.0) as swipe_share_price_band_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(liked and lower(banda_precio) = '{{ band_value }}'), countif(liked)), 0.0) as liked_share_price_band_{{ feature_name }}_90d,
+        coalesce(safe_divide(countif(liked and lower(banda_precio) = '{{ band_value }}'), countif(lower(banda_precio) = '{{ band_value }}')), 0.0)
+            - coalesce(safe_divide(countif(liked), count(*)), 0.0) as preference_lift_price_band_{{ feature_name }}_90d{% if not loop.last %},{% endif %}
+        {% endfor %}
     from base
     group by user_id
 )

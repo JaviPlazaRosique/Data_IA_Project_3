@@ -1,5 +1,61 @@
 {{ config(materialized='table') }}
 
+{% set feature_defaults = [
+    ('total_swipes', '0'),
+    ('total_right_swipes', '0'),
+    ('right_swipe_rate', '0.0'),
+    ('avg_dwell_ms', '0.0'),
+    ('avg_right_dwell_ms', '0.0'),
+    ('distinct_segments_liked', '0'),
+    ('distinct_genres_liked', '0'),
+    ('distinct_cities_liked', '0'),
+    ('local_like_rate', '0.0'),
+    ('local_swipe_share', '0.0'),
+    ('avg_days_until_event_liked', '0.0'),
+    ('avg_price_mid_liked', '0.0'),
+    ('median_price_mid_liked', '0.0'),
+    ('avg_price_mid_disliked', '0.0'),
+    ('chat_swipe_share', '0.0'),
+    ('chat_right_rate', '0.0')
+] %}
+
+{% set segments = [
+    ('music', 'Music'),
+    ('sports', 'Sports'),
+    ('arts_theatre', 'Arts_Theatre'),
+    ('family', 'Family')
+] %}
+
+{% set genres = [
+    ('rock', 'Rock'),
+    ('pop', 'Pop'),
+    ('electronic', 'Electronic'),
+    ('urban', 'Urban'),
+    ('football', 'Football'),
+    ('basketball', 'Basketball'),
+    ('tennis', 'Tennis'),
+    ('theatre', 'Theatre'),
+    ('musical', 'Musical'),
+    ('comedy', 'Comedy'),
+    ('classical', 'Classical'),
+    ('kids', 'Kids'),
+    ('circus', 'Circus'),
+    ('exhibition', 'Exhibition')
+] %}
+
+{% set price_bands = [
+    ('low', 'bajo'),
+    ('medium', 'medio'),
+    ('high', 'alto')
+] %}
+
+{% set preference_prefixes = [
+    'like_rate',
+    'swipe_share',
+    'liked_share',
+    'preference_lift'
+] %}
+
 with f30 as (
     select * from {{ ref('int_user_swipe_features_30d') }}
 ),
@@ -10,76 +66,36 @@ f90 as (
 
 select
     f90.user_id,
-    coalesce(f30.total_swipes_30d, 0) as total_swipes_30d,
-    coalesce(f30.total_right_swipes_30d, 0) as total_right_swipes_30d,
-    coalesce(f30.right_swipe_rate_30d, 0.0) as right_swipe_rate_30d,
-    coalesce(f30.avg_dwell_ms_30d, 0.0) as avg_dwell_ms_30d,
-    coalesce(f30.avg_right_dwell_ms_30d, 0.0) as avg_right_dwell_ms_30d,
-    coalesce(f30.distinct_segments_liked_30d, 0) as distinct_segments_liked_30d,
-    coalesce(f30.distinct_genres_liked_30d, 0) as distinct_genres_liked_30d,
-    coalesce(f30.distinct_cities_liked_30d, 0) as distinct_cities_liked_30d,
-    coalesce(f30.local_like_rate_30d, 0.0) as local_like_rate_30d,
-    coalesce(f30.local_swipe_share_30d, 0.0) as local_swipe_share_30d,
-    coalesce(f30.avg_days_until_event_liked_30d, 0.0) as avg_days_until_event_liked_30d,
-    coalesce(f30.avg_price_mid_liked_30d, 0.0) as avg_price_mid_liked_30d,
-    coalesce(f30.median_price_mid_liked_30d, 0.0) as median_price_mid_liked_30d,
-    coalesce(f30.avg_price_mid_disliked_30d, 0.0) as avg_price_mid_disliked_30d,
-    coalesce(f30.chat_swipe_share_30d, 0.0) as chat_swipe_share_30d,
-    coalesce(f30.chat_right_rate_30d, 0.0) as chat_right_rate_30d,
+    {% for base_name, default in feature_defaults %}
+    coalesce(f30.{{ base_name }}_30d, {{ default }}) as {{ base_name }}_30d,
+    {% endfor %}
     coalesce(f30.days_since_last_right_swipe_30d, 37) as days_since_last_right_swipe_30d,
-    coalesce(f30.like_rate_segment_music_30d, 0.0) as like_rate_segment_music_30d,
-    coalesce(f30.like_rate_segment_sports_30d, 0.0) as like_rate_segment_sports_30d,
-    coalesce(f30.like_rate_segment_arts_theatre_30d, 0.0) as like_rate_segment_arts_theatre_30d,
-    coalesce(f30.like_rate_segment_family_30d, 0.0) as like_rate_segment_family_30d,
-    coalesce(f30.like_rate_genre_rock_30d, 0.0) as like_rate_genre_rock_30d,
-    coalesce(f30.like_rate_genre_pop_30d, 0.0) as like_rate_genre_pop_30d,
-    coalesce(f30.like_rate_genre_electronic_30d, 0.0) as like_rate_genre_electronic_30d,
-    coalesce(f30.like_rate_genre_urban_30d, 0.0) as like_rate_genre_urban_30d,
-    coalesce(f30.like_rate_genre_football_30d, 0.0) as like_rate_genre_football_30d,
-    coalesce(f30.like_rate_genre_basketball_30d, 0.0) as like_rate_genre_basketball_30d,
-    coalesce(f30.like_rate_genre_tennis_30d, 0.0) as like_rate_genre_tennis_30d,
-    coalesce(f30.like_rate_genre_theatre_30d, 0.0) as like_rate_genre_theatre_30d,
-    coalesce(f30.like_rate_genre_musical_30d, 0.0) as like_rate_genre_musical_30d,
-    coalesce(f30.like_rate_genre_comedy_30d, 0.0) as like_rate_genre_comedy_30d,
-    coalesce(f30.like_rate_genre_classical_30d, 0.0) as like_rate_genre_classical_30d,
-    coalesce(f30.like_rate_genre_kids_30d, 0.0) as like_rate_genre_kids_30d,
-    coalesce(f30.like_rate_genre_circus_30d, 0.0) as like_rate_genre_circus_30d,
-    coalesce(f30.like_rate_genre_exhibition_30d, 0.0) as like_rate_genre_exhibition_30d,
-    coalesce(f90.total_swipes_90d, 0) as total_swipes_90d,
-    coalesce(f90.total_right_swipes_90d, 0) as total_right_swipes_90d,
-    coalesce(f90.right_swipe_rate_90d, 0.0) as right_swipe_rate_90d,
-    coalesce(f90.avg_dwell_ms_90d, 0.0) as avg_dwell_ms_90d,
-    coalesce(f90.avg_right_dwell_ms_90d, 0.0) as avg_right_dwell_ms_90d,
-    coalesce(f90.distinct_segments_liked_90d, 0) as distinct_segments_liked_90d,
-    coalesce(f90.distinct_genres_liked_90d, 0) as distinct_genres_liked_90d,
-    coalesce(f90.distinct_cities_liked_90d, 0) as distinct_cities_liked_90d,
-    coalesce(f90.local_like_rate_90d, 0.0) as local_like_rate_90d,
-    coalesce(f90.local_swipe_share_90d, 0.0) as local_swipe_share_90d,
-    coalesce(f90.avg_days_until_event_liked_90d, 0.0) as avg_days_until_event_liked_90d,
-    coalesce(f90.avg_price_mid_liked_90d, 0.0) as avg_price_mid_liked_90d,
-    coalesce(f90.median_price_mid_liked_90d, 0.0) as median_price_mid_liked_90d,
-    coalesce(f90.avg_price_mid_disliked_90d, 0.0) as avg_price_mid_disliked_90d,
-    coalesce(f90.chat_swipe_share_90d, 0.0) as chat_swipe_share_90d,
-    coalesce(f90.chat_right_rate_90d, 0.0) as chat_right_rate_90d,
+    {% for prefix in preference_prefixes %}
+        {% for feature_name, _ in segments %}
+    coalesce(f30.{{ prefix }}_segment_{{ feature_name }}_30d, 0.0) as {{ prefix }}_segment_{{ feature_name }}_30d,
+        {% endfor %}
+        {% for feature_name, _ in genres %}
+    coalesce(f30.{{ prefix }}_genre_{{ feature_name }}_30d, 0.0) as {{ prefix }}_genre_{{ feature_name }}_30d,
+        {% endfor %}
+        {% for feature_name, _ in price_bands %}
+    coalesce(f30.{{ prefix }}_price_band_{{ feature_name }}_30d, 0.0) as {{ prefix }}_price_band_{{ feature_name }}_30d,
+        {% endfor %}
+    {% endfor %}
+    {% for base_name, default in feature_defaults %}
+    coalesce(f90.{{ base_name }}_90d, {{ default }}) as {{ base_name }}_90d,
+    {% endfor %}
     coalesce(f90.days_since_last_right_swipe_90d, 97) as days_since_last_right_swipe_90d,
-    coalesce(f90.like_rate_segment_music_90d, 0.0) as like_rate_segment_music_90d,
-    coalesce(f90.like_rate_segment_sports_90d, 0.0) as like_rate_segment_sports_90d,
-    coalesce(f90.like_rate_segment_arts_theatre_90d, 0.0) as like_rate_segment_arts_theatre_90d,
-    coalesce(f90.like_rate_segment_family_90d, 0.0) as like_rate_segment_family_90d,
-    coalesce(f90.like_rate_genre_rock_90d, 0.0) as like_rate_genre_rock_90d,
-    coalesce(f90.like_rate_genre_pop_90d, 0.0) as like_rate_genre_pop_90d,
-    coalesce(f90.like_rate_genre_electronic_90d, 0.0) as like_rate_genre_electronic_90d,
-    coalesce(f90.like_rate_genre_urban_90d, 0.0) as like_rate_genre_urban_90d,
-    coalesce(f90.like_rate_genre_football_90d, 0.0) as like_rate_genre_football_90d,
-    coalesce(f90.like_rate_genre_basketball_90d, 0.0) as like_rate_genre_basketball_90d,
-    coalesce(f90.like_rate_genre_tennis_90d, 0.0) as like_rate_genre_tennis_90d,
-    coalesce(f90.like_rate_genre_theatre_90d, 0.0) as like_rate_genre_theatre_90d,
-    coalesce(f90.like_rate_genre_musical_90d, 0.0) as like_rate_genre_musical_90d,
-    coalesce(f90.like_rate_genre_comedy_90d, 0.0) as like_rate_genre_comedy_90d,
-    coalesce(f90.like_rate_genre_classical_90d, 0.0) as like_rate_genre_classical_90d,
-    coalesce(f90.like_rate_genre_kids_90d, 0.0) as like_rate_genre_kids_90d,
-    coalesce(f90.like_rate_genre_circus_90d, 0.0) as like_rate_genre_circus_90d,
-    coalesce(f90.like_rate_genre_exhibition_90d, 0.0) as like_rate_genre_exhibition_90d,
+    {% for prefix in preference_prefixes %}
+        {% for feature_name, _ in segments %}
+    coalesce(f90.{{ prefix }}_segment_{{ feature_name }}_90d, 0.0) as {{ prefix }}_segment_{{ feature_name }}_90d,
+        {% endfor %}
+        {% for feature_name, _ in genres %}
+    coalesce(f90.{{ prefix }}_genre_{{ feature_name }}_90d, 0.0) as {{ prefix }}_genre_{{ feature_name }}_90d,
+        {% endfor %}
+        {% for feature_name, _ in price_bands %}
+    coalesce(f90.{{ prefix }}_price_band_{{ feature_name }}_90d, 0.0) as {{ prefix }}_price_band_{{ feature_name }}_90d,
+        {% endfor %}
+    {% endfor %}
     coalesce(f30.right_swipe_rate_30d, 0.0) - coalesce(f90.right_swipe_rate_90d, 0.0) as right_swipe_rate_delta_30_vs_90,
     coalesce(f30.total_swipes_30d, 0) - coalesce(f90.total_swipes_90d, 0) as total_swipes_delta_30_vs_90
 from f90

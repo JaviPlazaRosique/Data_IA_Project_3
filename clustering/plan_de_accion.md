@@ -374,6 +374,56 @@ Tambien se ejecuto un smoke test de entrenamiento con el export actualizado:
 - `silhouette`: 0,156;
 - lectura: el pipeline tecnico ya esta cerrado, pero los clusters aun mezclan varias personas sinteticas y conviene mejorar features/segmentacion antes de usarlo como ranking principal.
 
+### 1.6.5. Mejora de features y reentrenamiento
+
+Estado: completado en smoke test.
+
+Cambios aplicados:
+
+- se anadieron `liked_share_*` para representar la distribucion de gustos aceptados por segmento, genero y banda de precio;
+- se anadieron `swipe_share_*` para representar exposicion por segmento, genero y banda de precio;
+- se anadieron `preference_lift_*` para medir afinidad relativa frente al ratio medio de like del usuario;
+- el entrenamiento descarta features constantes;
+- el entrenamiento pondera menos volumen puro y pondera mas afinidad/preferencia.
+
+Entregables:
+
+- `transformations/models/intermediate/int_user_swipe_features_30d.sql`;
+- `transformations/models/intermediate/int_user_swipe_features_90d.sql`;
+- `transformations/models/marts/dim_user_cluster_features_current.sql`;
+- `clustering/2_integracion_datos_gcp/real_exports/dim_user_cluster_features_current_synthetic_demo_improved_20260502.csv`;
+- `clustering/2_integracion_datos_gcp/real_exports/dim_user_cluster_features_current_synthetic_demo_improved_20260502_enriched.csv`;
+- `clustering/2_integracion_datos_gcp/real_exports/dim_user_cluster_features_current_synthetic_demo_improved_20260502_synthetic_only.csv`;
+- `clustering/2_integracion_datos_gcp/training_outputs/smoke_synthetic_demo_improved_20260502_all_users`;
+- `clustering/2_integracion_datos_gcp/training_outputs/smoke_synthetic_demo_improved_20260502_synthetic_only`.
+
+Resultado con todos los usuarios:
+
+- filas entrenadas: 196;
+- features numericas usadas: 164;
+- features constantes descartadas: 40;
+- `k` seleccionado: 4;
+- `silhouette`: 0,243;
+- `davies_bouldin`: 1,486;
+- clusters balanceados: tamanos 37, 54, 67 y 38.
+
+Resultado con usuarios demo:
+
+- filas entrenadas: 184;
+- features numericas usadas: 164;
+- features constantes descartadas: 40;
+- `k` seleccionado: 4;
+- `silhouette`: 0,259;
+- `davies_bouldin`: 1,448;
+- clusters principales: familia/exposiciones, cultura/teatro, musica pop-rock/flamenco y discovery/deportes.
+
+Lectura:
+
+- la mejora es clara frente al smoke anterior, donde habia clusters muy pequenos y menos interpretables;
+- las personas `family_weekend_exhibition` y `culture_theatre_explorer` se recuperan con alta pureza;
+- musica local y flamenco quedan agrupados, algo razonable por la taxonomia actual;
+- deporte se mezcla con discovery porque hay poco catalogo deportivo real disponible.
+
 ## Fase 2. Diseno de recomendacion apoyada en clusters
 
 El clustering no debe recomendar eventos por si solo; debe actuar como senal de priorizacion.
@@ -579,21 +629,19 @@ Metricas recomendadas:
 
 Orden recomendado a partir de hoy:
 
-1. Revisar perfiles de cluster y comprobar si las personas sinteticas se separan de forma suficientemente interpretable.
-2. Mejorar las features de afinidad para que el modelo no mezcle tanto perfiles de familia, cultura y discovery.
-3. Crear tablas finales de salida del clustering en BigQuery: asignaciones, perfiles, vecinos y afinidad cluster-evento.
-4. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
-5. Resolver la estrategia de precio para clustering:
+1. Crear tablas finales de salida del clustering en BigQuery: asignaciones, perfiles, vecinos y afinidad cluster-evento.
+2. Materializar una primera tabla de candidatos recomendados por usuario usando cluster propio y clusters cercanos.
+3. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
+4. Resolver la estrategia de precio para clustering:
    usar `precio_min/precio_max` si se incorporan;
    o usar temporalmente `banda_precio` como proxy.
-6. Definir como obtener la ciudad de referencia del usuario para features locales.
-7. Promover el scaffold GCP a un `Cloud Run Job` desplegable con Terraform y Scheduler.
+5. Definir como obtener la ciudad de referencia del usuario para features locales.
+6. Promover el scaffold GCP a un `Cloud Run Job` desplegable con Terraform y Scheduler.
 
 ## Siguiente entregable recomendado
 
 El siguiente entregable con mejor relacion valor/esfuerzo es:
 
-- mejorar las features de clustering para separar mejor perfiles de musica, cultura, familia, discovery y deportes;
 - materializar las tablas de salida del clustering en BigQuery;
 - preparar una primera vista de candidatos recomendados por usuario basada en cluster propio y clusters cercanos.
 
