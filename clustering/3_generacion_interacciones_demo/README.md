@@ -90,6 +90,12 @@ python3 clustering/2_integracion_datos_gcp/step_4_entrenar_desde_feature_export.
   --output-dir clustering/2_integracion_datos_gcp/training_outputs/smoke_real_YYYYMMDD
 ```
 
+Para interpretar mejor una demo sintetica, puedes enriquecer el export local con `synthetic_persona` y entrenar solo con usuarios demo:
+
+```bash
+python3 clustering/3_generacion_interacciones_demo/step_7_enrich_feature_export_with_demo_metadata.py --synthetic-only
+```
+
 ## Criterio de exito
 
 - BigQuery contiene filas con `schema_version = 2.0`;

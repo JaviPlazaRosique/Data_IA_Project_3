@@ -35,6 +35,19 @@ GENRE_RATES = [
     ("exhibition", "Exhibition"),
 ]
 
+PRICE_BANDS = [
+    ("low", "bajo"),
+    ("medium", "medio"),
+    ("high", "alto"),
+]
+
+PREFERENCE_PREFIXES = [
+    "like_rate",
+    "swipe_share",
+    "liked_share",
+    "preference_lift",
+]
+
 FEATURE_DEFAULTS = [
     ("total_swipes", "0"),
     ("total_right_swipes", "0"),
@@ -200,20 +213,46 @@ where d.rn = 1
 """.strip()
 
 
-def feature_rate_sql(source_column: str, alias_prefix: str, values: list[tuple[str, str]], suffix: str) -> str:
-    return ",\n        ".join(
-        f"coalesce(safe_divide(countif(liked and {source_column} = '{value}'), "
-        f"countif({source_column} = '{value}')), 0.0) "
-        f"as like_rate_{alias_prefix}_{name}_{suffix}"
-        for name, value in values
-    )
+def feature_preference_sql(
+    source_expression: str,
+    alias_prefix: str,
+    values: list[tuple[str, str]],
+    suffix: str,
+) -> str:
+    expressions: list[str] = []
+    for name, value in values:
+        expressions.extend(
+            [
+                (
+                    f"coalesce(safe_divide(countif(liked and {source_expression} = '{value}'), "
+                    f"countif({source_expression} = '{value}')), 0.0) "
+                    f"as like_rate_{alias_prefix}_{name}_{suffix}"
+                ),
+                (
+                    f"coalesce(safe_divide(countif({source_expression} = '{value}'), count(*)), 0.0) "
+                    f"as swipe_share_{alias_prefix}_{name}_{suffix}"
+                ),
+                (
+                    f"coalesce(safe_divide(countif(liked and {source_expression} = '{value}'), countif(liked)), 0.0) "
+                    f"as liked_share_{alias_prefix}_{name}_{suffix}"
+                ),
+                (
+                    f"coalesce(safe_divide(countif(liked and {source_expression} = '{value}'), "
+                    f"countif({source_expression} = '{value}')), 0.0) "
+                    f"- coalesce(safe_divide(countif(liked), count(*)), 0.0) "
+                    f"as preference_lift_{alias_prefix}_{name}_{suffix}"
+                ),
+            ]
+        )
+    return ",\n        ".join(expressions)
 
 
 def features_sql(project_id: str, intermediate_dataset: str, marts_dataset: str, window_days: int) -> str:
     suffix = f"{window_days}d"
     default_days_since = 37 if window_days == 30 else 97
-    segment_rates = feature_rate_sql("segmento", "segment", SEGMENT_RATES, suffix)
-    genre_rates = feature_rate_sql("genero", "genre", GENRE_RATES, suffix)
+    segment_preferences = feature_preference_sql("segmento", "segment", SEGMENT_RATES, suffix)
+    genre_preferences = feature_preference_sql("genero", "genre", GENRE_RATES, suffix)
+    price_preferences = feature_preference_sql("lower(banda_precio)", "price_band", PRICE_BANDS, suffix)
 
     return f"""
 create or replace table {table(project_id, intermediate_dataset, f"int_user_swipe_features_{suffix}")} as
@@ -263,8 +302,9 @@ agg as (
             timestamp_diff(current_timestamp(), max(if(liked, event_timestamp, null)), day),
             {default_days_since}
         ) as days_since_last_right_swipe_{suffix},
-        {segment_rates},
-        {genre_rates}
+        {segment_preferences},
+        {genre_preferences},
+        {price_preferences}
     from base
     group by user_id
 )
@@ -279,18 +319,24 @@ def dim_sql(project_id: str, intermediate_dataset: str, marts_dataset: str) -> s
     for base_name, default in FEATURE_DEFAULTS:
         select_columns.append(f"coalesce(f30.{base_name}_30d, {default}) as {base_name}_30d")
     select_columns.append("coalesce(f30.days_since_last_right_swipe_30d, 37) as days_since_last_right_swipe_30d")
-    for name, _ in SEGMENT_RATES:
-        select_columns.append(f"coalesce(f30.like_rate_segment_{name}_30d, 0.0) as like_rate_segment_{name}_30d")
-    for name, _ in GENRE_RATES:
-        select_columns.append(f"coalesce(f30.like_rate_genre_{name}_30d, 0.0) as like_rate_genre_{name}_30d")
+    for prefix in PREFERENCE_PREFIXES:
+        for name, _ in SEGMENT_RATES:
+            select_columns.append(f"coalesce(f30.{prefix}_segment_{name}_30d, 0.0) as {prefix}_segment_{name}_30d")
+        for name, _ in GENRE_RATES:
+            select_columns.append(f"coalesce(f30.{prefix}_genre_{name}_30d, 0.0) as {prefix}_genre_{name}_30d")
+        for name, _ in PRICE_BANDS:
+            select_columns.append(f"coalesce(f30.{prefix}_price_band_{name}_30d, 0.0) as {prefix}_price_band_{name}_30d")
 
     for base_name, default in FEATURE_DEFAULTS:
         select_columns.append(f"coalesce(f90.{base_name}_90d, {default}) as {base_name}_90d")
     select_columns.append("coalesce(f90.days_since_last_right_swipe_90d, 97) as days_since_last_right_swipe_90d")
-    for name, _ in SEGMENT_RATES:
-        select_columns.append(f"coalesce(f90.like_rate_segment_{name}_90d, 0.0) as like_rate_segment_{name}_90d")
-    for name, _ in GENRE_RATES:
-        select_columns.append(f"coalesce(f90.like_rate_genre_{name}_90d, 0.0) as like_rate_genre_{name}_90d")
+    for prefix in PREFERENCE_PREFIXES:
+        for name, _ in SEGMENT_RATES:
+            select_columns.append(f"coalesce(f90.{prefix}_segment_{name}_90d, 0.0) as {prefix}_segment_{name}_90d")
+        for name, _ in GENRE_RATES:
+            select_columns.append(f"coalesce(f90.{prefix}_genre_{name}_90d, 0.0) as {prefix}_genre_{name}_90d")
+        for name, _ in PRICE_BANDS:
+            select_columns.append(f"coalesce(f90.{prefix}_price_band_{name}_90d, 0.0) as {prefix}_price_band_{name}_90d")
 
     select_columns.append(
         "coalesce(f30.right_swipe_rate_30d, 0.0) - coalesce(f90.right_swipe_rate_90d, 0.0) "
