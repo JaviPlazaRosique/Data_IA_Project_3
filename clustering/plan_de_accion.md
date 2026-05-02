@@ -559,7 +559,22 @@ Para este proyecto, la opcion mas limpia suele ser: materializar recomendaciones
 
 Siguiente paso concreto:
 
-- definir si primero vamos a servir solo `cluster_id` y afinidades, o si daremos ya una tabla materializada de candidatos recomendados por usuario.
+- completado: se materializo una tabla de candidatos recomendados por usuario en BigQuery.
+- completado: se creo el endpoint backend `GET /api/v1/users/me/recommendations`.
+- completado: se creo una vista frontend `/recommendations` para consumir y mostrar recomendaciones clusterizadas.
+
+Entregables:
+
+- `backend/portal-api/app/api/v1/endpoints/recommendations.py`;
+- `backend/portal-api/app/services/recommendations.py`;
+- `backend/portal-api/app/schemas/recommendation.py`;
+- `frontend/portal/src/pages/RecommendationsPage.tsx`;
+- contrato TypeScript `ClusterRecommendationRead` en `frontend/portal/src/api.ts`.
+
+Siguiente paso concreto:
+
+- probar con un usuario real desplegado que tenga filas en `user_cluster_assignments`;
+- anadir fallback de cold start para usuarios sin cluster o sin candidatos.
 
 ## Fase 4. Paso de local a Google Cloud
 
@@ -681,22 +696,23 @@ Metricas recomendadas:
 
 Orden recomendado a partir de hoy:
 
-1. Validar offline la calidad de `user_recommendation_candidates` por cluster y por persona demo.
-2. Conectar backend con `user_recommendation_candidates` mediante un endpoint `GET /users/me/recommendations`.
-3. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
-4. Resolver la estrategia de precio para clustering:
+1. Probar end to end la vista `/recommendations` con un usuario real/desplegado que tenga candidatos.
+2. Anadir fallback de cold start para usuarios sin cluster o sin candidatos.
+3. Validar offline la calidad de `user_recommendation_candidates` por cluster y por persona demo.
+4. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
+5. Resolver la estrategia de precio para clustering:
    usar `precio_min/precio_max` si se incorporan;
    o usar temporalmente `banda_precio` como proxy.
-5. Definir como obtener la ciudad de referencia del usuario para features locales.
-6. Promover el scaffold GCP a un `Cloud Run Job` desplegable con Terraform y Scheduler.
+6. Definir como obtener la ciudad de referencia del usuario para features locales.
+7. Promover el scaffold GCP a un `Cloud Run Job` desplegable con Terraform y Scheduler.
 
 ## Siguiente entregable recomendado
 
 El siguiente entregable con mejor relacion valor/esfuerzo es:
 
-- crear el endpoint backend de recomendaciones;
 - validar que un usuario existente recibe eventos ordenados desde `user_recommendation_candidates`;
-- preparar una pantalla o integracion frontend que consuma ese endpoint.
+- implementar fallback de cold start;
+- preparar el despliegue frontend/backend para probarlo en la app real.
 
 ## Bloqueos actuales mas importantes
 

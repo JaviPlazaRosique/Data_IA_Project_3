@@ -211,6 +211,22 @@ export interface SwipeEventAccepted {
   accepted: boolean;
 }
 
+// ─── Cluster recommendations types ───────────────────────────────────────────
+
+export interface ClusterRecommendationRead {
+  event_id: string;
+  event_name: string | null;
+  fecha_evento: string | null;
+  ciudad: string | null;
+  recinto_nombre: string | null;
+  segmento: string | null;
+  genero: string | null;
+  subgenero: string | null;
+  recommendation_rank: number;
+  recommendation_score: number;
+  cluster_source: 'own_cluster' | 'neighbor_cluster' | string;
+}
+
 // ─── Event catalog types ──────────────────────────────────────────────────────
 
 export interface EventCatalogItem {
@@ -301,6 +317,13 @@ export async function apiSwipeEvent(data: SwipeEventCreate): Promise<SwipeEventA
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new ApiError(res.status, 'Failed to publish swipe event');
+  return res.json();
+}
+
+export async function apiListClusterRecommendations(limit = 30): Promise<ClusterRecommendationRead[]> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  const res = await authFetch(`/api/v1/users/me/recommendations?${q.toString()}`);
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load recommendations');
   return res.json();
 }
 

@@ -27,6 +27,7 @@ function StorageNotice() {
 }
 
 const SwipePage = lazy(() => import('./pages/SwipePage'));
+const RecommendationsPage = lazy(() => import('./pages/RecommendationsPage'));
 const AIPlannerPage = lazy(() => import('./pages/AIPlannerPage'));
 const EventDetailsPage = lazy(() => import('./pages/EventDetailsPage'));
 const MapPage = lazy(() => import('./pages/MapPage'));
@@ -46,6 +47,14 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/map" replace />} />
             <Route path="/swipe" element={<SwipePage />} />
+            <Route
+              path="/recommendations"
+              element={
+                <ProtectedRoute>
+                  <RecommendationsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/map" element={<MapPage />} />
             <Route path="/event/:id" element={<EventDetailsPage />} />
             <Route path="/login" element={<LoginPage />} />

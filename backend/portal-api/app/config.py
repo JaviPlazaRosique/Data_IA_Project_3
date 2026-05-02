@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # Pub/Sub
     PUBSUB_TOPIC_SWIPE_EVENTS: str = "swipe-events"
 
+    # BigQuery recommendations serving
+    BIGQUERY_MARTS_DATASET: str = "recomendacion_planes_marts"
+    BIGQUERY_RECOMMENDATIONS_TABLE: str = "user_recommendation_candidates"
+
     # GCS — avatares de usuario
     AVATAR_BUCKET_NAME: str = ""
 
