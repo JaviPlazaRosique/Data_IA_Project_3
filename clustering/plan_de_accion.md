@@ -16,6 +16,7 @@ Actualmente ya existen dos bloques de trabajo principales dentro de `clustering`
 - `clustering/1_prototipo_local`: prototipo local funcional que cubre la fase 1 del plan.
 - `clustering/2_integracion_datos_gcp`: fase preparatoria para llevar el clustering a datos reales, dbt y GCP.
 - `clustering/3_generacion_interacciones_demo`: generacion de swipes sinteticos sobre eventos reales para demo y pruebas de clustering.
+- `clustering/4_serving_recomendaciones_cluster`: materializacion de outputs del clustering y generacion de candidatos recomendados.
 
 Lo que ya esta implementado:
 
@@ -34,6 +35,7 @@ Lo que ya esta implementado:
 - adaptacion del entrenamiento para leer exports reales de features;
 - scaffold inicial del batch en GCP con `Cloud Run Job` y `Cloud Scheduler`.
 - generacion y carga en BigQuery de interacciones sinteticas de demo con contrato `v2`.
+- materializacion de tablas de serving para clustering y primera tabla de candidatos recomendados por usuario.
 
 Estructura actual de `1_prototipo_local`:
 
@@ -80,6 +82,16 @@ Estructura actual de `3_generacion_interacciones_demo`:
 - `run_generation_pipeline.py`
 - `README.md`
 
+Estructura actual de `4_serving_recomendaciones_cluster`:
+
+- `step_1_load_cluster_outputs.py`
+- `step_2_build_cluster_event_affinity.py`
+- `step_3_generate_user_recommendation_candidates.py`
+- `step_4_validate_serving_outputs.py`
+- `run_serving_pipeline.py`
+- `serving_config.py`
+- `README.md`
+
 Artefactos ya disponibles en `2_integracion_datos_gcp`:
 
 - `outputs/feature_mapping.csv`
@@ -101,6 +113,10 @@ Artefactos ya disponibles en `3_generacion_interacciones_demo`:
 - `outputs/synthetic_swipes_raw_rows.jsonl`
 - `outputs/generation_summary.json`
 - `outputs/validation_summary.json`
+
+Artefactos ya disponibles en `4_serving_recomendaciones_cluster`:
+
+- `outputs/serving_validation_summary.json`
 
 ## Punto de partida actual del proyecto
 
@@ -457,6 +473,42 @@ Conviene terminar con tablas consumibles por producto:
 - `cluster_event_affinity`;
 - `user_recommendation_candidates` o una vista equivalente.
 
+Estado: completado en version inicial batch.
+
+Tablas creadas en `project3grupo3.recomendacion_planes_marts`:
+
+- `user_cluster_assignments`;
+- `cluster_profiles`;
+- `cluster_neighbors`;
+- `cluster_event_affinity`;
+- `user_recommendation_candidates`.
+
+Implementacion:
+
+- `clustering/4_serving_recomendaciones_cluster/step_1_load_cluster_outputs.py`;
+- `clustering/4_serving_recomendaciones_cluster/step_2_build_cluster_event_affinity.py`;
+- `clustering/4_serving_recomendaciones_cluster/step_3_generate_user_recommendation_candidates.py`;
+- `clustering/4_serving_recomendaciones_cluster/step_4_validate_serving_outputs.py`;
+- `clustering/4_serving_recomendaciones_cluster/run_serving_pipeline.py`.
+
+Resultado de validacion:
+
+- usuarios asignados: 196;
+- perfiles de cluster: 4;
+- relaciones cluster vecino: 12;
+- filas de afinidad cluster-evento: 65;
+- candidatos recomendados: 5.880;
+- usuarios con recomendaciones: 196;
+- maximo de candidatos por usuario: 30.
+
+La logica actual:
+
+- usa el cluster propio con peso principal;
+- incorpora clusters vecinos como discovery;
+- excluye eventos ya vistos por el usuario;
+- prioriza afinidad historica por segmento, genero y banda de precio;
+- anade pequenos boosts por ciudad del usuario y urgencia temporal.
+
 ## Fase 3. Integracion en la aplicacion
 
 Estado: siguiente bloque recomendado de trabajo.
@@ -629,8 +681,8 @@ Metricas recomendadas:
 
 Orden recomendado a partir de hoy:
 
-1. Crear tablas finales de salida del clustering en BigQuery: asignaciones, perfiles, vecinos y afinidad cluster-evento.
-2. Materializar una primera tabla de candidatos recomendados por usuario usando cluster propio y clusters cercanos.
+1. Validar offline la calidad de `user_recommendation_candidates` por cluster y por persona demo.
+2. Conectar backend con `user_recommendation_candidates` mediante un endpoint `GET /users/me/recommendations`.
 3. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
 4. Resolver la estrategia de precio para clustering:
    usar `precio_min/precio_max` si se incorporan;
@@ -642,8 +694,9 @@ Orden recomendado a partir de hoy:
 
 El siguiente entregable con mejor relacion valor/esfuerzo es:
 
-- materializar las tablas de salida del clustering en BigQuery;
-- preparar una primera vista de candidatos recomendados por usuario basada en cluster propio y clusters cercanos.
+- crear el endpoint backend de recomendaciones;
+- validar que un usuario existente recibe eventos ordenados desde `user_recommendation_candidates`;
+- preparar una pantalla o integracion frontend que consuma ese endpoint.
 
 ## Bloqueos actuales mas importantes
 
