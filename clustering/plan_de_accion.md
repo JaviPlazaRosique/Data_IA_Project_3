@@ -33,7 +33,7 @@ Lo que ya esta implementado:
 - definicion e implementacion del contrato enriquecido `swipe_event_contract_v2`;
 - adaptacion de `stg_swipes` y `fct_swipes` para `dwell_ms` y `event_snapshot`;
 - adaptacion del entrenamiento para leer exports reales de features;
-- scaffold inicial del batch en GCP con `Cloud Run Job` y `Cloud Scheduler`.
+- batch semanal de clustering en GCP declarado con `Cloud Run Job` y `Cloud Scheduler`.
 - generacion y carga en BigQuery de interacciones sinteticas de demo con contrato `v2`.
 - materializacion de tablas de serving para clustering y primera tabla de candidatos recomendados por usuario.
 
@@ -578,17 +578,17 @@ Siguiente paso concreto:
 
 ## Fase 4. Paso de local a Google Cloud
 
-Estado: pendiente, pero con la ruta bastante clara gracias al prototipo local ya estabilizado y al scaffold ya preparado en `clustering/2_integracion_datos_gcp/gcp_batch`.
+Estado: implementado en codigo e infraestructura declarativa, pendiente de aplicar y probar en GCP.
 
 ### 4.1. Servicios GCP recomendados
 
-La ruta mas alineada con el repo actual es:
+La ruta alineada con el repo actual es:
 
 - Pub/Sub para la ingesta de swipes;
 - BigQuery para raw, features y salidas de clustering;
 - dbt en Cloud Run Job para transformaciones;
-- un Cloud Run Job adicional para entrenar y asignar clusters;
-- Cloud Scheduler para ejecutar el job con frecuencia;
+- un Cloud Run Job adicional para entrenar, asignar clusters y regenerar recomendaciones;
+- Cloud Scheduler para ejecutar el job semanalmente;
 - GCS para guardar artefactos si se quiere persistir el modelo y metricas;
 - Terraform para declarar toda la infraestructura nueva.
 
@@ -616,20 +616,19 @@ Cuadra mejor si:
 
 ## Fase 5. Infraestructura a crear en Terraform
 
-Estado: pendiente de promocion a infraestructura real. Ya existe un snippet base en `clustering/2_integracion_datos_gcp/gcp_batch/terraform_clustering_job_snippet.tf`.
+Estado: implementado en `terraform/main.tf`, pendiente de `terraform apply` y prueba manual.
 
-Propuesta minima:
+Implementado:
 
-1. nuevas tablas BigQuery para features, asignaciones, perfiles y vecinos;
+1. permisos IAM para que `portal-api` lea recomendaciones en BigQuery;
 2. un `cloud_run_job` para `clustering-train-assign`;
-3. un `scheduler` que lance el job diariamente o varias veces por semana;
-4. un bucket GCS para artefactos del modelo, metricas y reportes;
-5. permisos IAM para que el job lea BigQuery y escriba resultados.
+3. un `scheduler` semanal los lunes a la 01:00 Europe/Madrid;
+4. permisos IAM para que el job lea features y escriba outputs en BigQuery;
+5. carga automatica de `user_cluster_assignments`, `cluster_profiles`, `cluster_neighbors`, `cluster_event_affinity` y `user_recommendation_candidates`.
 
-Si queremos cerrar el ciclo completo, despues se puede anadir:
+Pendiente opcional:
 
-- tabla materializada de recomendaciones por usuario;
-- endpoint backend para servir esas recomendaciones;
+- bucket GCS para versionar artefactos del modelo, metricas y reportes;
 - monitorizacion de drift y calidad.
 
 ## Fase 6. Validacion y medicion
@@ -680,10 +679,10 @@ Metricas recomendadas:
 ### Sprint 3. Despliegue GCP
 
 - completado: preparar scaffold del job en GCP;
-- pendiente: empaquetar el job definitivo sobre datos reales;
-- pendiente: crear recursos Terraform reales;
-- pendiente: desplegar en Cloud Run Job;
-- pendiente: orquestar con Scheduler;
+- completado: empaquetar el job definitivo sobre tablas BigQuery;
+- completado: crear recursos Terraform reales para Cloud Run Job y Scheduler;
+- completado: orquestar retraining semanal con Scheduler;
+- pendiente: aplicar Terraform y desplegar en GCP;
 - pendiente: validar escritura en BigQuery y trazabilidad end to end.
 
 ### Sprint 4. Activacion en producto
@@ -704,7 +703,7 @@ Orden recomendado a partir de hoy:
    usar `precio_min/precio_max` si se incorporan;
    o usar temporalmente `banda_precio` como proxy.
 6. Definir como obtener la ciudad de referencia del usuario para features locales.
-7. Promover el scaffold GCP a un `Cloud Run Job` desplegable con Terraform y Scheduler.
+7. Aplicar Terraform y ejecutar manualmente `clustering-train-assign` antes de depender del scheduler semanal.
 
 ## Siguiente entregable recomendado
 

@@ -169,6 +169,8 @@ module "portal_api_sa" {
     "roles/secretmanager.secretAccessor",
     "roles/datastore.user",
     "roles/cloudtasks.enqueuer",
+    "roles/bigquery.dataViewer",
+    "roles/bigquery.jobUser",
   ]
   depends_on = [
     module.setup
@@ -246,17 +248,20 @@ module "cloud_run_portal_api" {
   max_instances = 5
 
   variables_entorno = {
-    ENVIRONMENT               = "production"
-    CORS_ORIGINS              = local.cors_origins
-    DB_HOST                   = module.cloudsql_portal.private_ip
-    DB_NAME                   = module.cloudsql_portal.database_name
-    DB_USER                   = module.cloudsql_portal.db_user
-    GOOGLE_CLOUD_PROJECT      = var.id_proyecto
-    PUBSUB_TOPIC_SWIPE_EVENTS = module.pubsub_swipe_events.nombre
-    AVATAR_BUCKET_NAME        = module.bucket_avatares.nombre
-    CLOUD_TASKS_QUEUE_PATH      = module.cola_valoracion_emails.id_cola
-    RATING_EMAIL_FUNCTION_URL   = module.fn_envio_email.url_funcion
-    RATING_FUNCTION_SA_EMAIL    = module.envio_email_valoracion_sa.email_cuenta_servicio
+    ENVIRONMENT                    = "production"
+    CORS_ORIGINS                   = local.cors_origins
+    DB_HOST                        = module.cloudsql_portal.private_ip
+    DB_NAME                        = module.cloudsql_portal.database_name
+    DB_USER                        = module.cloudsql_portal.db_user
+    GOOGLE_CLOUD_PROJECT           = var.id_proyecto
+    PUBSUB_TOPIC_SWIPE_EVENTS      = module.pubsub_swipe_events.nombre
+    BIGQUERY_PROJECT_ID            = var.id_proyecto
+    BIGQUERY_MARTS_DATASET         = "${module.bigquery.id_dataset}_marts"
+    BIGQUERY_RECOMMENDATIONS_TABLE = "user_recommendation_candidates"
+    AVATAR_BUCKET_NAME             = module.bucket_avatares.nombre
+    CLOUD_TASKS_QUEUE_PATH         = module.cola_valoracion_emails.id_cola
+    RATING_EMAIL_FUNCTION_URL      = module.fn_envio_email.url_funcion
+    RATING_FUNCTION_SA_EMAIL       = module.envio_email_valoracion_sa.email_cuenta_servicio
   }
 
   secretos_entorno = {
@@ -876,6 +881,111 @@ module "scheduler_dbt_lunes_jueves_media_noche" {
   depends_on = [
     module.scheduler_dbt_sa,
     module.dbt_transformations_job
+  ]
+}
+
+module "clustering_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "clustering-train-sa"
+  nombre_despliege   = "Cuenta de servicio para el Cloud Run Job semanal de clustering"
+  cuenta_servicio_roles = [
+    "roles/bigquery.dataViewer",
+    "roles/bigquery.jobUser",
+    "roles/bigquery.dataEditor",
+    "roles/artifactregistry.reader",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "cicd_clustering_train_assign" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-clustering-train"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del Cloud Run Job de clustering"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_clustering_train"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "clustering_train_assign_job" {
+  source                = "./modules/cloud_run_job"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_job            = "clustering-train-assign"
+  nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
+  nombre_imagen         = "clustering-train-assign"
+  ruta_contexto_docker  = "${path.root}/.."
+  ruta_dockerfile       = "clustering/2_integracion_datos_gcp/gcp_batch/Dockerfile"
+  email_cuenta_servicio = module.clustering_sa.email_cuenta_servicio
+
+  cpu     = "1"
+  memoria = "2Gi"
+  timeout = "3600s"
+
+  variables_entorno = {
+    GCP_PROJECT                  = var.id_proyecto
+    BQ_RAW_DATASET               = module.bigquery.id_dataset
+    BQ_MARTS_DATASET             = "${module.bigquery.id_dataset}_marts"
+    BQ_FEATURE_DATASET           = "${module.bigquery.id_dataset}_marts"
+    BQ_SOURCE_FEATURE_TABLE      = "dim_user_cluster_features_current"
+    BQ_LOCATION                  = "EU"
+    LOCAL_WORKDIR                = "/tmp/clustering_job"
+    MODEL_RUN_ID_PREFIX          = "weekly_clustering"
+    K_VALUES                     = "4,5,6,7,8"
+    MIN_SWIPES_30D               = "8"
+    MIN_SWIPES_90D               = "24"
+    LOOKBACK_DAYS                = "90"
+    NEIGHBOR_COUNT               = "2"
+    MAX_RECOMMENDATIONS_PER_USER = "30"
+  }
+
+  depends_on = [
+    module.repo_artifact,
+    module.clustering_sa,
+    module.bigquery,
+    module.dbt_transformations_job
+  ]
+}
+
+module "scheduler_clustering_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "scheduler-clustering-sa"
+  nombre_despliege   = "Cuenta de servicio para lanzar el Cloud Run Job semanal de clustering"
+  cuenta_servicio_roles = [
+    "roles/run.invoker"
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "scheduler_clustering_lunes_01h" {
+  source       = "./modules/scheduler"
+  id_proyecto  = var.id_proyecto
+  region       = var.region
+  nombre_job   = "clustering-train-assign-lunes-01h"
+  descripcion  = "Lanza el Cloud Run Job de clustering los lunes a la 01:00h (Europe/Madrid)"
+  cron         = "0 1 * * 1"
+  zona_horaria = "Europe/Madrid"
+  url_destino  = "https://${var.region}-run.googleapis.com/v2/projects/${var.id_proyecto}/locations/${var.region}/jobs/${module.clustering_train_assign_job.nombre_job}:run"
+  metodo_http  = "POST"
+  cabeceras    = { "Content-Type" = "application/json" }
+
+  email_cuenta_servicio = module.scheduler_clustering_sa.email_cuenta_servicio
+  depends_on = [
+    module.scheduler_clustering_sa,
+    module.clustering_train_assign_job
   ]
 }
 

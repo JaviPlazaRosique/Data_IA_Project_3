@@ -66,12 +66,18 @@ Tambien se excluyen eventos que el usuario ya ha visto en `fct_swipes`.
 - `user_recommendation_candidates` queda particionada por `computed_at`.
 - Cada tabla incluye `model_run_id` y timestamp de ejecucion para trazabilidad.
 
-## Siguiente paso
+## Uso en la app
 
-Conectar el backend a `user_recommendation_candidates`, por ejemplo con un endpoint:
+El backend ya consume `user_recommendation_candidates` desde:
 
 ```text
 GET /users/me/recommendations
 ```
 
-Ese endpoint deberia leer los candidatos del usuario actual, ordenar por `recommendation_rank` y devolver los metadatos del evento.
+La pagina `/recommendations` muestra esos resultados. El deck principal de swipes sigue cargando eventos del catalogo general; las recomendaciones clusterizadas quedan aisladas en la vista de recomendaciones.
+
+## Orquestacion semanal
+
+La ejecucion semanal real vive en `clustering/2_integracion_datos_gcp/gcp_batch/job_main.py` y queda declarada en Terraform como `clustering-train-assign`.
+
+El scheduler lo lanza los lunes a la 01:00 Europe/Madrid, despues del refresco dbt programado a las 00:00.

@@ -71,7 +71,7 @@ Cuando `dim_user_cluster_features_current` este materializado en BigQuery, este 
 
 ### 5. `step_5_preparar_batch_gcp.py`
 
-Genera en `gcp_batch/`:
+Valida que existen los assets del batch semanal en `gcp_batch/`:
 
 - `Dockerfile`
 - `requirements.txt`
@@ -80,7 +80,7 @@ Genera en `gcp_batch/`:
 - `terraform_clustering_job_snippet.tf`
 - `runbook.md`
 
-Prepara el scaffold del `Cloud Run Job` y del `Scheduler` siguiendo el estilo del repositorio actual.
+El batch exporta features desde BigQuery, entrena clustering, carga outputs a BigQuery y regenera `user_recommendation_candidates`. En Terraform queda programado una vez por semana con `Cloud Scheduler`.
 
 ### 6. `step_6_validar_contrato_v2_bigquery.py`
 
@@ -114,7 +114,7 @@ python3 clustering/2_integracion_datos_gcp/step_6_validar_contrato_v2_bigquery.p
 3. Validar en datos reales que el contrato `v2` del swipe llega completo a BigQuery.
 4. Validar que `banda_precio` queda codificada como `banda_precio_score` y `price_proxy_mid` mientras no haya precio real.
 5. Exportar el modelo real de features desde BigQuery y probar el entrenamiento con `step_4`.
-6. Promover `gcp_batch/` a una imagen de `Cloud Run Job` cuando el flujo con datos reales ya sea estable.
+6. Mantener `gcp_batch/` como imagen de `Cloud Run Job` semanal para reentrenar y actualizar recomendaciones.
 
 ## Notas de diseno
 
