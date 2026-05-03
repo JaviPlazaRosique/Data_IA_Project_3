@@ -4,7 +4,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
-  sendEmailVerification,
   signOut,
   type User as FbUser,
 } from 'firebase/auth';
@@ -25,17 +24,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export class EmailNotVerifiedError extends Error {
-  constructor() {
-    super('Email no verificado. Revisa tu bandeja de entrada.');
-    this.name = 'EmailNotVerifiedError';
-  }
-}
-
-function isPasswordProvider(u: FbUser): boolean {
-  return u.providerData.some((p) => p.providerId === 'password');
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [fbUser, setFbUser] = useState<FbUser | null>(null);
   const [user, setUser] = useState<UserRead | null>(null);
@@ -48,12 +36,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsub = onAuthStateChanged(auth, async (u) => {
         if (!u) {
           setFbUser(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-        if (isPasswordProvider(u) && !u.emailVerified) {
-          setFbUser(u);
           setUser(null);
           setLoading(false);
           return;
@@ -73,12 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function loginEmail(email: string, password: string) {
-    const auth = await getFirebaseAuth();
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    if (!cred.user.emailVerified) {
-      await signOut(auth);
-      throw new EmailNotVerifiedError();
-    }
+    await signInWithEmailAndPassword(await getFirebaseAuth(), email, password);
   }
 
   async function loginGoogle() {
@@ -92,10 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function registerEmail(email: string, password: string) {
-    const auth = await getFirebaseAuth();
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await sendEmailVerification(cred.user);
-    await signOut(auth);
+    await createUserWithEmailAndPassword(await getFirebaseAuth(), email, password);
   }
 
   async function logout() {
