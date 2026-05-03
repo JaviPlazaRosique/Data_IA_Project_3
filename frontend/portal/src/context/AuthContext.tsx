@@ -9,7 +9,7 @@ import {
   type User as FbUser,
 } from 'firebase/auth';
 import { getFirebaseAuth, googleProvider, microsoftProvider } from '../lib/firebase';
-import { apiGetMe, type UserRead } from '../api';
+import { apiGetMe, clearDevAuthToken, hasDevAuthToken, setDevAuthToken, type UserRead } from '../api';
 
 interface AuthContextValue {
   fbUser: FbUser | null;
@@ -18,6 +18,7 @@ interface AuthContextValue {
   loginEmail: (email: string, password: string) => Promise<void>;
   loginGoogle: () => Promise<void>;
   loginMicrosoft: () => Promise<void>;
+  loginDemo: () => Promise<void>;
   registerEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: UserRead) => void;
@@ -44,6 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
+      if (hasDevAuthToken()) {
+        try {
+          setUser(await apiGetMe());
+        } catch {
+          clearDevAuthToken();
+          setUser(null);
+        } finally {
+          setFbUser(null);
+          setLoading(false);
+        }
+        return;
+      }
+
       const auth = await getFirebaseAuth();
       unsub = onAuthStateChanged(auth, async (u) => {
         if (!u) {
@@ -68,7 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
         }
       });
-    })();
+    })().catch(() => {
+      setFbUser(null);
+      setUser(null);
+      setLoading(false);
+    });
     return () => { if (unsub) unsub(); };
   }, []);
 
@@ -91,6 +109,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithPopup(auth, microsoftProvider);
   }
 
+  async function loginDemo() {
+    setDevAuthToken('local-demo-token');
+    const me = await apiGetMe();
+    setFbUser(null);
+    setUser(me);
+  }
+
   async function registerEmail(email: string, password: string) {
     const auth = await getFirebaseAuth();
     const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -99,12 +124,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    const auth = await getFirebaseAuth();
-    await signOut(auth);
+    clearDevAuthToken();
+    try {
+      const auth = await getFirebaseAuth();
+      await signOut(auth);
+    } catch {
+      setFbUser(null);
+      setUser(null);
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ fbUser, user, loading, loginEmail, loginGoogle, loginMicrosoft, registerEmail, logout, setUser }}>
+    <AuthContext.Provider value={{ fbUser, user, loading, loginEmail, loginGoogle, loginMicrosoft, loginDemo, registerEmail, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,11 +1,36 @@
 import { awaitConfig, getBackendUrl } from './config';
 import { getFirebaseAuth } from './lib/firebase';
 
-async function getIdToken(): Promise<string | null> {
-  const auth = await getFirebaseAuth();
-  const u = auth.currentUser;
-  if (!u) return null;
-  return u.getIdToken();
+const DEV_AUTH_TOKEN_KEY = 'nextplan.devAuthToken';
+
+export function setDevAuthToken(token: string): void {
+  sessionStorage.setItem(DEV_AUTH_TOKEN_KEY, token);
+}
+
+export function clearDevAuthToken(): void {
+  sessionStorage.removeItem(DEV_AUTH_TOKEN_KEY);
+}
+
+function getStoredDevAuthToken(): string | null {
+  return sessionStorage.getItem(DEV_AUTH_TOKEN_KEY);
+}
+
+export function hasDevAuthToken(): boolean {
+  return Boolean(getStoredDevAuthToken());
+}
+
+async function getAuthToken(): Promise<string | null> {
+  const devToken = getStoredDevAuthToken();
+  if (devToken) return devToken;
+
+  try {
+    const auth = await getFirebaseAuth();
+    const u = auth.currentUser;
+    if (!u) return null;
+    return u.getIdToken();
+  } catch {
+    return null;
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -52,7 +77,7 @@ export interface UpdateMeData {
 
 export async function authFetch(path: string, options: RequestInit = {}): Promise<Response> {
   await awaitConfig();
-  const token = await getIdToken();
+  const token = await getAuthToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> ?? {}),
@@ -65,7 +90,7 @@ export async function authFetch(path: string, options: RequestInit = {}): Promis
 
 export async function apiUploadAvatar(file: File): Promise<UserRead> {
   await awaitConfig();
-  const token = await getIdToken();
+  const token = await getAuthToken();
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`${getBackendUrl()}/api/v1/users/me/avatar`, {
