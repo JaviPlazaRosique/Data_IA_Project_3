@@ -61,14 +61,32 @@ make up-full    # from local/ — or: make -C local up-full from the root
 Serves the built SPA on `http://localhost:5173`. Useful for sanity-checking
 the production bundle before deploy.
 
-## Test credentials
+## Test users
 
-| Email | Password |
-|-------|----------|
-| `alice@example.com` | `Alice1234!` |
-| `bob@example.com` | `Bob1234!` |
+The current backend authenticates through Firebase tokens. For local product
+testing there is also a development-only demo access path:
 
-Both users are seeded by `local/seed.py` on first migrate.
+- Open `/login`.
+- Click `Entrar como demo clustering`.
+- The backend resolves the deterministic user
+  `demo-clustering@example.com` with id
+  `00ef231d-9dc1-5a92-abb0-da5c629cc826`.
+
+That id exists in the clustering recommendation outputs, so the recommendations
+page can be tested without creating a Firebase user.
+
+To test against real BigQuery recommendations instead of the local fallback,
+configure Application Default Credentials on the host:
+
+```bash
+gcloud auth application-default login
+docker compose -f local/docker-compose.yml up -d --build backend
+```
+
+The backend mounts `${HOME}/.config/gcloud` read-only and reads recommendations
+from `project3grupo3.recomendacion_planes_marts.user_recommendation_candidates`.
+If ADC is missing, the local demo user falls back to
+`backend/portal-api/app/demo_data/recommendations_demo.csv`.
 
 ## Key URLs
 
