@@ -924,23 +924,6 @@ module "clustering_sa" {
   ]
 }
 
-module "cicd_clustering_train_assign" {
-  source             = "./modules/wif_workflow"
-  id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "cicd-clustering-train"
-  nombre_despliege   = "Cuenta de servicio para el CI/CD del Cloud Run Job de clustering"
-  cuenta_servicio_roles = [
-    "roles/artifactregistry.writer",
-    "roles/run.developer",
-    "roles/iam.serviceAccountUser",
-  ]
-  nombre_pool     = module.setup.nombre_pool
-  nombre_workflow = "cicd_clustering_train"
-  depends_on = [
-    module.setup
-  ]
-}
-
 module "clustering_train_assign_job" {
   source                = "./modules/cloud_run_job"
   id_proyecto           = var.id_proyecto
@@ -948,8 +931,7 @@ module "clustering_train_assign_job" {
   nombre_job            = "clustering-train-assign"
   nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
   nombre_imagen         = "clustering-train-assign"
-  ruta_contexto_docker  = "${path.root}/.."
-  ruta_dockerfile       = "clustering/2_integracion_datos_gcp/gcp_batch/Dockerfile"
+  ruta_contexto_docker  = "${path.root}/../clustering/2_integracion_datos_gcp/gcp_batch"
   email_cuenta_servicio = module.clustering_sa.email_cuenta_servicio
 
   cpu     = "1"
