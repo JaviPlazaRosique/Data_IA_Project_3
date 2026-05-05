@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/google"
       version = "7.21.0"
     }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "7.21.0"
+    }
     local = {
       source  = "hashicorp/local"
       version = "2.8.0"
@@ -24,6 +28,12 @@ terraform {
 }
 
 provider "google" {
+  project               = var.id_proyecto
+  region                = var.region
+  user_project_override = true
+}
+
+provider "google-beta" {
   project               = var.id_proyecto
   region                = var.region
   user_project_override = true

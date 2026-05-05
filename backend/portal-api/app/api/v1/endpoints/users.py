@@ -1,7 +1,7 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 from google.cloud import storage
 from sqlalchemy import select
@@ -46,6 +46,19 @@ async def get_me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+@router.get("/check-username")
+async def check_username(
+    username: str = Query(..., min_length=1),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    normalized = username.strip().lower()
+    if normalized == current_user.username:
+        return {"available": True}
+    existing = await db.execute(select(User).where(User.username == normalized))
+    return {"available": existing.scalar_one_or_none() is None}
+
+
 @router.put("/me", response_model=UserRead)
 async def update_me(
     body: UserUpdate,
@@ -53,6 +66,16 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     update_data = body.model_dump(exclude_unset=True)
+
+    if "username" in update_data and update_data["username"] is not None:
+        new_username = update_data["username"]
+        if new_username != current_user.username:
+            existing = await db.execute(select(User).where(User.username == new_username))
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Este nombre de usuario ya está en uso.",
+                )
 
     if "preferred_location" in update_data:
         location = update_data["preferred_location"]
