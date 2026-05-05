@@ -15,6 +15,7 @@ import {
   apiListEventCategories,
   apiListEvents,
   apiSaveEvent,
+  apiRegistrarVisita,
   cleanLabel,
   type EventCatalogItem,
 } from '../api';
@@ -500,6 +501,11 @@ function EventDetailModal({
                 href={event.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  if (isLoggedIn) {
+                    apiRegistrarVisita(event.id).catch(() => {});
+                  }
+                }}
                 className="flex-1 bg-surface-container-high text-on-surface font-bold py-3 rounded-xl text-sm uppercase tracking-widest text-center hover:bg-surface-variant transition-colors flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-[18px]">open_in_new</span>
