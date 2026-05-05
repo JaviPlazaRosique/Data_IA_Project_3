@@ -1,4 +1,5 @@
 import re
+import uuid
 import unicodedata
 from collections.abc import AsyncGenerator
 
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import credentials_exception, inactive_user_exception
 from app.core.firebase_auth import verify_id_token
+from app.config import settings
 from app.db.session import AsyncSessionLocal
 from app.models.user import User
 
@@ -52,6 +54,10 @@ async def get_current_user(
 ) -> User:
     if creds is None or creds.scheme.lower() != "bearer":
         raise credentials_exception
+
+    if settings.DEV_AUTH_ENABLED and settings.DEV_AUTH_TOKEN:
+        if creds.credentials == settings.DEV_AUTH_TOKEN:
+            return await _get_or_create_dev_user(db)
 
     try:
         decoded = verify_id_token(creds.credentials)
@@ -106,4 +112,49 @@ async def get_current_user(
     if not user.is_active:
         raise inactive_user_exception
 
+    return user
+
+
+async def _get_or_create_dev_user(db: AsyncSession) -> User:
+    """Resolve a deterministic local demo user for development-only testing."""
+    if not settings.DEV_AUTH_USER_ID:
+        raise credentials_exception
+
+    try:
+        user_id = uuid.UUID(settings.DEV_AUTH_USER_ID)
+    except ValueError:
+        raise credentials_exception
+
+    firebase_uid = f"dev:{settings.DEV_AUTH_USER_ID}"
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        existing_email = await db.execute(select(User).where(User.email == settings.DEV_AUTH_EMAIL))
+        user = existing_email.scalar_one_or_none()
+
+    if user is None:
+        user = User(
+            id=user_id,
+            firebase_uid=firebase_uid,
+            email=settings.DEV_AUTH_EMAIL,
+            username="demo_clustering",
+            full_name=settings.DEV_AUTH_FULL_NAME,
+            is_verified=True,
+            preferred_location="Barcelona",
+            preferred_categories=["Cultura", "Teatro"],
+        )
+        db.add(user)
+    else:
+        user.id = user_id
+        user.firebase_uid = firebase_uid
+        user.email = settings.DEV_AUTH_EMAIL
+        user.username = user.username or "demo_clustering"
+        user.full_name = user.full_name or settings.DEV_AUTH_FULL_NAME
+        user.is_verified = True
+        user.preferred_location = user.preferred_location or "Barcelona"
+        user.preferred_categories = user.preferred_categories or ["Cultura", "Teatro"]
+
+    await db.commit()
+    await db.refresh(user)
     return user

@@ -35,7 +35,8 @@ eventos as (
         subgenero,
         ciudad,
         recinto_id,
-        fecha       as fecha_evento
+        fecha       as fecha_evento,
+        banda_precio
     from {{ source('catalog', 'eventos') }}
 ),
 
@@ -49,21 +50,38 @@ dedup as (
 select
     d.interaction_id,
     d.event_timestamp,
+    d.schema_version,
     d.user_id,
     d.session_id,
     d.event_id,
     d.interaction_type,
     d.swipe_direction,
     d.liked,
+    d.dwell_ms,
     d.recommendation_context,
-    e.segmento,
-    e.genero,
-    e.subgenero,
-    e.ciudad,
-    cast(null as float64) as precio_min,
-    cast(null as float64) as precio_max,
-    e.fecha_evento,
-    e.recinto_id,
+    d.rank_position,
+    d.recommendation_id,
+    d.producer_surface,
+    d.producer_client_version,
+    coalesce(d.snapshot_segmento, e.segmento) as segmento,
+    coalesce(d.snapshot_genero, e.genero) as genero,
+    coalesce(d.snapshot_subgenero, e.subgenero) as subgenero,
+    coalesce(d.snapshot_ciudad, e.ciudad) as ciudad,
+    d.snapshot_precio_min as precio_min,
+    d.snapshot_precio_max as precio_max,
+    coalesce(d.snapshot_banda_precio, e.banda_precio) as banda_precio,
+    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
+        when 'bajo' then 1
+        when 'medio' then 2
+        when 'alto' then 3
+    end as banda_precio_score,
+    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
+        when 'bajo' then 15.0
+        when 'medio' then 45.0
+        when 'alto' then 90.0
+    end as price_proxy_mid,
+    coalesce(d.snapshot_fecha_evento, e.fecha_evento) as fecha_evento,
+    coalesce(d.snapshot_recinto_id, e.recinto_id) as recinto_id,
     d.ingestion_timestamp
 from dedup d
 left join eventos e using (event_id)

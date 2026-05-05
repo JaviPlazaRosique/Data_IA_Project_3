@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import asyncio
+import csv
+import re
+from functools import lru_cache
+from pathlib import Path
+
+from google.auth.exceptions import DefaultCredentialsError
+from google.cloud import bigquery
+
+from app.config import settings
+from app.schemas.recommendation import ClusterRecommendationRead
+
+SAFE_BQ_IDENTIFIER = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+@lru_cache(maxsize=1)
+def _get_bigquery_client() -> bigquery.Client:
+    project_id = settings.BIGQUERY_PROJECT_ID or settings.GOOGLE_CLOUD_PROJECT or None
+    return bigquery.Client(project=project_id)
+
+
+def _safe_identifier(value: str, label: str) -> str:
+    if not SAFE_BQ_IDENTIFIER.fullmatch(value):
+        raise RuntimeError(f"Invalid BigQuery {label}: {value!r}")
+    return value
+
+
+def _recommendations_table() -> str:
+    project_id = settings.BIGQUERY_PROJECT_ID or settings.GOOGLE_CLOUD_PROJECT
+    if not project_id:
+        raise RuntimeError("BIGQUERY_PROJECT_ID or GOOGLE_CLOUD_PROJECT must be set to read recommendations from BigQuery")
+    project_id = _safe_identifier(project_id, "project id")
+    dataset = _safe_identifier(settings.BIGQUERY_MARTS_DATASET, "dataset")
+    table = _safe_identifier(settings.BIGQUERY_RECOMMENDATIONS_TABLE, "table")
+    return (
+        f"`{project_id}."
+        f"{dataset}."
+        f"{table}`"
+    )
+
+
+def _query_recommendations_sync(user_id: str, limit: int) -> list[ClusterRecommendationRead]:
+    query = f"""
+select
+  event_id,
+  event_name,
+  cast(fecha_evento as string) as fecha_evento,
+  ciudad,
+  recinto_nombre,
+  segmento,
+  genero,
+  subgenero,
+  recommendation_rank,
+  recommendation_score,
+  cluster_source
+from {_recommendations_table()}
+where user_id = @user_id
+order by recommendation_rank asc
+limit @limit
+""".strip()
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("user_id", "STRING", user_id),
+            bigquery.ScalarQueryParameter("limit", "INT64", limit),
+        ],
+    )
+    rows = _get_bigquery_client().query(query, job_config=job_config).result()
+    return [ClusterRecommendationRead(**dict(row.items())) for row in rows]
+
+
+def _query_local_fallback(user_id: str, limit: int) -> list[ClusterRecommendationRead]:
+    if not settings.DEV_RECOMMENDATIONS_FALLBACK_PATH:
+        return []
+
+    path = Path(settings.DEV_RECOMMENDATIONS_FALLBACK_PATH)
+    if not path.exists():
+        return []
+
+    recommendations: list[ClusterRecommendationRead] = []
+    with path.open(newline="", encoding="utf-8") as csv_file:
+        for row in csv.DictReader(csv_file):
+            if row.get("user_id") != user_id:
+                continue
+            recommendations.append(
+                ClusterRecommendationRead(
+                    event_id=row["event_id"],
+                    event_name=row.get("event_name") or None,
+                    fecha_evento=row.get("fecha_evento") or None,
+                    ciudad=row.get("ciudad") or None,
+                    recinto_nombre=row.get("recinto_nombre") or None,
+                    segmento=row.get("segmento") or None,
+                    genero=row.get("genero") or None,
+                    subgenero=row.get("subgenero") or None,
+                    recommendation_rank=int(row["recommendation_rank"]),
+                    recommendation_score=float(row["recommendation_score"]),
+                    cluster_source=row["cluster_source"],
+                )
+            )
+
+    return sorted(recommendations, key=lambda rec: rec.recommendation_rank)[:limit]
+
+
+async def list_user_recommendations(user_id: str, limit: int) -> list[ClusterRecommendationRead]:
+    try:
+        return await asyncio.to_thread(_query_recommendations_sync, user_id, limit)
+    except DefaultCredentialsError:
+        fallback = await asyncio.to_thread(_query_local_fallback, user_id, limit)
+        if fallback:
+            return fallback
+        raise

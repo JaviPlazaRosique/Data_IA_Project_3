@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "direction": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "type": "string"
+    },
+    "dwell_ms": {
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "event_snapshot": {
+      "properties": {
+        "banda_precio": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ciudad": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "fecha_evento": {
+          "format": "date",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "genero": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "precio_max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "precio_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "recinto_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "segmento": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subgenero": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "event_id"
+      ],
+      "type": "object"
+    },
+    "producer": {
+      "properties": {
+        "client_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "surface": {
+          "enum": [
+            "swipe",
+            "chat"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface"
+      ],
+      "type": "object"
+    },
+    "rank_position": {
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "recommendation_context": {
+      "enum": [
+        "swipe",
+        "chat"
+      ],
+      "type": "string"
+    },
+    "recommendation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schema_version": {
+      "const": "2.0",
+      "type": "string"
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "swiped_at": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_id",
+    "direction",
+    "swiped_at",
+    "session_id",
+    "recommendation_context",
+    "event_snapshot"
+  ],
+  "title": "Swipe Event Contract v2",
+  "type": "object"
+}

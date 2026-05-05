@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth, EmailNotVerifiedError } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
 
@@ -20,7 +20,7 @@ function mapAuthError(code: string | undefined): string {
 }
 
 export default function LoginPage() {
-  const { loginEmail, loginGoogle, loginMicrosoft, user } = useAuth();
+  const { loginEmail, loginGoogle, loginMicrosoft, loginDemo, user } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -47,8 +47,7 @@ export default function LoginPage() {
       await loginEmail(email, password);
       setPendingRedirect(true);
     } catch (err) {
-      if (err instanceof EmailNotVerifiedError) setError(err.message);
-      else setError(mapAuthError((err as { code?: string })?.code));
+      setError(mapAuthError((err as { code?: string })?.code));
     } finally {
       setLoading(false);
     }
@@ -75,6 +74,19 @@ export default function LoginPage() {
       setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDemo() {
+    setError('');
+    setLoading(true);
+    try {
+      await loginDemo();
+      navigate('/recommendations');
+    } catch {
+      setError('No se pudo iniciar el usuario demo local');
     } finally {
       setLoading(false);
     }
@@ -164,6 +176,15 @@ export default function LoginPage() {
             className="w-full bg-surface-container-lowest border border-outline-variant/20 text-on-surface font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continuar con Microsoft
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDemo}
+            disabled={loading}
+            className="w-full bg-secondary text-on-secondary font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Entrar como demo clustering
           </button>
 
           <p className="text-center text-sm text-on-surface-variant">
