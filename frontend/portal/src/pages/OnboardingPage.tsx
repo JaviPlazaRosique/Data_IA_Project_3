@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiCheckUsername, apiUpdateMe } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -60,6 +60,18 @@ export default function OnboardingPage() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const regUsername = sessionStorage.getItem('np_reg_username');
+    const regFullname = sessionStorage.getItem('np_reg_fullname');
+    if (regUsername) {
+      sessionStorage.removeItem('np_reg_username');
+      sessionStorage.removeItem('np_reg_fullname');
+      setFullName(regFullname ?? '');
+      handleUsernameChange(regUsername);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const effectiveCity = showCustom ? customCity.trim() : city;
 

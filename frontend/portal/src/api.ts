@@ -430,3 +430,10 @@ export async function apiGetEvent(eventId: string): Promise<EventCatalogItem> {
   if (!res.ok) throw new ApiError(res.status, 'Failed to load event');
   return res.json();
 }
+
+export async function apiRegistrarVisita(eventId: string): Promise<void> {
+  const res = await authFetch(`/api/v1/events/${eventId}/registro-visita`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to register visit');
+}

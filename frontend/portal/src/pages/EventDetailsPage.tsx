@@ -13,9 +13,11 @@ import EventCalendar from '../components/event/EventCalendar';
 import {
   apiGetEvent,
   apiListEvents,
+  apiRegistrarVisita,
   cleanLabel,
   type EventCatalogItem,
 } from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const heroImg = 'https://picsum.photos/seed/festival-night/1400/700';
 
@@ -94,6 +96,7 @@ const weatherMetrics = [
 export default function EventDetailsPage() {
   const { id: routeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const handleClose = useCallback(() => {
     if (window.history.length > 1) navigate(-1);
     else navigate('/swipe');
@@ -379,6 +382,9 @@ export default function EventDetailsPage() {
                   href={event.url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => {
+                    if (user) apiRegistrarVisita(event.id).catch(() => {});
+                  }}
                   className="flex items-center justify-between bg-on-surface text-surface py-3 px-5 rounded-full font-bold hover:bg-tertiary transition-colors group"
                 >
                   <span className="flex items-center gap-3">

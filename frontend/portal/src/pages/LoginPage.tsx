@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth, EmailNotVerifiedError } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
 
@@ -47,8 +47,7 @@ export default function LoginPage() {
       await loginEmail(email, password);
       setPendingRedirect(true);
     } catch (err) {
-      if (err instanceof EmailNotVerifiedError) setError(err.message);
-      else setError(mapAuthError((err as { code?: string })?.code));
+      setError(mapAuthError((err as { code?: string })?.code));
     } finally {
       setLoading(false);
     }

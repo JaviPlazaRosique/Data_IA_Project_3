@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import TopNav from '../components/layout/TopNav';
@@ -11,6 +11,8 @@ const PW_RULES = {
   digit: (v: string) => /\d/.test(v),
   symbol: (v: string) => /[^A-Za-z0-9]/.test(v),
 };
+
+const USERNAME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{2,29}$/;
 
 function mapAuthError(code: string | undefined): string {
   switch (code) {
@@ -39,10 +41,13 @@ export default function RegisterPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const usernameInputRef = useRef<HTMLInputElement>(null);
 
   const checks = useMemo(() => ({
     length: PW_RULES.length(password),
@@ -54,19 +59,28 @@ export default function RegisterPage() {
 
   const pwValid = Object.values(checks).every(Boolean);
 
+  const trimmedUsername = username.trim().toLowerCase();
+  const usernameFormatValid = USERNAME_REGEX.test(trimmedUsername);
+  const usernameFormatError = trimmedUsername.length > 0 && !usernameFormatValid;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    setInfo('');
     if (!pwValid) {
       setError('La contraseña no cumple los requisitos');
+      return;
+    }
+    if (!usernameFormatValid) {
+      setError('El nombre de usuario no es válido');
       return;
     }
     setLoading(true);
     try {
       await registerEmail(email, password);
       localStorage.setItem('np_new_user', '1');
-      setInfo('Cuenta creada. Revisa tu email para verificar antes de iniciar sesión.');
+      sessionStorage.setItem('np_reg_username', trimmedUsername);
+      sessionStorage.setItem('np_reg_fullname', fullName.trim());
+      setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
     } finally {
@@ -105,7 +119,7 @@ export default function RegisterPage() {
   return (
     <div className="h-screen bg-surface flex flex-col overflow-hidden">
       <div className="hidden md:block"><TopNav /></div>
-      <main className="flex-1 relative flex items-center justify-center px-4 py-3 pb-24 md:py-8 md:pb-8 overflow-hidden">
+      <main className="flex-1 relative flex items-center justify-center px-4 py-3 pb-24 md:py-8 md:pb-8 overflow-y-auto">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="relative w-full max-w-sm">
@@ -125,11 +139,51 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
-          {info && (
-            <div className="bg-primary/10 border border-primary/30 text-on-surface text-sm px-4 py-3 rounded-xl">
-              {info}
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
+              Nombre de usuario
+            </label>
+            <div className={`bg-surface-container-lowest flex items-center gap-2 rounded-xl border transition-colors px-4 py-3 ${
+              usernameFormatError
+                ? 'border-error/60'
+                : trimmedUsername.length > 0 && usernameFormatValid
+                  ? 'border-primary/40'
+                  : 'border-outline-variant/20 focus-within:border-secondary'
+            }`}>
+              <span className="text-on-surface-variant/60 text-sm select-none">@</span>
+              <input
+                ref={usernameInputRef}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoComplete="username"
+                maxLength={30}
+                className="flex-1 bg-transparent text-sm text-on-surface focus:outline-none placeholder:text-on-surface-variant/40"
+                placeholder="tu_usuario"
+              />
             </div>
-          )}
+            {usernameFormatError && (
+              <p className="text-xs text-error px-1">3–30 caracteres. Solo letras, números, _ y -.</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
+              Nombre completo{' '}
+              <span className="normal-case font-normal text-on-surface-variant/50">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              autoComplete="name"
+              maxLength={100}
+              className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/20 focus:border-secondary focus:outline-none px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-colors"
+              placeholder="Ej. María García"
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block">
@@ -186,7 +240,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading || !privacyAccepted || !pwValid}
+            disabled={loading || !privacyAccepted || !pwValid || !usernameFormatValid}
             className="w-full bg-primary text-on-primary font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
             {loading ? 'Creando cuenta…' : 'Crear cuenta'}

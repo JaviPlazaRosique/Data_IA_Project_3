@@ -62,7 +62,7 @@ def pagina_confirmacion(nombre_evento, valoracion):
           <td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:36px;text-align:center;">
             <div style="font-size:36px;margin-bottom:6px;">⚡</div>
             <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px;">
-              The Electric Curator
+              PlanAI - Recomendación de eventos
             </h1>
           </td>
         </tr>
