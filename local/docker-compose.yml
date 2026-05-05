@@ -123,13 +123,22 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://curator:${POSTGRES_PASSWORD:-localpass}@db:5432/electric_curator
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-dev-secret-change-before-prod}
-      CORS_ORIGINS: http://localhost:5173,http://localhost:5174
+      CORS_ORIGINS: http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174
       ENVIRONMENT: development
       GOOGLE_CLOUD_PROJECT: demo-local
+      BIGQUERY_PROJECT_ID: project3grupo3
       FIREBASE_AUTH_PROJECT_ID: project3grupo3
       FIRESTORE_EMULATOR_HOST: firebase:8081
       PUBSUB_EMULATOR_HOST: pubsub:8681
       PUBSUB_TOPIC_SWIPE_EVENTS: swipe-events
+      DEV_AUTH_ENABLED: "true"
+      DEV_AUTH_TOKEN: local-demo-token
+      DEV_AUTH_USER_ID: 00ef231d-9dc1-5a92-abb0-da5c629cc826
+      DEV_AUTH_EMAIL: demo-clustering@example.com
+      DEV_AUTH_FULL_NAME: Demo Clustering
+      DEV_RECOMMENDATIONS_FALLBACK_PATH: /app/app/demo_data/recommendations_demo.csv
+    volumes:
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
     ports:
       - "8080:8080"
     depends_on:

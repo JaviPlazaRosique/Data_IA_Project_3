@@ -8,6 +8,8 @@ models:
         data_tests: [not_null, unique]
       - name: event_id
         data_tests: [not_null]
+      - name: schema_version
+        description: "Version del contrato del payload de swipe. Para el contrato nuevo debe ser '2.0'."
       - name: user_id
         data_tests: [not_null]
       - name: swipe_direction
@@ -21,9 +23,39 @@ models:
         data_tests: [not_null]
       - name: liked
         description: "true si right, false si left."
+      - name: dwell_ms
+        description: "Milisegundos que la tarjeta estuvo visible antes del swipe."
       - name: session_id
         description: "Nullable: solo presente si el cliente lo envía."
       - name: recommendation_context
-        description: "Nullable: 'discover', 'map', 'planner', etc."
+        description: "Nullable: superficie funcional de recomendacion, por ejemplo 'swipe' o 'chat'."
+      - name: rank_position
+        description: "Posicion del evento dentro del deck o ranking cuando se mostro."
+      - name: recommendation_id
+        description: "ID de trazabilidad de la recomendacion que genero el swipe."
+      - name: producer_surface
+        description: "Superficie cliente que produjo el evento."
+      - name: producer_client_version
+        description: "Version del cliente frontend, si esta disponible."
+      - name: snapshot_event_id
+        description: "ID del evento dentro del snapshot enviado por el cliente."
+      - name: snapshot_segmento
+        description: "Segmento del evento en el momento del swipe."
+      - name: snapshot_genero
+        description: "Genero del evento en el momento del swipe."
+      - name: snapshot_subgenero
+        description: "Subgenero del evento en el momento del swipe."
+      - name: snapshot_ciudad
+        description: "Ciudad del evento en el momento del swipe."
+      - name: snapshot_recinto_id
+        description: "ID del recinto en el momento del swipe."
+      - name: snapshot_fecha_evento
+        description: "Fecha del evento en el momento del swipe."
+      - name: snapshot_precio_min
+        description: "Precio minimo del snapshot, si existe."
+      - name: snapshot_precio_max
+        description: "Precio maximo del snapshot, si existe."
+      - name: snapshot_banda_precio
+        description: "Banda de precio del snapshot, si no hay precio numerico estable."
       - name: interaction_type
         description: "Default 'swipe' si el payload no lo trae."

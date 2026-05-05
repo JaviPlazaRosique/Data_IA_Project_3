@@ -6,6 +6,7 @@ interface SideNavProps {
 
 const navItems = [
   { icon: 'explore', label: 'Discover', path: '/swipe' },
+  { icon: 'auto_awesome_motion', label: 'For You', path: '/recommendations' },
   { icon: 'auto_awesome', label: 'AI Chat', path: '/planner' },
   { icon: 'map', label: 'Explore', path: '/map' },
   { icon: 'person', label: 'Profile', path: '/profile' },

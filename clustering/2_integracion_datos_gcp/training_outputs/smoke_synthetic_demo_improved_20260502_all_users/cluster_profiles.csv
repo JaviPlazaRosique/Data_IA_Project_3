@@ -1,0 +1,5 @@
+cluster_id,cluster_size,share_of_users,dominant_synthetic_persona,dominant_synthetic_persona_share,dominant_home_city,dominant_home_city_share,top_segment_1,top_segment_2,top_genre_1,top_genre_2
+0,37,0.188776,culture_theatre_explorer,0.918919,Barcelona,0.351351,arts_theatre_30d,arts_theatre_90d,comedy_90d,comedy_30d
+1,54,0.27551,broad_discovery_flexible,0.537037,Barcelona,0.314815,family_30d,family_90d,exhibition_30d,exhibition_90d
+2,67,0.341837,music_pop_rock_local,0.522388,Madrid,0.253731,music_90d,music_30d,pop_90d,pop_30d
+3,38,0.193878,family_weekend_exhibition,0.921053,Madrid,0.394737,family_30d,family_90d,exhibition_30d,exhibition_90d

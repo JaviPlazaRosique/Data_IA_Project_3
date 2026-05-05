@@ -1,11 +1,36 @@
 import { awaitConfig, getBackendUrl } from './config';
 import { getFirebaseAuth } from './lib/firebase';
 
-async function getIdToken(): Promise<string | null> {
-  const auth = await getFirebaseAuth();
-  const u = auth.currentUser;
-  if (!u) return null;
-  return u.getIdToken();
+const DEV_AUTH_TOKEN_KEY = 'nextplan.devAuthToken';
+
+export function setDevAuthToken(token: string): void {
+  sessionStorage.setItem(DEV_AUTH_TOKEN_KEY, token);
+}
+
+export function clearDevAuthToken(): void {
+  sessionStorage.removeItem(DEV_AUTH_TOKEN_KEY);
+}
+
+function getStoredDevAuthToken(): string | null {
+  return sessionStorage.getItem(DEV_AUTH_TOKEN_KEY);
+}
+
+export function hasDevAuthToken(): boolean {
+  return Boolean(getStoredDevAuthToken());
+}
+
+async function getAuthToken(): Promise<string | null> {
+  const devToken = getStoredDevAuthToken();
+  if (devToken) return devToken;
+
+  try {
+    const auth = await getFirebaseAuth();
+    const u = auth.currentUser;
+    if (!u) return null;
+    return u.getIdToken();
+  } catch {
+    return null;
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,7 +78,7 @@ export interface UpdateMeData {
 
 export async function authFetch(path: string, options: RequestInit = {}): Promise<Response> {
   await awaitConfig();
-  const token = await getIdToken();
+  const token = await getAuthToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> ?? {}),
@@ -66,7 +91,7 @@ export async function authFetch(path: string, options: RequestInit = {}): Promis
 
 export async function apiUploadAvatar(file: File): Promise<UserRead> {
   await awaitConfig();
-  const token = await getIdToken();
+  const token = await getAuthToken();
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`${getBackendUrl()}/api/v1/users/me/avatar`, {
@@ -182,17 +207,56 @@ export type SwipeDirection = 'left' | 'right';
 
 export type RecommendationContext = 'swipe' | 'chat';
 
+export interface SwipeEventSnapshot {
+  event_id: string;
+  segmento?: string | null;
+  genero?: string | null;
+  subgenero?: string | null;
+  ciudad?: string | null;
+  recinto_id?: string | null;
+  fecha_evento?: string | null;
+  precio_min?: number | null;
+  precio_max?: number | null;
+  banda_precio?: string | null;
+}
+
+export interface SwipeEventProducer {
+  surface: RecommendationContext;
+  client_version?: string | null;
+}
+
 export interface SwipeEventCreate {
+  schema_version: '2.0';
   event_id: string;
   direction: SwipeDirection;
-  swiped_at?: string;
+  swiped_at: string;
   dwell_ms?: number;
-  session_id?: string;
-  recommendation_context?: RecommendationContext;
+  session_id: string;
+  recommendation_context: RecommendationContext;
+  rank_position?: number | null;
+  recommendation_id?: string | null;
+  producer?: SwipeEventProducer;
+  event_snapshot: SwipeEventSnapshot;
 }
 
 export interface SwipeEventAccepted {
   accepted: boolean;
+}
+
+// ─── Cluster recommendations types ───────────────────────────────────────────
+
+export interface ClusterRecommendationRead {
+  event_id: string;
+  event_name: string | null;
+  fecha_evento: string | null;
+  ciudad: string | null;
+  recinto_nombre: string | null;
+  segmento: string | null;
+  genero: string | null;
+  subgenero: string | null;
+  recommendation_rank: number;
+  recommendation_score: number;
+  cluster_source: 'own_cluster' | 'neighbor_cluster' | string;
 }
 
 // ─── Event catalog types ──────────────────────────────────────────────────────
@@ -206,7 +270,11 @@ export interface EventCatalogItem {
   fecha_utc: string | null;
   estado: string | null;
   ciudad: string | null;
+  recinto_id: string | null;
   recinto_nombre: string | null;
+  precio_min: number | null;
+  precio_max: number | null;
+  banda_precio: string | null;
   direccion: string | null;
   latitud: number | null;
   longitud: number | null;
@@ -284,6 +352,13 @@ export async function apiSwipeEvent(data: SwipeEventCreate): Promise<SwipeEventA
   return res.json();
 }
 
+export async function apiListClusterRecommendations(limit = 30): Promise<ClusterRecommendationRead[]> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  const res = await authFetch(`/api/v1/users/me/recommendations?${q.toString()}`);
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load recommendations');
+  return res.json();
+}
+
 // ─── Events catalog API (public) ──────────────────────────────────────────────
 
 export async function apiListEvents(
@@ -354,4 +429,11 @@ export async function apiGetEvent(eventId: string): Promise<EventCatalogItem> {
   const res = await fetch(`${getBackendUrl()}/api/v1/events/${eventId}`);
   if (!res.ok) throw new ApiError(res.status, 'Failed to load event');
   return res.json();
+}
+
+export async function apiRegistrarVisita(eventId: string): Promise<void> {
+  const res = await authFetch(`/api/v1/events/${eventId}/registro-visita`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Failed to register visit');
 }

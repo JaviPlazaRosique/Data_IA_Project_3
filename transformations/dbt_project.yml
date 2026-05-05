@@ -22,6 +22,11 @@ models:
     staging:
       +materialized: view
       +schema: staging
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+      +labels:
+        pipeline: swipes
     marts:
       +materialized: incremental
       +schema: marts

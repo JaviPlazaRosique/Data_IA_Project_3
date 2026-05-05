@@ -1,0 +1,5 @@
+user_id,event_id,event_name,fecha_evento,ciudad,recinto_nombre,segmento,genero,subgenero,recommendation_rank,recommendation_score,cluster_source
+00ef231d-9dc1-5a92-abb0-da5c629cc826,LvZ18Q3HOZOf1kOZvUsiB,Museo Banksy Madrid,2026-05-15,Madrid,Museo Banksy Madrid,Arts & Theatre,Cultural,Cultural,1,0.982,own_cluster
+00ef231d-9dc1-5a92-abb0-da5c629cc826,LvZ18Q3HOZOf1kOZvUsiD,Museo Banksy Madrid,2026-05-18,Madrid,Museo Banksy Madrid,Arts & Theatre,Cultural,Cultural,2,0.941,own_cluster
+00ef231d-9dc1-5a92-abb0-da5c629cc826,LvZ18Q3HOZOf1kOZvUsiM,Museo Banksy Madrid,2026-05-22,Madrid,Museo Banksy Madrid,Arts & Theatre,Cultural,Cultural,3,0.918,near_cluster
+00ef231d-9dc1-5a92-abb0-da5c629cc826,LvZ18Q3HOZOf1kOZvUsiU,Museo Banksy Madrid,2026-05-26,Madrid,Museo Banksy Madrid,Arts & Theatre,Cultural,Cultural,4,0.884,near_cluster

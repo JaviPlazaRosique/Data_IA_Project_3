@@ -18,6 +18,21 @@ const DECK_STORAGE_KEY = 'quickmatch_deck_v1';
 
 type SwipeDir = 'left' | 'right';
 
+function buildEventSnapshot(event: EventCatalogItem) {
+  return {
+    event_id: event.id,
+    segmento: cleanLabel(event.segmento),
+    genero: cleanLabel(event.genero),
+    subgenero: cleanLabel(event.subgenero),
+    ciudad: event.ciudad,
+    recinto_id: event.recinto_id,
+    fecha_evento: event.fecha,
+    precio_min: event.precio_min,
+    precio_max: event.precio_max,
+    banda_precio: event.banda_precio,
+  };
+}
+
 function dedupe(events: EventCatalogItem[]): EventCatalogItem[] {
   const seen = new Map<string, EventCatalogItem>();
   for (const ev of events) {
@@ -105,17 +120,26 @@ export default function QuickMatch({ onSaved, recommendationContext = 'swipe' }:
   const publishSwipe = useCallback((event: EventCatalogItem, direction: SwipeDirection) => {
     const shownAt = cardShownAtRef.current;
     const dwell_ms = shownAt != null ? Math.round(performance.now() - shownAt) : undefined;
+    const sessionId = getSessionId();
     apiSwipeEvent({
+      schema_version: '2.0',
       direction,
       event_id: event.id,
       swiped_at: new Date().toISOString(),
-      session_id: getSessionId(),
+      session_id: sessionId,
       recommendation_context: recommendationContext,
+      rank_position: index,
+      recommendation_id: `${recommendationContext}:${sessionId}:${event.id}:${index}`,
+      producer: {
+        surface: recommendationContext,
+        client_version: import.meta.env.VITE_APP_VERSION ?? null,
+      },
+      event_snapshot: buildEventSnapshot(event),
       ...(dwell_ms != null ? { dwell_ms } : {}),
     }).catch((err) => {
       console.warn('swipe publish failed', err);
     });
-  }, [recommendationContext]);
+  }, [index, recommendationContext]);
 
   const advance = useCallback(
     (dir: SwipeDir) => {

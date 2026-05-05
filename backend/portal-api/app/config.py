@@ -27,6 +27,19 @@ class Settings(BaseSettings):
     # Pub/Sub
     PUBSUB_TOPIC_SWIPE_EVENTS: str = "swipe-events"
 
+    # BigQuery recommendations serving
+    BIGQUERY_PROJECT_ID: str = ""
+    BIGQUERY_MARTS_DATASET: str = "recomendacion_planes_marts"
+    BIGQUERY_RECOMMENDATIONS_TABLE: str = "user_recommendation_candidates"
+
+    # Local-only demo auth. Keep disabled outside development.
+    DEV_AUTH_ENABLED: bool = False
+    DEV_AUTH_TOKEN: str = ""
+    DEV_AUTH_USER_ID: str = ""
+    DEV_AUTH_EMAIL: str = "demo-clustering@example.com"
+    DEV_AUTH_FULL_NAME: str = "Demo Clustering"
+    DEV_RECOMMENDATIONS_FALLBACK_PATH: str = ""
+
     # GCS — avatares de usuario
     AVATAR_BUCKET_NAME: str = ""
 

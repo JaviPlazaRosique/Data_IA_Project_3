@@ -26,10 +26,10 @@ async def publish_swipe(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
 ) -> SwipeEventAccepted:
-    payload = body.model_dump()
+    payload = body.model_dump(mode="json", exclude_none=True)
     payload["user_id"] = str(current_user.id)
     if body.swiped_at is None:
-        payload["swiped_at"] = datetime.now(timezone.utc)
+        payload["swiped_at"] = datetime.now(timezone.utc).isoformat()
 
     background_tasks.add_task(publish_swipe_event, payload)
     return SwipeEventAccepted(accepted=True)

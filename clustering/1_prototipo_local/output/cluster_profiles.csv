@@ -1,0 +1,5 @@
+cluster_id,cluster_size,share_of_users,dominant_synthetic_persona,dominant_synthetic_persona_share,dominant_home_city,dominant_home_city_share,avg_total_swipes_90d,avg_right_swipe_rate_90d,avg_local_like_rate_90d,avg_chat_swipe_share_90d,avg_days_until_event_liked_90d,avg_price_mid_liked_90d,top_segment_1,top_segment_2,top_genre_1,top_genre_2
+0,104,0.433333,electronic_night_explorer,0.384615,Valencia,0.192308,98.038462,0.421093,0.196226,0.165267,55.339188,53.602958,Music,Arts_Theatre,Urban,Rock
+1,45,0.1875,family_weekend_local,0.888889,Sevilla,0.311111,72.977778,0.343793,0.251133,0.085926,58.467185,40.103618,Family,Arts_Theatre,Kids,Exhibition
+2,44,0.183333,arts_culture_local,0.863636,Malaga,0.227273,80.25,0.423621,0.217918,0.253697,56.079454,48.365329,Arts_Theatre,Music,Classical,Musical
+3,47,0.195833,sports_travel_premium,0.787234,Sevilla,0.212766,78.723404,0.412393,0.172507,0.125159,55.797436,69.697022,Sports,Arts_Theatre,Tennis,Football
