@@ -526,6 +526,7 @@ Cambios recomendados:
 Siguiente paso concreto:
 
 - validar en BigQuery que los eventos publicados ya incluyen `schema_version`, `dwell_ms`, `rank_position`, `producer` y `event_snapshot`.
+- completado: sincronizar `preferred_location` y `preferred_budget` del perfil de usuario a BigQuery en `recomendacion_planes.user_preferences`.
 
 ### 3.2. Capa analitica dbt
 
@@ -535,6 +536,7 @@ Propuesta de modelos:
 
 - `int_user_swipe_features_30d`;
 - `int_user_swipe_features_90d`;
+- `int_user_reference_city`;
 - `dim_user_cluster_features_current`;
 - `fct_user_cluster_assignment`;
 - `dim_cluster_profile`;
@@ -542,6 +544,7 @@ Propuesta de modelos:
 
 Siguiente paso concreto:
 
+- completado: incorporar `reference_city` al pipeline analitico y priorizar `preferred_location` cuando existe;
 - ejecutar `dbt parse/build` en un entorno con dbt instalado y BigQuery configurado;
 - exportar `dim_user_cluster_features_current` y entrenar el clustering con datos reales.
 
@@ -574,7 +577,7 @@ Entregables:
 Siguiente paso concreto:
 
 - probar con un usuario real desplegado que tenga filas en `user_cluster_assignments`;
-- anadir fallback de cold start para usuarios sin cluster o sin candidatos.
+- completado: anadir fallback de cold start en `GET /api/v1/users/me/recommendations` para usuarios sin cluster o sin candidatos.
 
 ## Fase 4. Paso de local a Google Cloud
 
@@ -621,10 +624,12 @@ Estado: implementado en `terraform/main.tf`, pendiente de `terraform apply` y pr
 Implementado:
 
 1. permisos IAM para que `portal-api` lea recomendaciones en BigQuery;
-2. un `cloud_run_job` para `clustering-train-assign`;
-3. un `scheduler` semanal los lunes a la 01:00 Europe/Madrid;
-4. permisos IAM para que el job lea features y escriba outputs en BigQuery;
-5. carga automatica de `user_cluster_assignments`, `cluster_profiles`, `cluster_neighbors`, `cluster_event_affinity` y `user_recommendation_candidates`.
+2. permisos IAM para que `portal-api` sincronice preferencias de usuario en BigQuery;
+3. un `cloud_run_job` para `clustering-train-assign`;
+4. un `scheduler` semanal los lunes a la 01:00 Europe/Madrid;
+5. permisos IAM para que el job lea features y escriba outputs en BigQuery;
+6. carga automatica de `user_cluster_assignments`, `cluster_profiles`, `cluster_neighbors`, `cluster_event_affinity` y `user_recommendation_candidates`.
+7. tabla `recomendacion_planes.user_preferences` para disponibilizar `preferred_location` al pipeline dbt.
 
 Pendiente opcional:
 
@@ -674,7 +679,8 @@ Metricas recomendadas:
 - completado: actualizar `stg_swipes` y `fct_swipes` para soportar `dwell_ms`, precio y snapshot enriquecido;
 - completado: implementar `swipe_event_contract_v2` en frontend y backend;
 - completado: generar y cargar swipes sinteticos de demo contra eventos reales en `swipes_raw`;
-- pendiente: definir tablas de salida analiticas reales en BigQuery.
+- completado: definir `reference_city` en el pipeline de features y serving, con prioridad para `preferred_location`;
+- completado: sincronizar preferencias de usuario a BigQuery mediante `user_preferences`.
 
 ### Sprint 3. Despliegue GCP
 
@@ -688,6 +694,7 @@ Metricas recomendadas:
 ### Sprint 4. Activacion en producto
 
 - conectar backend con las tablas de recomendaciones;
+- completado: implementar fallback de cold start desde catalogo de eventos futuros cuando no existan candidatos clusterizados;
 - activar ranking por cluster en un entorno controlado;
 - medir impacto frente a una baseline sin clustering.
 
@@ -696,27 +703,26 @@ Metricas recomendadas:
 Orden recomendado a partir de hoy:
 
 1. Probar end to end la vista `/recommendations` con un usuario real/desplegado que tenga candidatos.
-2. Anadir fallback de cold start para usuarios sin cluster o sin candidatos.
+2. Probar end to end la vista `/recommendations` con un usuario nuevo o sin candidatos para validar `cluster_source = cold_start`.
 3. Validar offline la calidad de `user_recommendation_candidates` por cluster y por persona demo.
 4. Publicar swipes reales desde la app y validar en `stg_swipes` que llega el contrato `v2`.
 5. Resolver la estrategia de precio para clustering:
    usar `precio_min/precio_max` si se incorporan;
    o usar temporalmente `banda_precio` como proxy.
-6. Definir como obtener la ciudad de referencia del usuario para features locales.
-7. Aplicar Terraform y ejecutar manualmente `clustering-train-assign` antes de depender del scheduler semanal.
+6. Aplicar Terraform y ejecutar manualmente `clustering-train-assign` antes de depender del scheduler semanal.
+7. Validar en BigQuery la cobertura real de `reference_city_source` entre `preferred_location`, `liked_swipes_90d` y `swipes_90d`.
 
 ## Siguiente entregable recomendado
 
 El siguiente entregable con mejor relacion valor/esfuerzo es:
 
 - validar que un usuario existente recibe eventos ordenados desde `user_recommendation_candidates`;
-- implementar fallback de cold start;
+- validar que un usuario sin candidatos recibe eventos con `cluster_source = cold_start`;
 - preparar el despliegue frontend/backend para probarlo en la app real.
 
 ## Bloqueos actuales mas importantes
 
 - `precio_min` y `precio_max` dependen de que el frontend/catalogo los tenga disponibles; mientras tanto `banda_precio` queda codificada como proxy numerico (`bajo=15`, `medio=45`, `alto=90`);
-- falta una referencia analitica clara para la ciudad o localizacion del usuario;
 - falta validar el contrato enriquecido con datos reales en BigQuery.
 
 ## Decisiones tecnicas recomendadas desde el inicio
