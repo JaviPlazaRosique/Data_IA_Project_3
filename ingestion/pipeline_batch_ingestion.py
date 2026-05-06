@@ -635,9 +635,7 @@ Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
 """
 
-CAMPOS_GEMINI = {"vibra", "etiquetas_ocasion", "banda_precio", "interior_exterior", "franja_horaria",
-                 "puntuacion_romantica", "puntuacion_familiar", "puntuacion_grupo", "puntuacion_turista",
-                 "duracion_minutos_estimada", "maridajes_plan", "categoria", "subcategoria"}
+CAMPOS_GEMINI = {"contexto_rag", "categoria", "subcategoria", "franja_horaria"}
 
 
 class EnriquecerConGemini(beam.DoFn):
@@ -693,11 +691,11 @@ class EnriquecerConGemini(beam.DoFn):
                 )
             enriquecimiento = json.loads(respuesta.text)
             logging.info(
-                "[Gemini] Enriquecimiento generado — id=%s | categoria=%s | subcategoria=%s | vibra=%s",
+                "[Gemini] Enriquecimiento generado — id=%s | categoria=%s | subcategoria=%s | franja=%s",
                 evento.get("id"),
                 enriquecimiento.get("categoria"),
                 enriquecimiento.get("subcategoria"),
-                enriquecimiento.get("vibra"),
+                enriquecimiento.get("franja_horaria"),
             )
         except Exception as e:
             enriquecimiento = None
@@ -710,21 +708,12 @@ class EnriquecerConGemini(beam.DoFn):
         datos_cache = {
             "antelacion_recomendada": {
                 "minutos_antelacion": enriquecimiento.get("minutos_antelacion"),
-                "motivo": enriquecimiento.get("motivo"),
+                "motivo":             enriquecimiento.get("motivo"),
             },
-            "vibra":                      enriquecimiento.get("vibra"),
-            "etiquetas_ocasion":          enriquecimiento.get("etiquetas_ocasion", []),
-            "banda_precio":               enriquecimiento.get("banda_precio"),
-            "interior_exterior":          enriquecimiento.get("interior_exterior"),
-            "franja_horaria":             enriquecimiento.get("franja_horaria"),
-            "puntuacion_romantica":       enriquecimiento.get("puntuacion_romantica"),
-            "puntuacion_familiar":        enriquecimiento.get("puntuacion_familiar"),
-            "puntuacion_grupo":           enriquecimiento.get("puntuacion_grupo"),
-            "puntuacion_turista":         enriquecimiento.get("puntuacion_turista"),
-            "duracion_minutos_estimada":  enriquecimiento.get("duracion_minutos_estimada"),
-            "maridajes_plan":             enriquecimiento.get("maridajes_plan", []),
-            "categoria":                  enriquecimiento.get("categoria"),
-            "subcategoria":               enriquecimiento.get("subcategoria"),
+            "contexto_rag":  enriquecimiento.get("descripcion_rag"),
+            "categoria":     enriquecimiento.get("categoria"),
+            "subcategoria":  enriquecimiento.get("subcategoria"),
+            "franja_horaria": enriquecimiento.get("franja_horaria"),
         }
 
         self.guardar_cache(nombre, datos_cache)
