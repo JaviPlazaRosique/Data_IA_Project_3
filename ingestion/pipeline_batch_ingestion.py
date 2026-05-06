@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
 import math
 import random
 import threading
@@ -12,7 +13,7 @@ from google.cloud import secretmanager, firestore
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions
 from apache_beam.io import WriteToText
 from apache_beam.io.gcp.bigquery import WriteToBigQuery, BigQueryDisposition, ReadFromBigQuery
 
@@ -284,13 +285,22 @@ schema_bq = {
             "type": "STRING",
             "mode": "NULLABLE"
         },
+        {
+            "name": "contexto_rag",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "embedding",
+            "type": "FLOAT64",
+            "mode": "REPEATED"  # Esto permite guardar el vector como una lista de números
+        }
     ]
 }
 
 def limpiar_datos_bq(evento: dict) -> dict:
     campos_bq = {f["name"] for f in schema_bq["fields"]}
     return {campo: evento.get(campo) for campo in campos_bq}
-
 
 class ObtenerEventosTicketmaster(beam.DoFn):
     def __init__(self, id_proyecto: str, id_secreto: str):
@@ -557,6 +567,42 @@ schema_salida_enriquecimiento_gemini = {
 }
 
 gemini_semaforo = threading.Semaphore(10)
+embedding_semaforo = threading.Semaphore(5)
+
+
+class GenerarEmbeddings(beam.DoFn):
+    def __init__(self, id_proyecto: str, region: str = "europe-west1"):
+        self.id_proyecto = id_proyecto
+        self.region = region
+
+    def setup(self):
+        from google import genai
+        self.client = genai.Client(vertexai=True, project=self.id_proyecto, location=self.region)
+
+    def process(self, evento: dict):
+        contexto = evento.get("contexto_rag")
+        if not contexto:
+            logging.warning("[Embeddings] Sin contexto_rag — id=%s | nombre=%s", evento.get("id"), evento.get("nombre"))
+            yield evento
+            return
+
+        try:
+            from google.genai.types import EmbedContentConfig
+            with embedding_semaforo:
+                respuesta = reintentos_peticiones(
+                    lambda: self.client.models.embed_content(
+                        model="gemini-embedding-001",
+                        contents=contexto,
+                        config=EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
+                    ),
+                    max_intentos=8,
+                    espera_base=5.0,
+                )
+            evento["embedding"] = [float(v) for v in respuesta.embeddings[0].values]
+            yield evento
+        except Exception as e:
+            logging.error(f"Error en embedding para {evento.get('id')}: {e}")
+            yield evento
 
 SUBCATEGORIAS_POR_CATEGORIA = {
     "Música": [
@@ -868,6 +914,13 @@ def run():
         help = "Colección de Firestore para la caché de enriquecimientos de Gemini"
     )
 
+    parser.add_argument(
+        "--max_eventos",
+        type=int,
+        default=0,
+        help="Limitar a N eventos (solo para pruebas locales, 0 = sin límite)"
+    )
+
     argumentos, pipeline_opts = parser.parse_known_args()
 
     worker_image = (
@@ -901,6 +954,13 @@ def run():
                 )
             )
         )
+
+        if argumentos.max_eventos > 0:
+            eventos_ticketmaster = (
+                eventos_ticketmaster
+                | "LimitarN" >> beam.combiners.Sample.FixedSizeGlobally(argumentos.max_eventos)
+                | "AplanarMuestra" >> beam.FlatMap(lambda x: x)
+            )
 
         _ = (
             eventos_ticketmaster
@@ -976,6 +1036,7 @@ def run():
             | "LeerIDsExistentes" >> ReadFromBigQuery(
                 query=f"SELECT id FROM `{ref_tabla_bq}` WHERE fecha >= '{fecha_limite}'",
                 use_standard_sql=True,
+                gcs_location=configuracion_pipeline.view_as(GoogleCloudOptions).temp_location,
             )
             | "ExtraerIDs" >> beam.Map(lambda row: row["id"])
         )
@@ -983,19 +1044,19 @@ def run():
         tabla_bq = f"{argumentos.id_proyecto}:{argumentos.dataset_bigquery}.{argumentos.tabla_eventos_bigquery}"
         _ = (
             eventos_enriquecidos
-            | "LimpiarParaBigQuery" >> beam.Map(limpiar_datos_bq)
             | "FiltrarEventosNuevos" >> beam.Filter(
                 lambda evento, ids: evento["id"] not in set(ids),
                 ids=beam.pvalue.AsList(ids_existentes),
             )
-            | "GuardarEventosBigQuery" >> WriteToBigQuery(
+            | "GenerarEmbeddingsYContexto" >> beam.ParDo(GenerarEmbeddings(argumentos.id_proyecto))
+            | "LimpiarParaBigQuery" >> beam.Map(limpiar_datos_bq)
+            | "GuardarEventosConEmbeddingsBQ" >> WriteToBigQuery(
                 tabla_bq,
                 schema=schema_bq,
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
                 create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
