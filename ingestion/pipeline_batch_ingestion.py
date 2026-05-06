@@ -495,60 +495,10 @@ schema_salida_enriquecimiento_gemini = {
             "type": "string",
             "description": "Razón principal de la recomendación en una frase corta"
         },
-        "vibra": {
-            "type": "string",
-            "enum": ["romantico", "energetico", "tranquilo", "familiar", "premium", "alternativo"],
-            "description": "Vibra principal del evento"
-        },
-        "etiquetas_ocasion": {
-            "type": "array",
-            "items": {
-                "type": "string",
-                "enum": ["pareja", "amigos", "familia", "solo", "afterwork"],
-            },
-            "description": "Etiquetas de ocasión recomendadas"
-        },
-        "banda_precio": {
-            "type": "string",
-            "enum": ["bajo", "medio", "alto"],
-            "description": "Banda de precio inferida"
-        },
-        "interior_exterior": {
-            "type": "string",
-            "enum": ["interior", "exterior", "mixto", "desconocido"],
-            "description": "Tipo de espacio del evento"
-        },
         "franja_horaria": {
             "type": "string",
             "enum": ["mañana", "tarde", "noche"],
             "description": "Franja horaria más adecuada"
-        },
-        "puntuacion_romantica": {
-            "type": "integer",
-            "description": "Puntuación para planes románticos entre 0 y 100"
-        },
-        "puntuacion_familiar": {
-            "type": "integer",
-            "description": "Puntuación para planes familiares entre 0 y 100"
-        },
-        "puntuacion_grupo": {
-            "type": "integer",
-            "description": "Puntuación para grupos entre 0 y 100"
-        },
-        "puntuacion_turista": {
-            "type": "integer",
-            "description": "Puntuación para turistas entre 0 y 100"
-        },
-        "duracion_minutos_estimada": {
-            "type": "integer",
-            "description": "Duración estimada del evento en minutos"
-        },
-        "maridajes_plan": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "description": "Etiquetas cortas de maridaje del plan en snake_case"
         },
         "categoria": {
             "type": "string",
@@ -591,17 +541,7 @@ schema_salida_enriquecimiento_gemini = {
     "required": [
         "minutos_antelacion",
         "motivo",
-        "vibra",
-        "etiquetas_ocasion",
-        "banda_precio",
-        "interior_exterior",
         "franja_horaria",
-        "puntuacion_romantica",
-        "puntuacion_familiar",
-        "puntuacion_grupo",
-        "puntuacion_turista",
-        "duracion_minutos_estimada",
-        "maridajes_plan",
         "categoria",
         "subcategoria",
     ],
