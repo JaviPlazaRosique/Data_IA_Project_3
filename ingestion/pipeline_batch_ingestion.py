@@ -275,31 +275,6 @@ schema_bq = {
             "mode": "NULLABLE"
         },
         {
-            "name": "puntuacion_romantica",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "puntuacion_familiar",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "puntuacion_grupo",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "puntuacion_turista",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "duracion_minutos_estimada",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
             "name": "maridajes_plan",
             "type": "STRING",
             "mode": "REPEATED"
