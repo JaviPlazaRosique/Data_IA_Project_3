@@ -495,23 +495,10 @@ schema_salida_enriquecimiento_gemini = {
                 "público encaja. Debe mencionar explícitamente la categoría y subcategoría."
             ),
         },
-        "minutos_antelacion": {
-            "type": "integer",
-            "description": "Minutos de antelación recomendados antes del inicio del evento"
-        },
-        "motivo": {
-            "type": "string",
-            "description": "Razón principal de la recomendación en una frase corta"
-        },
-        "franja_horaria": {
-            "type": "string",
-            "enum": ["mañana", "tarde", "noche"],
-            "description": "Franja horaria más adecuada"
-        },
         "categoria": {
             "type": "string",
             "enum": ["Música", "Arte y Teatro", "Deportes", "Familia y otros"],
-            "description": "Categoría principal del evento"
+            "description": "Categoría principal del evento",
         },
         "subcategoria": {
             "type": "string",
@@ -541,18 +528,31 @@ schema_salida_enriquecimiento_gemini = {
                 "Espectáculos de Magia",
                 "Parques temáticos",
                 "Teatro infantil",
-                "Visitas Guiadas/Exposiciones"
+                "Visitas Guiadas/Exposiciones",
             ],
-            "description": "Subcategoría del evento compatible con la categoría"
+            "description": "Subcategoría del evento compatible con la categoría",
+        },
+        "franja_horaria": {
+            "type": "string",
+            "enum": ["mañana", "tarde", "noche"],
+            "description": "Franja horaria del evento según la hora de inicio",
+        },
+        "minutos_antelacion": {
+            "type": "integer",
+            "description": "Minutos de antelación recomendados antes del inicio del evento",
+        },
+        "motivo": {
+            "type": "string",
+            "description": "Razón principal de la recomendación de antelación en una frase corta",
         },
     },
     "required": [
         "descripcion_rag",
-        "minutos_antelacion",
-        "motivo",
-        "franja_horaria",
         "categoria",
         "subcategoria",
+        "franja_horaria",
+        "minutos_antelacion",
+        "motivo",
     ],
 }
 
@@ -603,12 +603,11 @@ def construir_prompt_enriquecimiento_gemini(evento: dict) -> str:
         for categoria, subcategorias in SUBCATEGORIAS_POR_CATEGORIA.items()
     )
 
-    return f"""Eres un clasificador semántico de eventos en España.
+    return f"""Eres un analista cultural que prepara descripciones para un sistema RAG de recomendación de eventos en España.
 Debes devolver solo JSON válido que cumpla exactamente el schema indicado.
-No inventes información fuera de lo que permitan inferir los datos.
-Si falta contexto, elige la opción más prudente y coherente.
+No inventes hechos: trabaja únicamente con lo que se pueda inferir razonablemente de los datos.
 
-Usa únicamente estos 7 campos del evento para inferir la respuesta:
+Datos del evento:
 - nombre: {evento.get("nombre")}
 - descripcion: {evento.get("descripcion")}
 - segmento: {evento.get("segmento")}
@@ -617,19 +616,20 @@ Usa únicamente estos 7 campos del evento para inferir la respuesta:
 - recinto_nombre: {evento.get("recinto_nombre")}
 - hora: {evento.get("hora")}
 
-Reglas de salida:
-- minutos_antelacion: entero razonable entre 15 y 120.
-- motivo: una frase corta en español.
-- vibra: elige exactamente una opción entre romantico, energetico, tranquilo, familiar, premium, alternativo.
-- etiquetas_ocasion: devuelve de 1 a 3 etiquetas entre pareja, amigos, familia, solo, afterwork.
-- banda_precio: infiere la banda de precio (bajo, medio, alto) a partir del tipo de evento, género y recinto.
-- interior_exterior: elige interior, exterior, mixto o desconocido.
-- franja_horaria: mañana para eventos de mañana, tarde para tarde, noche para noche.
-- puntuacion_romantica, puntuacion_familiar, puntuacion_grupo y puntuacion_turista: enteros entre 0 y 100.
-- duracion_minutos_estimada: duración típica estimada en minutos.
-- maridajes_plan: devuelve de 1 a 3 etiquetas cortas en snake_case; prioriza valores como cena_antes, copas_despues, paseo cuando encajen.
+Genera el campo `descripcion_rag` siguiendo estas reglas:
+- 4 a 8 frases en español, en prosa natural y NO comercial (nada de "imprescindible", "no te lo pierdas", "una experiencia única", etc.).
+- Describe qué es el evento, de qué trata, quiénes participan y qué cabe esperar musical/artísticamente o deportivamente.
+- Interpreta y describe la atmósfera o vibe del evento (íntimo, enérgico, festivo, reposado, familiar, ruidoso, multitudinario, formal, alternativo…) cuando el contexto lo permita; si la `descripcion` original menciona o sugiere que es un plan apropiado para parejas, familias, grupos de amigos, turistas o asistencia individual, recoge esa información en prosa.
+- Si los datos no permiten inferir vibe o público, no lo inventes: limítate a lo que se pueda afirmar.
+- Menciona explícitamente y de forma natural en el texto la categoría y la subcategoría que has asignado (ej.: "es un evento de la categoría Música, subcategoría Jazz/Blues").
+- Evita listas con guiones; escribe en prosa continua para que el embedding capture bien el contenido.
+
+Resto de campos:
 - categoria: elige exactamente una entre Música, Arte y Teatro, Deportes, Familia y otros.
 - subcategoria: elige exactamente una subcategoría compatible con la categoria seleccionada.
+- franja_horaria: mañana, tarde o noche según la `hora`. Si no hay hora, usa la que mejor encaje con el tipo de evento.
+- minutos_antelacion: entero razonable entre 15 y 120.
+- motivo: frase corta en español que justifique la antelación.
 
 Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
