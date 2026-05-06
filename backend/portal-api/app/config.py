@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     # BigQuery recommendations serving
     BIGQUERY_PROJECT_ID: str = ""
+    BIGQUERY_ANALYTICS_DATASET: str = "recomendacion_planes"
+    BIGQUERY_USER_PREFERENCES_TABLE: str = "user_preferences"
+    BIGQUERY_USER_PREFERENCES_SYNC_ENABLED: bool = True
     BIGQUERY_MARTS_DATASET: str = "recomendacion_planes_marts"
     BIGQUERY_RECOMMENDATIONS_TABLE: str = "user_recommendation_candidates"
 

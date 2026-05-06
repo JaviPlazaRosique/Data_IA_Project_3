@@ -127,6 +127,7 @@ services:
       ENVIRONMENT: development
       GOOGLE_CLOUD_PROJECT: demo-local
       BIGQUERY_PROJECT_ID: project3grupo3
+      BIGQUERY_USER_PREFERENCES_SYNC_ENABLED: "false"
       FIREBASE_AUTH_PROJECT_ID: project3grupo3
       FIRESTORE_EMULATOR_HOST: firebase:8081
       PUBSUB_EMULATOR_HOST: pubsub:8681

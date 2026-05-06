@@ -30,3 +30,23 @@ sources:
     tables:
       - name: eventos
         description: "Catalogo de eventos usado como fallback cuando el snapshot del swipe no trae todos los metadatos."
+
+  - name: app
+    database: "{{ env_var('GCP_PROJECT') }}"
+    schema: recomendacion_planes
+    tables:
+      - name: user_preferences
+        description: "Preferencias de usuario replicadas desde portal-api para consumo analitico."
+        columns:
+          - name: user_id
+            data_type: string
+          - name: preferred_location
+            data_type: string
+          - name: preferred_location_lat
+            data_type: float64
+          - name: preferred_location_lng
+            data_type: float64
+          - name: preferred_budget
+            data_type: string
+          - name: synced_at
+            data_type: timestamp
