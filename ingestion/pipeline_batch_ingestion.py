@@ -275,11 +275,6 @@ schema_bq = {
             "mode": "NULLABLE"
         },
         {
-            "name": "maridajes_plan",
-            "type": "STRING",
-            "mode": "REPEATED"
-        },
-        {
             "name": "categoria",
             "type": "STRING",
             "mode": "NULLABLE"
