@@ -270,26 +270,6 @@ schema_bq = {
             ],
         },
         {
-            "name": "vibra",
-            "type": "STRING",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "etiquetas_ocasion",
-            "type": "STRING",
-            "mode": "REPEATED"
-        },
-        {
-            "name": "banda_precio",
-            "type": "STRING",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "interior_exterior",
-            "type": "STRING",
-            "mode": "NULLABLE"
-        },
-        {
             "name": "franja_horaria",
             "type": "STRING",
             "mode": "NULLABLE"
