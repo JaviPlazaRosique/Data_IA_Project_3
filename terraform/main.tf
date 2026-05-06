@@ -524,59 +524,9 @@ module "bigquery" {
           ]
         },
         {
-          name = "vibra",
-          type = "STRING",
-          mode = "NULLABLE"
-        },
-        {
-          name = "etiquetas_ocasion",
-          type = "STRING",
-          mode = "REPEATED"
-        },
-        {
-          name = "banda_precio",
-          type = "STRING",
-          mode = "NULLABLE"
-        },
-        {
-          name = "interior_exterior",
-          type = "STRING",
-          mode = "NULLABLE"
-        },
-        {
           name = "franja_horaria",
           type = "STRING",
           mode = "NULLABLE"
-        },
-        {
-          name = "puntuacion_romantica",
-          type = "INTEGER",
-          mode = "NULLABLE"
-        },
-        {
-          name = "puntuacion_familiar",
-          type = "INTEGER",
-          mode = "NULLABLE"
-        },
-        {
-          name = "puntuacion_grupo",
-          type = "INTEGER",
-          mode = "NULLABLE"
-        },
-        {
-          name = "puntuacion_turista",
-          type = "INTEGER",
-          mode = "NULLABLE"
-        },
-        {
-          name = "duracion_minutos_estimada",
-          type = "INTEGER",
-          mode = "NULLABLE"
-        },
-        {
-          name = "maridajes_plan",
-          type = "STRING",
-          mode = "REPEATED"
         },
         {
           name = "categoria",
@@ -587,6 +537,16 @@ module "bigquery" {
           name = "subcategoria",
           type = "STRING",
           mode = "NULLABLE"
+        },
+        {
+          name = "contexto_rag",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "embedding",
+          type = "FLOAT64",
+          mode = "REPEATED"
         },
       ])
     },
