@@ -62,10 +62,19 @@ with f30 as (
 
 f90 as (
     select * from {{ ref('int_user_swipe_features_90d') }}
+),
+
+reference_city as (
+    select * from {{ ref('int_user_reference_city') }}
 )
 
 select
     f90.user_id,
+    reference_city.reference_city,
+    reference_city.reference_city as home_city,
+    reference_city.reference_city_source,
+    coalesce(reference_city.reference_city_swipes_90d, 0) as reference_city_swipes_90d,
+    coalesce(reference_city.reference_city_likes_90d, 0) as reference_city_likes_90d,
     {% for base_name, default in feature_defaults %}
     coalesce(f30.{{ base_name }}_30d, {{ default }}) as {{ base_name }}_30d,
     {% endfor %}
@@ -100,3 +109,4 @@ select
     coalesce(f30.total_swipes_30d, 0) - coalesce(f90.total_swipes_90d, 0) as total_swipes_delta_30_vs_90
 from f90
 left join f30 using (user_id)
+left join reference_city using (user_id)
