@@ -487,6 +487,14 @@ class EnriquecerConRecinto(beam.DoFn):
 schema_salida_enriquecimiento_gemini = {
     "type": "object",
     "properties": {
+        "descripcion_rag": {
+            "type": "string",
+            "description": (
+                "Descripción detallada del evento en prosa (4-8 frases), no comercial, "
+                "que describa qué es el evento, su atmósfera/vibe inferida y para qué "
+                "público encaja. Debe mencionar explícitamente la categoría y subcategoría."
+            ),
+        },
         "minutos_antelacion": {
             "type": "integer",
             "description": "Minutos de antelación recomendados antes del inicio del evento"
@@ -539,6 +547,7 @@ schema_salida_enriquecimiento_gemini = {
         },
     },
     "required": [
+        "descripcion_rag",
         "minutos_antelacion",
         "motivo",
         "franja_horaria",
