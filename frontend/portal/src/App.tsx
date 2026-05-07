@@ -46,7 +46,14 @@ export default function App() {
         <Suspense fallback={<div className="min-h-screen bg-surface" />}>
           <Routes>
             <Route path="/" element={<Navigate to="/map" replace />} />
-            <Route path="/swipe" element={<SwipePage />} />
+            <Route
+              path="/swipe"
+              element={
+                <ProtectedRoute>
+                  <SwipePage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/recommendations"
               element={
