@@ -67,8 +67,16 @@ select
     coalesce(d.snapshot_genero, e.genero) as genero,
     coalesce(d.snapshot_subgenero, e.subgenero) as subgenero,
     coalesce(d.snapshot_ciudad, e.ciudad) as ciudad,
-    d.snapshot_precio_min as precio_min,
-    d.snapshot_precio_max as precio_max,
+    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
+        when 'bajo'  then 0.0
+        when 'medio' then 30.0
+        when 'alto'  then 60.0
+    end as precio_min,
+    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
+        when 'bajo'  then 30.0
+        when 'medio' then 60.0
+        when 'alto'  then 120.0
+    end as precio_max,
     coalesce(d.snapshot_banda_precio, e.banda_precio) as banda_precio,
     case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
         when 'bajo' then 1
