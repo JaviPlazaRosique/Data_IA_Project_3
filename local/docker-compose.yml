@@ -61,6 +61,9 @@ services:
     environment:
       FIRESTORE_EMULATOR_HOST: firebase:8081
       GOOGLE_CLOUD_PROJECT: demo-local
+      EVENTS_EXPORT_PATH: /data/events_catalog.jsonl
+    volumes:
+      - ./swipes_data:/data
     depends_on:
       firebase:
         condition: service_started
@@ -77,7 +80,11 @@ services:
 
   # ─── BigQuery emulator (goccy/bigquery-emulator) ─────────────────────────────
   # REST API on host :9050. Datasets/tables seeded from bq_seed.yaml.
+  # Optional: the local recommendation pipeline reads swipes_raw.jsonl directly.
+  # Keep this behind a profile because the upstream image has no linux/arm64
+  # manifest on Apple Silicon.
   bigquery-emulator:
+    profiles: ["bq-emulator"]
     image: ghcr.io/goccy/bigquery-emulator:latest
     command:
       - --project=demo-local
@@ -102,7 +109,7 @@ services:
       PUBSUB_EMULATOR_HOST: pubsub:8681
       PUBSUB_TOPIC: swipe-events
       PUBSUB_SUBSCRIPTION: swipe-events-sub
-      BIGQUERY_API_ENDPOINT: http://bigquery-emulator:9050
+      BIGQUERY_API_ENDPOINT: ""
       BIGQUERY_DATASET: raw
       BIGQUERY_TABLE: swipes_raw
       OUTPUT_PATH: /data/swipes_raw.jsonl
@@ -110,8 +117,6 @@ services:
       - ./swipes_data:/data
     depends_on:
       pubsub:
-        condition: service_started
-      bigquery-emulator:
         condition: service_started
     restart: unless-stopped
 
@@ -126,7 +131,7 @@ services:
       CORS_ORIGINS: http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174
       ENVIRONMENT: development
       GOOGLE_CLOUD_PROJECT: demo-local
-      BIGQUERY_PROJECT_ID: project3grupo3
+      BIGQUERY_PROJECT_ID: ""
       BIGQUERY_USER_PREFERENCES_SYNC_ENABLED: "false"
       FIREBASE_AUTH_PROJECT_ID: project3grupo3
       FIRESTORE_EMULATOR_HOST: firebase:8081
@@ -137,9 +142,9 @@ services:
       DEV_AUTH_USER_ID: 00ef231d-9dc1-5a92-abb0-da5c629cc826
       DEV_AUTH_EMAIL: demo-clustering@example.com
       DEV_AUTH_FULL_NAME: Demo Clustering
-      DEV_RECOMMENDATIONS_FALLBACK_PATH: /app/app/demo_data/recommendations_demo.csv
+      DEV_RECOMMENDATIONS_FALLBACK_PATH: /data/recommendations_local.csv
     volumes:
-      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
+      - ./swipes_data:/data:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -150,6 +155,27 @@ services:
       pubsub:
         condition: service_started
     restart: unless-stopped
+
+  # ─── Local analytics → clustering → recommendations runner ──────────────────
+  # Reads ./swipes_data/swipes_raw.jsonl + events_catalog.jsonl, reuses the
+  # clustering script, and writes ./swipes_data/recommendations_local.csv.
+  local-reco-pipeline:
+    profiles: ["tools"]
+    image: python:3.13-slim
+    working_dir: /workspace
+    command: python local/run_local_reco_pipeline.py
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      SWIPES_RAW_PATH: /data/swipes_raw.jsonl
+      EVENTS_CATALOG_PATH: /data/events_catalog.jsonl
+      LOCAL_RECO_OUTPUT_DIR: /data/local_reco
+      RECOMMENDATIONS_OUTPUT_PATH: /data/recommendations_local.csv
+      LOCAL_MAX_RECOMMENDATIONS_PER_USER: "10"
+      LOCAL_K_VALUES: 2,3,4
+    volumes:
+      - ..:/workspace:ro
+      - ./swipes_data:/data
 
   # ─── Frontend (production build → Nginx) ─────────────────────────────────────
   # Enabled only with `--profile full`. Default stack leaves port 5173 free for
