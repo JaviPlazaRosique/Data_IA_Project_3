@@ -33,6 +33,12 @@ variable "ruta_contexto_docker" {
   type        = string
 }
 
+variable "ruta_dockerfile" {
+  description = "Ruta al Dockerfile relativa al contexto de build"
+  type        = string
+  default     = "Dockerfile"
+}
+
 variable "variables_entorno" {
   description = "Variables de entorno en texto plano para el contenedor"
   type        = map(string)
