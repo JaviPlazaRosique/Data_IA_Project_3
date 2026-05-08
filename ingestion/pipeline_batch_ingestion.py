@@ -4,6 +4,7 @@ import math
 import random
 import threading
 import time
+import uuid
 import requests
 import argparse
 import json
@@ -152,9 +153,14 @@ def transformar_evento(evento_raw: dict) -> dict:
 schema_bq = {
     "fields": [
         {
-            "name": "id",             
-            "type": "STRING",    
+            "name": "id",
+            "type": "STRING",
             "mode": "REQUIRED"
+        },
+        {
+            "name": "uuid_evento",
+            "type": "STRING",
+            "mode": "NULLABLE"
         },
         {
             "name": "nombre",
@@ -681,7 +687,9 @@ Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
 """
 
-CAMPOS_GEMINI = {"contexto_rag", "categoria", "subcategoria", "franja_horaria"}
+CAMPOS_GEMINI = {"vibra", "etiquetas_ocasion", "banda_precio", "interior_exterior", "franja_horaria",
+                 "puntuacion_romantica", "puntuacion_familiar", "puntuacion_grupo", "puntuacion_turista",
+                 "duracion_minutos_estimada", "maridajes_plan", "categoria", "subcategoria"}
 
 
 class EnriquecerConGemini(beam.DoFn):
@@ -752,6 +760,7 @@ class EnriquecerConGemini(beam.DoFn):
             return
 
         datos_cache = {
+            "uuid_evento": str(uuid.uuid4()),
             "antelacion_recomendada": {
                 "minutos_antelacion": enriquecimiento.get("minutos_antelacion"),
                 "motivo":             enriquecimiento.get("motivo"),
