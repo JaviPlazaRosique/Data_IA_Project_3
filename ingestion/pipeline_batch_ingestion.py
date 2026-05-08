@@ -1000,6 +1000,11 @@ def run():
         eventos_gemini = (
             resultado_transformacion.validos
             | "FiltrarEventosTest" >> beam.Filter(lambda e: not e.get("es_test"))
+            | "ClaveDeduplicacion" >> beam.Map(
+                lambda e: ((e.get("recinto_id"), e.get("fecha"), e.get("hora")), e)
+            )
+            | "AgruparDuplicados" >> beam.GroupByKey()
+            | "TomarPrimero" >> beam.Map(lambda kv: next(iter(kv[1])))
             | "EnriquecerConRecinto" >> beam.ParDo(
                 EnriquecerConRecinto(
                     argumentos.id_proyecto,
