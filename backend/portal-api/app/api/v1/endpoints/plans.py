@@ -5,12 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from slowapi.util import get_remote_address
 
+from app.config import settings
 from app.core.limiter import limiter
 from app.db.firestore import get_firestore
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.plan import ChatRequest, ChatResponse, PlanCreate, PlanMessage, PlanRead, PlanUpdate
 from app.services.chatbot import generate_chat_reply
+from app.services.rag import retrieve_events_for_query
 from app.services.recommendations import list_user_recommendations
 from app.services.user_profile import UserTasteProfile, fetch_user_taste_profile
 
@@ -166,16 +168,18 @@ async def chat_with_plan(
     existing = [PlanMessage(**m) for m in data.get("messages", [])]
     all_messages = existing + [user_msg]
 
-    rec_result, profile_result = await asyncio.gather(
+    rec_result, profile_result, rag_result = await asyncio.gather(
         list_user_recommendations(str(current_user.id), limit=10),
         fetch_user_taste_profile(str(current_user.id)),
+        retrieve_events_for_query(body.content, limit=settings.RAG_EVENTS_LIMIT),
         return_exceptions=True,
     )
     recommendations = rec_result if not isinstance(rec_result, BaseException) else []
     user_profile: UserTasteProfile | None = profile_result if not isinstance(profile_result, BaseException) else None
+    rag_events = rag_result if not isinstance(rag_result, BaseException) else []
 
     try:
-        reply_text = await generate_chat_reply(all_messages, recommendations, user_profile)
+        reply_text = await generate_chat_reply(all_messages, recommendations, user_profile, rag_events)
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

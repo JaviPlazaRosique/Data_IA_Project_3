@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.0-flash"
     GEMINI_LOCATION: str = "europe-west1"
 
+    # RAG — event retrieval for chatbot grounding
+    RAG_EVENTS_LIMIT: int = 8
+
     # GCS — avatares de usuario
     AVATAR_BUCKET_NAME: str = ""
 

@@ -7,6 +7,7 @@ import vertexai
 from vertexai.generative_models import Content, GenerativeModel, Part
 
 from app.config import settings
+from app.schemas.event import EventRead
 from app.schemas.plan import PlanMessage
 from app.schemas.recommendation import ClusterRecommendationRead
 from app.services.user_profile import UserTasteProfile
@@ -18,6 +19,7 @@ Reglas:
 - Responde siempre en español.
 - Sé entusiasta pero conciso: máximo 3-4 párrafos por respuesta.
 - Usa el perfil de gustos y los eventos recomendados para personalizar tus sugerencias.
+- Cuando dispongas de eventos del catálogo relevantes a la consulta, cítalos con nombre, fecha y ciudad.
 - Si no tienes datos de un evento específico, dilo con honestidad.
 - No inventes precios ni horarios.
 - Cuando sea útil, sugiere cómo combinar eventos en un mismo día o fin de semana.
@@ -61,9 +63,29 @@ def _recommendations_context(recs: list[ClusterRecommendationRead]) -> str:
     return "\n".join(lines)
 
 
+def _rag_events_context(events: list[EventRead]) -> str:
+    if not events:
+        return ""
+    lines = ["[Eventos del catálogo relevantes a tu consulta]"]
+    for ev in events:
+        name = ev.nombre or ev.id
+        date = ev.fecha or "?"
+        city = ev.ciudad or "?"
+        genre = " / ".join(filter(None, [ev.segmento, ev.genero, ev.subgenero]))
+        venue = ev.recinto_nombre or ""
+        line = f"• {name} — {date}, {city}"
+        if venue:
+            line += f" ({venue})"
+        if genre:
+            line += f" [{genre}]"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _build_context_block(
     recommendations: list[ClusterRecommendationRead],
     user_profile: UserTasteProfile | None,
+    rag_events: list[EventRead] | None = None,
 ) -> str:
     parts: list[str] = []
     if user_profile:
@@ -71,6 +93,9 @@ def _build_context_block(
     rec_ctx = _recommendations_context(recommendations)
     if rec_ctx:
         parts.append(rec_ctx)
+    rag_ctx = _rag_events_context(rag_events or [])
+    if rag_ctx:
+        parts.append(rag_ctx)
     return "\n\n".join(parts)
 
 
@@ -78,6 +103,7 @@ async def generate_chat_reply(
     messages: list[PlanMessage],
     recommendations: list[ClusterRecommendationRead],
     user_profile: UserTasteProfile | None = None,
+    rag_events: list[EventRead] | None = None,
 ) -> str:
     if not messages:
         raise ValueError("messages list is empty")
@@ -87,7 +113,7 @@ async def generate_chat_reply(
     last_content = messages[-1].content
 
     # Always prepend context block so it survives history windowing
-    ctx = _build_context_block(recommendations, user_profile)
+    ctx = _build_context_block(recommendations, user_profile, rag_events)
     user_turn = f"{ctx}\n\n{last_content}" if ctx else last_content
 
     def _call() -> str:
