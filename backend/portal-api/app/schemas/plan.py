@@ -37,3 +37,13 @@ class PlanRead(BaseModel):
     itinerary: PlanItinerary
     created_at: str
     updated_at: str
+
+
+class ChatRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class ChatResponse(BaseModel):
+    role: Literal["assistant"] = "assistant"
+    content: str
+    timestamp: str

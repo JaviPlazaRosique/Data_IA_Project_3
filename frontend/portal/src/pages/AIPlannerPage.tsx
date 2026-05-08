@@ -6,7 +6,7 @@ import { quickActions, itineraryMapImage } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
-import { apiListPlans, apiCreatePlan, apiUpdatePlan } from '../api';
+import { apiListPlans, apiCreatePlan, apiChat } from '../api';
 
 interface Message {
   id: string;
@@ -25,6 +25,7 @@ export default function AIPlannerPage() {
     () => user !== null && localStorage.getItem('planner_disclosure_seen') !== '1'
   );
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [showItinerary, setShowItinerary] = useState(false);
   const [mode, setMode] = useState<'surprise' | 'idea' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -55,48 +56,60 @@ export default function AIPlannerPage() {
     setMode(selected);
     if (selected === 'surprise') {
       const surpriseText = '¡Sorpréndeme! Prepárame un plan para hoy.';
-      setInput(surpriseText);
-      // auto-send on next tick so input state is set
-      setTimeout(() => {
-        const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        const newMsg: Message = { id: Date.now().toString(), role: 'user', content: surpriseText, timestamp };
-        const updated = [newMsg];
-        setMessages(updated);
-        setInput('');
-        const planMessages = updated.map((m) => ({ role: m.role, content: m.content, timestamp: m.timestamp }));
-        apiCreatePlan({ title: surpriseText.slice(0, 60), messages: planMessages })
-          .then((plan) => setActivePlanId(plan.plan_id))
-          .catch(() => {});
-      }, 0);
+      const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const userMsg: Message = { id: Date.now().toString(), role: 'user', content: surpriseText, timestamp };
+      const loadingMsg: Message = { id: 'loading', role: 'assistant', content: '…', timestamp: '' };
+      setMessages([userMsg, loadingMsg]);
+      setIsLoading(true);
+      apiCreatePlan({ title: surpriseText.slice(0, 60) })
+        .then((plan) => {
+          setActivePlanId(plan.plan_id);
+          return apiChat(plan.plan_id, surpriseText);
+        })
+        .then((reply) => {
+          const replyMsg: Message = { id: `reply-${Date.now()}`, role: 'assistant', content: reply.content, timestamp: reply.timestamp };
+          setMessages([userMsg, replyMsg]);
+        })
+        .catch(() => {
+          const errMsg: Message = { id: `err-${Date.now()}`, role: 'assistant', content: 'No pude responder, intenta de nuevo.', timestamp: '' };
+          setMessages([userMsg, errMsg]);
+        })
+        .finally(() => setIsLoading(false));
     }
   }
 
   const handleSend = () => {
-    if (!input.trim()) return;
-    const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-      timestamp,
-    };
-    const updated = [...messages, newMsg];
-    setMessages(updated);
+    if (!input.trim() || isLoading) return;
+    const content = input.trim();
+    const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content, timestamp };
+    const loadingMsg: Message = { id: 'loading', role: 'assistant', content: '…', timestamp: '' };
+    setMessages((prev) => [...prev, userMsg, loadingMsg]);
     setInput('');
+    setIsLoading(true);
 
-    // Persist to backend (fire-and-forget)
-    const planMessages = updated.map((m) => ({
-      role: m.role,
-      content: m.content,
-      timestamp: m.timestamp,
-    }));
+    const sendChat = (planId: string) =>
+      apiChat(planId, content)
+        .then((reply) => {
+          const replyMsg: Message = { id: `reply-${Date.now()}`, role: 'assistant', content: reply.content, timestamp: reply.timestamp };
+          setMessages((prev) => prev.filter((m) => m.id !== 'loading').concat(replyMsg));
+        })
+        .catch(() => {
+          const errMsg: Message = { id: `err-${Date.now()}`, role: 'assistant', content: 'No pude responder, intenta de nuevo.', timestamp: '' };
+          setMessages((prev) => prev.filter((m) => m.id !== 'loading').concat(errMsg));
+        })
+        .finally(() => setIsLoading(false));
+
     if (activePlanId) {
-      apiUpdatePlan(activePlanId, { messages: planMessages }).catch(() => {});
+      sendChat(activePlanId);
     } else {
-      apiCreatePlan({
-        title: input.slice(0, 60),
-        messages: planMessages,
-      }).then((plan) => setActivePlanId(plan.plan_id)).catch(() => {});
+      apiCreatePlan({ title: content.slice(0, 60) })
+        .then((plan) => { setActivePlanId(plan.plan_id); return sendChat(plan.plan_id); })
+        .catch(() => {
+          const errMsg: Message = { id: `err-${Date.now()}`, role: 'assistant', content: 'No pude responder, intenta de nuevo.', timestamp: '' };
+          setMessages((prev) => prev.filter((m) => m.id !== 'loading').concat(errMsg));
+          setIsLoading(false);
+        });
     }
   };
 
@@ -197,7 +210,15 @@ export default function AIPlannerPage() {
                           : 'bg-primary/10 rounded-tr-none border-primary/20'
                       }`}
                     >
-                      <p className="text-sm leading-relaxed text-on-surface break-words">{msg.content}</p>
+                      {msg.id === 'loading' ? (
+                        <div className="flex gap-1.5 items-center py-1">
+                          <span className="w-2 h-2 bg-on-surface/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 bg-on-surface/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 bg-on-surface/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed text-on-surface break-words">{msg.content}</p>
+                      )}
                     </div>
                     {msg.timestamp && (
                       <span className="text-[10px] text-on-surface-variant px-1 uppercase tracking-widest">
@@ -269,9 +290,10 @@ export default function AIPlannerPage() {
                   />
                   <button
                     onClick={handleSend}
-                    className="w-10 h-10 bg-primary text-on-primary rounded-xl flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
+                    disabled={isLoading}
+                    className="w-10 h-10 bg-primary text-on-primary rounded-xl flex items-center justify-center hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <span className="material-symbols-outlined">send</span>
+                    <span className={`material-symbols-outlined${isLoading ? ' animate-spin' : ''}`}>{isLoading ? 'autorenew' : 'send'}</span>
                   </button>
                 </div>
               </div>

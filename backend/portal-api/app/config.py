@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     BIGQUERY_PROJECT_ID: str = ""
     BIGQUERY_MARTS_DATASET: str = "recomendacion_planes_marts"
     BIGQUERY_RECOMMENDATIONS_TABLE: str = "user_recommendation_candidates"
+    BIGQUERY_CLUSTER_FEATURES_TABLE: str = "dim_user_cluster_features_current"
 
     # Local-only demo auth. Keep disabled outside development.
     DEV_AUTH_ENABLED: bool = False
@@ -39,6 +40,10 @@ class Settings(BaseSettings):
     DEV_AUTH_EMAIL: str = "demo-clustering@example.com"
     DEV_AUTH_FULL_NAME: str = "Demo Clustering"
     DEV_RECOMMENDATIONS_FALLBACK_PATH: str = ""
+
+    # Vertex AI — chatbot
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_LOCATION: str = "europe-west1"
 
     # GCS — avatares de usuario
     AVATAR_BUCKET_NAME: str = ""

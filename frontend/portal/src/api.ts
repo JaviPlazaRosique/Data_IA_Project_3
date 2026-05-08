@@ -322,6 +322,21 @@ export async function apiDeletePlan(planId: string): Promise<void> {
   await authFetch(`/api/v1/plans/${planId}`, { method: 'DELETE' });
 }
 
+export interface ChatResponse {
+  role: 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export async function apiChat(planId: string, content: string): Promise<ChatResponse> {
+  const res = await authFetch(`/api/v1/plans/${planId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new ApiError(res.status, 'Chat request failed');
+  return res.json();
+}
+
 // ─── Saved Events API ─────────────────────────────────────────────────────────
 
 export async function apiListSavedEvents(): Promise<SavedEventRead[]> {

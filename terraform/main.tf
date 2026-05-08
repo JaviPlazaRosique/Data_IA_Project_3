@@ -195,6 +195,7 @@ module "portal_api_sa" {
     "roles/cloudtasks.enqueuer",
     "roles/bigquery.dataViewer",
     "roles/bigquery.jobUser",
+    "roles/aiplatform.user",
   ]
   depends_on = [
     module.setup
@@ -283,6 +284,8 @@ module "cloud_run_portal_api" {
     BIGQUERY_MARTS_DATASET         = "${module.bigquery.id_dataset}_marts"
     BIGQUERY_RECOMMENDATIONS_TABLE = "user_recommendation_candidates"
     AVATAR_BUCKET_NAME             = module.bucket_avatares.nombre
+    GEMINI_MODEL                   = "gemini-2.0-flash"
+    GEMINI_LOCATION                = var.region
     CLOUD_TASKS_QUEUE_PATH         = module.cola_valoracion_emails.id_cola
     RATING_EMAIL_FUNCTION_URL      = module.fn_envio_email.url_funcion
     RATING_FUNCTION_SA_EMAIL       = module.envio_email_valoracion_sa.email_cuenta_servicio

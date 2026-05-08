@@ -1,11 +1,31 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from jose import JWTError, jwt
+from slowapi.util import get_remote_address
 
+from app.core.limiter import limiter
 from app.db.firestore import get_firestore
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.plan import PlanCreate, PlanRead, PlanUpdate
+from app.schemas.plan import ChatRequest, ChatResponse, PlanCreate, PlanMessage, PlanRead, PlanUpdate
+from app.services.chatbot import generate_chat_reply
+from app.services.recommendations import list_user_recommendations
+from app.services.user_profile import UserTasteProfile, fetch_user_taste_profile
+
+
+def _user_id_key(request: Request) -> str:
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        try:
+            payload = jwt.get_unverified_claims(auth[7:])
+            uid = payload.get("user_id") or payload.get("uid") or payload.get("sub")
+            if uid:
+                return f"user:{uid}"
+        except JWTError:
+            pass
+    return get_remote_address(request)
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 
@@ -123,3 +143,53 @@ async def delete_plan(
     if doc.to_dict()["user_id"] != str(current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Este plan no te pertenece")
     await doc_ref.delete()
+
+
+@router.post("/{plan_id}/chat", response_model=ChatResponse)
+@limiter.limit("20/minute", key_func=_user_id_key)
+async def chat_with_plan(
+    request: Request,
+    plan_id: str,
+    body: ChatRequest,
+    current_user: User = Depends(get_current_user),
+) -> ChatResponse:
+    db = get_firestore()
+    doc_ref = db.collection(COLLECTION).document(plan_id)
+    doc = await doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan no encontrado")
+    data = doc.to_dict()
+    if data["user_id"] != str(current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Este plan no te pertenece")
+
+    user_msg = PlanMessage(role="user", content=body.content, timestamp=_now_iso())
+    existing = [PlanMessage(**m) for m in data.get("messages", [])]
+    all_messages = existing + [user_msg]
+
+    rec_result, profile_result = await asyncio.gather(
+        list_user_recommendations(str(current_user.id), limit=10),
+        fetch_user_taste_profile(str(current_user.id)),
+        return_exceptions=True,
+    )
+    recommendations = rec_result if not isinstance(rec_result, BaseException) else []
+    user_profile: UserTasteProfile | None = profile_result if not isinstance(profile_result, BaseException) else None
+
+    try:
+        reply_text = await generate_chat_reply(all_messages, recommendations, user_profile)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El asistente no está disponible ahora mismo",
+        ) from exc
+
+    reply_ts = _now_iso()
+    assistant_msg = PlanMessage(role="assistant", content=reply_text, timestamp=reply_ts)
+    updated_messages = all_messages + [assistant_msg]
+
+    await doc_ref.update({
+        "messages": [m.model_dump() for m in updated_messages],
+        "updated_at": reply_ts,
+        "expires_at": _expiry_iso(),
+    })
+
+    return ChatResponse(content=reply_text, timestamp=reply_ts)
