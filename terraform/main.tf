@@ -410,6 +410,11 @@ module "bigquery" {
           mode = "REQUIRED"
         },
         {
+          name = "uuid_evento",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
           name = "nombre",
           type = "STRING",
           mode = "NULLABLE"
