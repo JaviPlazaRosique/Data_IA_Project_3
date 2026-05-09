@@ -6,8 +6,8 @@ class NearbyPlace(BaseModel):
 
     nombre: str | None = None
     direccion: str | None = None
-    rating: float | None = None
-    distancia_m: float | None = None
+    valoracion: float | None = None
+    distancia_metros: float | None = None
 
 
 class AntelacionRecomendada(BaseModel):
@@ -35,8 +35,6 @@ class EventRead(BaseModel):
     recinto_id: str | None = None
     recinto_nombre: str | None = None
     ciudad: str | None = None
-    precio_min: float | None = None
-    precio_max: float | None = None
     banda_precio: str | None = None
     direccion: str | None = None
     latitud: float | None = None

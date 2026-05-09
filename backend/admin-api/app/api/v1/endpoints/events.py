@@ -11,6 +11,11 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 COLLECTION = "eventos"
 
+_ADMIN_EVENT_FIELDS = [
+    "nombre", "ciudad", "segmento", "fecha", "hora",
+    "recinto_nombre", "estado",
+]
+
 
 class EventAdminRead(BaseModel):
     id: str
@@ -20,8 +25,6 @@ class EventAdminRead(BaseModel):
     fecha: str | None = None
     hora: str | None = None
     recinto_nombre: str | None = None
-    precio_min: float | None = None
-    precio_max: float | None = None
     estado: str | None = None
 
 
@@ -43,7 +46,7 @@ async def list_events(
     _: User = Depends(get_admin_user),
 ) -> list[EventAdminRead]:
     db = get_firestore()
-    q = db.collection(COLLECTION)
+    q = db.collection(COLLECTION).select(_ADMIN_EVENT_FIELDS)
     if ciudad:
         q = q.where("ciudad", "==", ciudad)
     if segmento:
@@ -62,8 +65,6 @@ async def list_events(
             fecha=data.get("fecha"),
             hora=data.get("hora"),
             recinto_nombre=data.get("recinto_nombre"),
-            precio_min=data.get("precio_min"),
-            precio_max=data.get("precio_max"),
             estado=data.get("estado"),
         ))
     return results
