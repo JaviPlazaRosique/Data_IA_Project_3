@@ -1,5 +1,0 @@
-cluster_id,cluster_size,share_of_users,dominant_synthetic_persona,dominant_synthetic_persona_share,dominant_home_city,dominant_home_city_share,top_segment_1,top_segment_2,top_genre_1,top_genre_2
-0,101,0.420833,electronic_night_explorer,0.39604,Valencia,0.188119,music_30d,music_90d,urban_90d,electronic_30d
-1,46,0.191667,sports_travel_premium,0.804348,Sevilla,0.217391,sports_30d,sports_90d,tennis_30d,tennis_90d
-2,49,0.204167,arts_culture_local,0.77551,Malaga,0.204082,arts_theatre_30d,arts_theatre_90d,classical_30d,theatre_30d
-3,44,0.183333,family_weekend_local,0.909091,Sevilla,0.318182,family_90d,family_30d,kids_30d,exhibition_90d
