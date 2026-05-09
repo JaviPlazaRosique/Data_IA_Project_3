@@ -74,9 +74,6 @@ async def get_current_user(
     if not uid or not email:
         raise credentials_exception
 
-    if sign_in_provider == "password" and not email_verified:
-        raise credentials_exception
-
     result = await db.execute(select(User).where(User.firebase_uid == uid))
     user = result.scalar_one_or_none()
 
