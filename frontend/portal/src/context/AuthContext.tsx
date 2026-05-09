@@ -3,7 +3,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   type User as FbUser,
 } from 'firebase/auth';
@@ -77,12 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loginGoogle() {
     const auth = await getFirebaseAuth();
-    await signInWithPopup(auth, googleProvider);
+    await signInWithRedirect(auth, googleProvider);
   }
 
   async function loginMicrosoft() {
     const auth = await getFirebaseAuth();
-    await signInWithPopup(auth, microsoftProvider);
+    await signInWithRedirect(auth, microsoftProvider);
   }
 
   async function registerEmail(email: string, password: string) {
