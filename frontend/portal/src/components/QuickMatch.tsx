@@ -27,9 +27,6 @@ function buildEventSnapshot(event: EventCatalogItem) {
     ciudad: event.ciudad,
     recinto_id: event.recinto_id,
     fecha_evento: event.fecha,
-    precio_min: event.precio_min,
-    precio_max: event.precio_max,
-    banda_precio: event.banda_precio,
   };
 }
 
@@ -569,12 +566,6 @@ function Card({
           <p className="text-on-surface/70 text-sm flex items-center gap-1">
             <span className="material-symbols-outlined text-sm">calendar_today</span>
             {dateLine}
-          </p>
-        )}
-        {event.banda_precio && (
-          <p className="text-on-surface/70 text-sm flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">sell</span>
-            {event.banda_precio}
           </p>
         )}
       </div>

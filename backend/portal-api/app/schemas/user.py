@@ -13,6 +13,7 @@ class UserRead(BaseModel):
     avatar_url: str | None
     is_active: bool
     is_verified: bool
+    is_admin: bool
     preferred_budget: str | None
     preferred_location: str | None
     preferred_location_lat: float | None
