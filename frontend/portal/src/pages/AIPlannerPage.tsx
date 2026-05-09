@@ -1,12 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
 import { quickActions, itineraryMapImage } from '../data/mockData';
-import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
-import { apiListPlans, apiCreatePlan, apiUpdatePlan, apiSendAgentMessage } from '../api';
+import { apiSendAgentMessage } from '../api';
 
 interface Message {
   id: string;
@@ -17,13 +15,8 @@ interface Message {
 }
 
 export default function AIPlannerPage() {
-  const { user } = useAuth();
   const { t } = useLang();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [activePlanId, setActivePlanId] = useState<string | null>(null);
-  const [showDisclosure, setShowDisclosure] = useState(
-    () => user !== null && localStorage.getItem('planner_disclosure_seen') !== '1'
-  );
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [agentSessionId, setAgentSessionId] = useState(
@@ -33,26 +26,6 @@ export default function AIPlannerPage() {
   const [mode, setMode] = useState<'surprise' | 'idea' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load most recent plan on mount
-  useEffect(() => {
-    if (!user) return;
-    apiListPlans().then((plans) => {
-      if (plans.length === 0) return;
-      const latest = plans[0];
-      setActivePlanId(latest.plan_id);
-      setAgentSessionId(`planner-${latest.plan_id}`);
-      setMode('idea');
-      setMessages(
-        latest.messages.map((m) => ({
-          id: `${m.timestamp}-${m.role}`,
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp,
-        }))
-      );
-    }).catch(() => { /* silent — not logged in or offline */ });
-  }, [user]);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -61,38 +34,31 @@ export default function AIPlannerPage() {
     setMode(selected);
     if (selected === 'surprise') {
       const surpriseText = '¡Sorpréndeme! Prepárame un plan para hoy.';
-      setInput(surpriseText);
-      // auto-send on next tick so input state is set
-      setTimeout(() => {
-        const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        const newMsg: Message = { id: Date.now().toString(), role: 'user', content: surpriseText, timestamp };
-        const updated = [newMsg];
-        setMessages(updated);
-        setInput('');
-        const planMessages = updated.map((m) => ({ role: m.role, content: m.content, timestamp: m.timestamp }));
-        apiCreatePlan({ title: surpriseText.slice(0, 60), messages: planMessages })
-          .then((plan) => setActivePlanId(plan.plan_id))
-          .catch(() => {});
-      }, 0);
+      const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const newMsg: Message = { id: Date.now().toString(), role: 'user', content: surpriseText, timestamp };
+      const initial = [newMsg];
+      setMessages(initial);
+      setIsSending(true);
+      apiSendAgentMessage({ message: surpriseText, session_id: agentSessionId })
+        .then((response) => {
+          setAgentSessionId(response.session_id);
+          setMessages([...initial, {
+            id: `${Date.now()}-assistant`,
+            role: 'assistant',
+            content: response.answer,
+            timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          }]);
+        })
+        .catch(() => {
+          setMessages([...initial, {
+            id: `${Date.now()}-assistant-error`,
+            role: 'assistant',
+            content: 'No he podido conectar con el asistente ahora mismo. Prueba otra vez en unos segundos.',
+            timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          }]);
+        })
+        .finally(() => setIsSending(false));
     }
-  }
-
-  async function persistMessages(updatedMessages: Message[], title: string) {
-    const planMessages = updatedMessages.map((m) => ({
-      role: m.role,
-      content: m.content,
-      timestamp: m.timestamp,
-    }));
-    if (activePlanId) {
-      await apiUpdatePlan(activePlanId, { messages: planMessages });
-      return activePlanId;
-    }
-    const plan = await apiCreatePlan({
-      title: title.slice(0, 60),
-      messages: planMessages,
-    });
-    setActivePlanId(plan.plan_id);
-    return plan.plan_id;
   }
 
   const handleSend = async () => {
@@ -109,10 +75,7 @@ export default function AIPlannerPage() {
     setMessages(updated);
     setInput('');
 
-    if (mode !== 'idea') {
-      persistMessages(updated, text).catch(() => {});
-      return;
-    }
+    if (!mode) return;
 
     setIsSending(true);
     try {
@@ -127,9 +90,7 @@ export default function AIPlannerPage() {
         content: response.answer,
         timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
       };
-      const withAnswer = [...updated, assistantMsg];
-      setMessages(withAnswer);
-      await persistMessages(withAnswer, text);
+      setMessages([...updated, assistantMsg]);
     } catch {
       const errorMsg: Message = {
         id: `${Date.now()}-assistant-error`,
@@ -137,9 +98,7 @@ export default function AIPlannerPage() {
         content: 'No he podido conectar con el asistente ahora mismo. Prueba otra vez en unos segundos.',
         timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
       };
-      const withError = [...updated, errorMsg];
-      setMessages(withError);
-      persistMessages(withError, text).catch(() => {});
+      setMessages([...updated, errorMsg]);
     } finally {
       setIsSending(false);
     }
@@ -157,28 +116,6 @@ export default function AIPlannerPage() {
       <TopNav />
 
       <main className="flex-1 min-w-0 flex flex-col bg-surface overflow-hidden relative">
-        {/* AI persistence disclosure banner */}
-        {showDisclosure && (
-          <div className="mx-4 md:mx-8 mt-3 flex items-start justify-between gap-4 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-sm text-on-surface-variant">
-            <span>
-              Tus conversaciones se guardan en tu cuenta para que puedas seguir planeando más tarde.{' '}
-              <Link to="/privacy" className="text-primary font-bold hover:underline">
-                Aviso de privacidad
-              </Link>
-            </span>
-            <button
-              onClick={() => {
-                localStorage.setItem('planner_disclosure_seen', '1');
-                setShowDisclosure(false);
-              }}
-              className="shrink-0 text-on-surface/40 hover:text-on-surface transition-colors"
-              aria-label="Cerrar"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
         {/* Planning Canvas */}
         <div className="flex flex-1 overflow-hidden min-w-0 w-full">
           {/* Chat Panel */}
