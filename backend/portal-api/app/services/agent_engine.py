@@ -49,20 +49,23 @@ async def ask_agent(*, user_id: str, session_id: str, message: str) -> str:
     except Exception:
         logger.debug("agent_session_create_skipped", exc_info=True)
 
-    try:
-        stream = remote_agent.async_stream_query(
-            user_id=user_id,
-            session_id=session_id,
-            message=message,
-        )
-    except TypeError:
-        stream = remote_agent.async_stream_query(user_id=user_id, message=message)
+    def _do_stream() -> list[str]:
+        result: list[str] = []
+        try:
+            events = remote_agent.stream_query(
+                user_id=user_id,
+                session_id=session_id,
+                message=message,
+            )
+        except TypeError:
+            events = remote_agent.stream_query(user_id=user_id, message=message)
+        for event in events:
+            text = _event_text(event)
+            if text:
+                result.append(text)
+        return result
 
-    chunks: list[str] = []
-    async for event in stream:
-        text = _event_text(event)
-        if text:
-            chunks.append(text)
+    chunks = await asyncio.to_thread(_do_stream)
 
     answer = "\n".join(chunk for chunk in chunks if chunk).strip()
     if not answer:
