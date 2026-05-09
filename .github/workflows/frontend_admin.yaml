@@ -1,0 +1,91 @@
+name: cicd_frontend_admin
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/admin/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/admin/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  ci:
+    name: Integracion
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Cargar node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/admin/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+        working-directory: frontend/admin
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend/admin
+
+      - name: Guardar dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-admin
+          path: frontend/admin/dist/
+          retention-days: 1
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Despliegue
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.FRONTEND_ADMIN_CUENTA_SERVICIO }}
+
+      - name: Inicio Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Descargar dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-admin
+          path: dist/
+
+      - name: Desplegar frontend admin
+        env:
+          BUCKET: ${{ secrets.BUCKET_FRONTEND_ADMIN }}
+        run: gsutil -m rsync -r -d -j js,css,html,json,svg -x "public-config\.json" dist/ "gs://${BUCKET}/"
+
+      - name: Actualizar public-config.json
+        env:
+          BUCKET: ${{ secrets.BUCKET_FRONTEND_ADMIN }}
+          FB_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FB_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
+          FB_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          gsutil cp "gs://${BUCKET}/public-config.json" public-config.json || echo '{}' > public-config.json
+          jq \
+            --arg apiKey "${FB_API_KEY}" \
+            --arg authDomain "${FB_AUTH_DOMAIN}" \
+            --arg projectId "${FB_PROJECT_ID}" \
+            '.firebase = {apiKey: $apiKey, authDomain: $authDomain, projectId: $projectId}' \
+            public-config.json > tmp.json && mv tmp.json public-config.json
+          gsutil -h "Cache-Control:no-cache" cp public-config.json "gs://${BUCKET}/public-config.json"

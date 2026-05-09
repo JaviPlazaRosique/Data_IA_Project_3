@@ -8,7 +8,7 @@ import {
   type User as FbUser,
 } from 'firebase/auth';
 import { getFirebaseAuth, googleProvider, microsoftProvider } from '../lib/firebase';
-import { apiGetMe, clearDevAuthToken, hasDevAuthToken, setDevAuthToken, type UserRead } from '../api';
+import { apiGetMe, clearDevAuthToken, hasDevAuthToken, type UserRead } from '../api';
 
 interface AuthContextValue {
   fbUser: FbUser | null;
@@ -17,7 +17,6 @@ interface AuthContextValue {
   loginEmail: (email: string, password: string) => Promise<void>;
   loginGoogle: () => Promise<void>;
   loginMicrosoft: () => Promise<void>;
-  loginDemo: () => Promise<void>;
   registerEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: UserRead) => void;
@@ -86,13 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithPopup(auth, microsoftProvider);
   }
 
-  async function loginDemo() {
-    setDevAuthToken('local-demo-token');
-    const me = await apiGetMe();
-    setFbUser(null);
-    setUser(me);
-  }
-
   async function registerEmail(email: string, password: string) {
     await createUserWithEmailAndPassword(await getFirebaseAuth(), email, password);
   }
@@ -109,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ fbUser, user, loading, loginEmail, loginGoogle, loginMicrosoft, loginDemo, registerEmail, logout, setUser }}>
+    <AuthContext.Provider value={{ fbUser, user, loading, loginEmail, loginGoogle, loginMicrosoft, registerEmail, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

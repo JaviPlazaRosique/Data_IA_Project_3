@@ -21,6 +21,7 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # MVP preference fields (populated via profile update)
     preferred_budget: Mapped[str | None] = mapped_column(String(10))
     preferred_location: Mapped[str | None] = mapped_column(String(255))
