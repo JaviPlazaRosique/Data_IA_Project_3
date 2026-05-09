@@ -4,7 +4,7 @@ import BottomNav from '../components/layout/BottomNav';
 import { itineraryMapImage } from '../data/mockData';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
-import { apiSendAgentMessage, apiListRecommendations, ClusterRecommendationRead } from '../api';
+import { apiSendAgentMessage, apiListRecommendations, type ClusterRecommendationRead } from '../api';
 
 interface Message {
   id: string;

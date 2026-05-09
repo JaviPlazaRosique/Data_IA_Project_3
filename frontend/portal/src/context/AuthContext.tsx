@@ -8,7 +8,7 @@ import {
   type User as FbUser,
 } from 'firebase/auth';
 import { getFirebaseAuth, googleProvider, microsoftProvider } from '../lib/firebase';
-import { apiGetMe, clearDevAuthToken, hasDevAuthToken, setDevAuthToken, type UserRead } from '../api';
+import { apiGetMe, clearDevAuthToken, hasDevAuthToken, type UserRead } from '../api';
 
 interface AuthContextValue {
   fbUser: FbUser | null;
