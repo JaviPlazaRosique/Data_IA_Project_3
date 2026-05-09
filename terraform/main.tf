@@ -969,6 +969,23 @@ module "clustering_sa" {
   ]
 }
 
+module "cicd_clustering_train_assign" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-clustering-train"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del Cloud Run Job de clustering"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_clustering_train_assign"
+  depends_on = [
+    module.setup
+  ]
+}
+
 module "clustering_train_assign_job" {
   source                = "./modules/cloud_run_job"
   id_proyecto           = var.id_proyecto
