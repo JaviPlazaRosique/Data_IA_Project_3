@@ -27,44 +27,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
-    try {
-      const auth = getFirebaseAuth();
-      unsub = onAuthStateChanged(auth, async (u) => {
-        if (!u) {
-          setFbUser(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-        setFbUser(u);
-        try {
-          const me = await apiGetMe();
-          setUser(me);
-        } catch {
-          setUser(null);
-        } finally {
-          setLoading(false);
-        }
-      });
-    } catch {
-      setFbUser(null);
-      setUser(null);
-      setLoading(false);
-    }
+    (async () => {
+      try {
+        const auth = await getFirebaseAuth();
+        unsub = onAuthStateChanged(auth, async (u) => {
+          if (!u) {
+            setFbUser(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+          setFbUser(u);
+          try {
+            const me = await apiGetMe();
+            setUser(me);
+          } catch {
+            setUser(null);
+          } finally {
+            setLoading(false);
+          }
+        });
+      } catch {
+        setFbUser(null);
+        setUser(null);
+        setLoading(false);
+      }
+    })();
     return () => { if (unsub) unsub(); };
   }, []);
 
   async function loginEmail(email: string, password: string) {
-    await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+    await signInWithEmailAndPassword(await getFirebaseAuth(), email, password);
   }
 
   async function loginGoogle() {
-    await signInWithPopup(getFirebaseAuth(), googleProvider);
+    await signInWithPopup(await getFirebaseAuth(), googleProvider);
   }
 
   async function logout() {
     try {
-      await signOut(getFirebaseAuth());
+      await signOut(await getFirebaseAuth());
     } catch {
       setFbUser(null);
       setUser(null);
