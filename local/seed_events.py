@@ -830,7 +830,6 @@ def _fixture_event(
     hora: str,
     recinto_id: str,
     recinto_nombre: str,
-    banda_precio: str,
 ) -> dict:
     city = CITY_META[ciudad]
     return {
@@ -855,67 +854,66 @@ def _fixture_event(
         "artista_imagen": f"https://picsum.photos/seed/{event_id}-artist/400/400",
         "imagen_evento": f"https://picsum.photos/seed/{event_id}/800/450",
         "promotor": "Local Demo",
-        "banda_precio": banda_precio,
     }
 
 
 EVENTS.extend(
     [
         # Music: 10
-        _fixture_event("evt-demo-music-01", "Madrid Rock Club — Nuevas Guitarras", "Music", "Rock", "Indie Rock", "Madrid", "2026-07-15", "21:00", "rec-demo-music-mad-01", "Sala Mon Live", "medio"),
-        _fixture_event("evt-demo-film-bcn-pop-lab", "Barcelona Film Lab — Verano Azul", "Film", "Drama", "Summer Cinema", "Barcelona", "2026-07-16", "20:30", "rec-demo-film-bcn-pop-lab", "Cines Verdi", "medio"),
-        _fixture_event("evt-demo-film-val-bass-tide", "Valencia Dock Cinema — Marea Nocturna", "Film", "Sci-Fi", "Open Air Cinema", "Valencia", "2026-07-17", "23:30", "rec-demo-film-val-bass-tide", "La Filmoteca Valencia", "alto"),
-        _fixture_event("evt-demo-film-sev-urban-flow", "Sevilla Urban Cinema — Historias del Sur", "Film", "Documentary", "Urban Culture", "Sevilla", "2026-07-18", "22:30", "rec-demo-film-sev-urban-flow", "Avenida 5 Cines", "medio"),
-        _fixture_event("evt-demo-sports-bio-chamber", "Bilbao Basket Evening — Cuerdas y Canastas", "Sports", "Basketball", "Friendly", "Bilbao", "2026-07-19", "19:30", "rec-demo-sports-bio-chamber", "Bilbao Arena", "alto"),
-        _fixture_event("evt-demo-sports-mal-sunset", "Malaga Sunset Football — Costa Cup", "Sports", "Football", "Summer Cup", "Málaga", "2026-07-20", "21:30", "rec-demo-sports-mal-sunset", "Estadio La Rosaleda", "bajo"),
-        _fixture_event("evt-demo-sports-zgz-electro", "Zaragoza Tennis Dome — Afterwork Match", "Sports", "Tennis", "Exhibition", "Zaragoza", "2026-07-21", "23:45", "rec-demo-sports-zgz-electro", "Stadium Casablanca", "medio"),
-        _fixture_event("evt-demo-family-gra-guitar", "Granada Family Garden — Guitarras para Peques", "Family", "Kids", "Music Workshop", "Granada", "2026-07-22", "21:00", "rec-demo-family-gra-guitar", "Jardines del Generalife", "alto"),
-        _fixture_event("evt-demo-family-ali-indie", "Alicante Family Pier — Juegos de Verano", "Family", "Kids", "Outdoor", "Alicante", "2026-07-23", "22:00", "rec-demo-family-ali-indie", "Muelle 12", "medio"),
-        _fixture_event("evt-demo-family-cor-atlantic", "A Coruna Family Beats — Taller Atlantico", "Family", "Kids", "Creative Workshop", "A Coruña", "2026-07-24", "22:30", "rec-demo-family-cor-atlantic", "Domus", "bajo"),
+        _fixture_event("evt-demo-music-01", "Madrid Rock Club — Nuevas Guitarras", "Music", "Rock", "Indie Rock", "Madrid", "2026-07-15", "21:00", "rec-demo-music-mad-01", "Sala Mon Live"),
+        _fixture_event("evt-demo-film-bcn-pop-lab", "Barcelona Film Lab — Verano Azul", "Film", "Drama", "Summer Cinema", "Barcelona", "2026-07-16", "20:30", "rec-demo-film-bcn-pop-lab", "Cines Verdi"),
+        _fixture_event("evt-demo-film-val-bass-tide", "Valencia Dock Cinema — Marea Nocturna", "Film", "Sci-Fi", "Open Air Cinema", "Valencia", "2026-07-17", "23:30", "rec-demo-film-val-bass-tide", "La Filmoteca Valencia"),
+        _fixture_event("evt-demo-film-sev-urban-flow", "Sevilla Urban Cinema — Historias del Sur", "Film", "Documentary", "Urban Culture", "Sevilla", "2026-07-18", "22:30", "rec-demo-film-sev-urban-flow", "Avenida 5 Cines"),
+        _fixture_event("evt-demo-sports-bio-chamber", "Bilbao Basket Evening — Cuerdas y Canastas", "Sports", "Basketball", "Friendly", "Bilbao", "2026-07-19", "19:30", "rec-demo-sports-bio-chamber", "Bilbao Arena"),
+        _fixture_event("evt-demo-sports-mal-sunset", "Malaga Sunset Football — Costa Cup", "Sports", "Football", "Summer Cup", "Málaga", "2026-07-20", "21:30", "rec-demo-sports-mal-sunset", "Estadio La Rosaleda"),
+        _fixture_event("evt-demo-sports-zgz-electro", "Zaragoza Tennis Dome — Afterwork Match", "Sports", "Tennis", "Exhibition", "Zaragoza", "2026-07-21", "23:45", "rec-demo-sports-zgz-electro", "Stadium Casablanca"),
+        _fixture_event("evt-demo-family-gra-guitar", "Granada Family Garden — Guitarras para Peques", "Family", "Kids", "Music Workshop", "Granada", "2026-07-22", "21:00", "rec-demo-family-gra-guitar", "Jardines del Generalife"),
+        _fixture_event("evt-demo-family-ali-indie", "Alicante Family Pier — Juegos de Verano", "Family", "Kids", "Outdoor", "Alicante", "2026-07-23", "22:00", "rec-demo-family-ali-indie", "Muelle 12"),
+        _fixture_event("evt-demo-family-cor-atlantic", "A Coruna Family Beats — Taller Atlantico", "Family", "Kids", "Creative Workshop", "A Coruña", "2026-07-24", "22:30", "rec-demo-family-cor-atlantic", "Domus"),
         # Sports: 10
-        _fixture_event("evt-demo-sports-01", "Madrid Football Night — Capital Derby", "Sports", "Football", "La Liga", "Madrid", "2026-07-25", "21:00", "rec-demo-sports-mad-01", "Estadio Vallecas", "alto"),
-        _fixture_event("evt-demo-sports-02", "Barcelona Basket Summer — Partido Estrella", "Sports", "Basketball", "ACB", "Barcelona", "2026-07-26", "19:00", "rec-demo-sports-bcn-01", "Palau Blaugrana", "medio"),
-        _fixture_event("evt-demo-sports-03", "Valencia Tennis Open — Cuartos", "Sports", "Tennis", "Open", "Valencia", "2026-07-27", "18:00", "rec-demo-sports-val-01", "Club de Tenis Valencia", "medio"),
-        _fixture_event("evt-demo-sports-04", "Sevilla Football Cup — Final Local", "Sports", "Football", "Cup", "Sevilla", "2026-07-28", "20:45", "rec-demo-sports-sev-01", "Estadio La Cartuja", "alto"),
-        _fixture_event("evt-demo-sports-05", "Bilbao Basket Clash — Norte vs Sur", "Sports", "Basketball", "Friendly", "Bilbao", "2026-07-29", "19:30", "rec-demo-sports-bio-01", "Bilbao Arena", "medio"),
-        _fixture_event("evt-demo-sports-06", "Malaga Beach Tennis — Session Sunset", "Sports", "Tennis", "Beach Tennis", "Málaga", "2026-07-30", "18:30", "rec-demo-sports-mal-01", "Playa de la Malagueta", "bajo"),
-        _fixture_event("evt-demo-sports-07", "Zaragoza Basket Weekend — Semifinal", "Sports", "Basketball", "Tournament", "Zaragoza", "2026-07-31", "20:00", "rec-demo-sports-zgz-01", "Pabellon Principe Felipe", "medio"),
-        _fixture_event("evt-demo-sports-08", "Granada Football Summer — Amistoso", "Sports", "Football", "Friendly", "Granada", "2026-08-01", "21:15", "rec-demo-sports-gra-01", "Nuevo Los Carmenes", "bajo"),
-        _fixture_event("evt-demo-sports-09", "Alicante Tennis Night — Dobles Mixtos", "Sports", "Tennis", "Doubles", "Alicante", "2026-08-02", "19:00", "rec-demo-sports-ali-01", "Club Atletico Montemar", "medio"),
-        _fixture_event("evt-demo-sports-10", "A Coruna Football Fest — Riazor Live", "Sports", "Football", "Friendly", "A Coruña", "2026-08-03", "20:30", "rec-demo-sports-cor-01", "Estadio Abanca-Riazor", "medio"),
+        _fixture_event("evt-demo-sports-01", "Madrid Football Night — Capital Derby", "Sports", "Football", "La Liga", "Madrid", "2026-07-25", "21:00", "rec-demo-sports-mad-01", "Estadio Vallecas"),
+        _fixture_event("evt-demo-sports-02", "Barcelona Basket Summer — Partido Estrella", "Sports", "Basketball", "ACB", "Barcelona", "2026-07-26", "19:00", "rec-demo-sports-bcn-01", "Palau Blaugrana"),
+        _fixture_event("evt-demo-sports-03", "Valencia Tennis Open — Cuartos", "Sports", "Tennis", "Open", "Valencia", "2026-07-27", "18:00", "rec-demo-sports-val-01", "Club de Tenis Valencia"),
+        _fixture_event("evt-demo-sports-04", "Sevilla Football Cup — Final Local", "Sports", "Football", "Cup", "Sevilla", "2026-07-28", "20:45", "rec-demo-sports-sev-01", "Estadio La Cartuja"),
+        _fixture_event("evt-demo-sports-05", "Bilbao Basket Clash — Norte vs Sur", "Sports", "Basketball", "Friendly", "Bilbao", "2026-07-29", "19:30", "rec-demo-sports-bio-01", "Bilbao Arena"),
+        _fixture_event("evt-demo-sports-06", "Malaga Beach Tennis — Session Sunset", "Sports", "Tennis", "Beach Tennis", "Málaga", "2026-07-30", "18:30", "rec-demo-sports-mal-01", "Playa de la Malagueta"),
+        _fixture_event("evt-demo-sports-07", "Zaragoza Basket Weekend — Semifinal", "Sports", "Basketball", "Tournament", "Zaragoza", "2026-07-31", "20:00", "rec-demo-sports-zgz-01", "Pabellon Principe Felipe"),
+        _fixture_event("evt-demo-sports-08", "Granada Football Summer — Amistoso", "Sports", "Football", "Friendly", "Granada", "2026-08-01", "21:15", "rec-demo-sports-gra-01", "Nuevo Los Carmenes"),
+        _fixture_event("evt-demo-sports-09", "Alicante Tennis Night — Dobles Mixtos", "Sports", "Tennis", "Doubles", "Alicante", "2026-08-02", "19:00", "rec-demo-sports-ali-01", "Club Atletico Montemar"),
+        _fixture_event("evt-demo-sports-10", "A Coruna Football Fest — Riazor Live", "Sports", "Football", "Friendly", "A Coruña", "2026-08-03", "20:30", "rec-demo-sports-cor-01", "Estadio Abanca-Riazor"),
         # Arts & Theatre: 10
-        _fixture_event("evt-demo-arts-01", "Madrid Theatre Noir — Habitacion 17", "Arts & Theatre", "Theatre", "Drama", "Madrid", "2026-08-04", "20:30", "rec-demo-arts-mad-01", "Teatro Español", "medio"),
-        _fixture_event("evt-demo-arts-02", "Barcelona Comedy Grid — Risas en Gracia", "Arts & Theatre", "Comedy", "Stand-up", "Barcelona", "2026-08-05", "21:30", "rec-demo-arts-bcn-01", "Teatreneu", "bajo"),
-        _fixture_event("evt-demo-arts-03", "Valencia Musical Port — Voces del Mar", "Arts & Theatre", "Musical", "Musical", "Valencia", "2026-08-06", "20:00", "rec-demo-arts-val-01", "Teatro Olympia", "alto"),
-        _fixture_event("evt-demo-arts-04", "Sevilla Exhibition Light — Patio Abierto", "Arts & Theatre", "Exhibition", "Contemporary Art", "Sevilla", "2026-08-07", "18:30", "rec-demo-arts-sev-01", "CAAC Sevilla", "bajo"),
-        _fixture_event("evt-demo-arts-05", "Bilbao Theatre Lab — Escena Expandida", "Arts & Theatre", "Theatre", "Experimental", "Bilbao", "2026-08-08", "20:30", "rec-demo-arts-bio-01", "Pabellon 6", "medio"),
-        _fixture_event("evt-demo-arts-06", "Malaga Comedy Club — Costa de Risas", "Arts & Theatre", "Comedy", "Monologues", "Málaga", "2026-08-09", "21:00", "rec-demo-arts-mal-01", "Teatro Echegaray", "medio"),
-        _fixture_event("evt-demo-arts-07", "Zaragoza Musical Kids — La Ciudad Sonora", "Arts & Theatre", "Musical", "Family Musical", "Zaragoza", "2026-08-10", "18:00", "rec-demo-arts-zgz-01", "Teatro Principal Zaragoza", "bajo"),
-        _fixture_event("evt-demo-film-gra-exhibition-moon", "Granada Moon Cinema — Arte Nocturno", "Film", "Documentary", "Art Film", "Granada", "2026-08-11", "19:30", "rec-demo-film-gra-exhibition-moon", "Centro Jose Guerrero", "medio"),
-        _fixture_event("evt-demo-film-ali-theatre-blue", "Alicante Blue Screen — Drama Mediterraneo", "Film", "Drama", "Mediterranean Cinema", "Alicante", "2026-08-12", "20:45", "rec-demo-film-ali-theatre-blue", "Teatro Principal Alicante", "medio"),
-        _fixture_event("evt-demo-film-cor-comedy-atlantic", "A Coruna Atlantic Screen — Comedia Norte", "Film", "Comedy", "Atlantic Cinema", "A Coruña", "2026-08-13", "21:15", "rec-demo-film-cor-comedy-atlantic", "Teatro Colón", "bajo"),
+        _fixture_event("evt-demo-arts-01", "Madrid Theatre Noir — Habitacion 17", "Arts & Theatre", "Theatre", "Drama", "Madrid", "2026-08-04", "20:30", "rec-demo-arts-mad-01", "Teatro Español"),
+        _fixture_event("evt-demo-arts-02", "Barcelona Comedy Grid — Risas en Gracia", "Arts & Theatre", "Comedy", "Stand-up", "Barcelona", "2026-08-05", "21:30", "rec-demo-arts-bcn-01", "Teatreneu"),
+        _fixture_event("evt-demo-arts-03", "Valencia Musical Port — Voces del Mar", "Arts & Theatre", "Musical", "Musical", "Valencia", "2026-08-06", "20:00", "rec-demo-arts-val-01", "Teatro Olympia"),
+        _fixture_event("evt-demo-arts-04", "Sevilla Exhibition Light — Patio Abierto", "Arts & Theatre", "Exhibition", "Contemporary Art", "Sevilla", "2026-08-07", "18:30", "rec-demo-arts-sev-01", "CAAC Sevilla"),
+        _fixture_event("evt-demo-arts-05", "Bilbao Theatre Lab — Escena Expandida", "Arts & Theatre", "Theatre", "Experimental", "Bilbao", "2026-08-08", "20:30", "rec-demo-arts-bio-01", "Pabellon 6"),
+        _fixture_event("evt-demo-arts-06", "Malaga Comedy Club — Costa de Risas", "Arts & Theatre", "Comedy", "Monologues", "Málaga", "2026-08-09", "21:00", "rec-demo-arts-mal-01", "Teatro Echegaray"),
+        _fixture_event("evt-demo-arts-07", "Zaragoza Musical Kids — La Ciudad Sonora", "Arts & Theatre", "Musical", "Family Musical", "Zaragoza", "2026-08-10", "18:00", "rec-demo-arts-zgz-01", "Teatro Principal Zaragoza"),
+        _fixture_event("evt-demo-film-gra-exhibition-moon", "Granada Moon Cinema — Arte Nocturno", "Film", "Documentary", "Art Film", "Granada", "2026-08-11", "19:30", "rec-demo-film-gra-exhibition-moon", "Centro Jose Guerrero"),
+        _fixture_event("evt-demo-film-ali-theatre-blue", "Alicante Blue Screen — Drama Mediterraneo", "Film", "Drama", "Mediterranean Cinema", "Alicante", "2026-08-12", "20:45", "rec-demo-film-ali-theatre-blue", "Teatro Principal Alicante"),
+        _fixture_event("evt-demo-film-cor-comedy-atlantic", "A Coruna Atlantic Screen — Comedia Norte", "Film", "Comedy", "Atlantic Cinema", "A Coruña", "2026-08-13", "21:15", "rec-demo-film-cor-comedy-atlantic", "Teatro Colón"),
         # Family: 10
-        _fixture_event("evt-demo-family-01", "Madrid Kids Lab — Robots Curiosos", "Family", "Kids", "Science", "Madrid", "2026-08-14", "11:00", "rec-demo-family-mad-01", "Museo Nacional de Ciencia", "bajo"),
-        _fixture_event("evt-demo-family-02", "Barcelona Circus Day — Pequenos Equilibristas", "Family", "Circus", "Circus", "Barcelona", "2026-08-15", "12:00", "rec-demo-family-bcn-01", "Ateneu Popular 9 Barris", "medio"),
-        _fixture_event("evt-demo-family-03", "Valencia Ocean Kids — Exploradores Marinos", "Family", "Kids", "Aquarium", "Valencia", "2026-08-16", "10:30", "rec-demo-family-val-01", "Oceanografic", "alto"),
-        _fixture_event("evt-demo-family-04", "Sevilla Magic Morning — Trucos de Patio", "Family", "Kids", "Magic", "Sevilla", "2026-08-17", "11:30", "rec-demo-family-sev-01", "Teatro Alameda", "bajo"),
-        _fixture_event("evt-demo-family-05", "Bilbao Family Expo — Inventos del Futuro", "Family", "Exhibition", "Science", "Bilbao", "2026-08-18", "12:00", "rec-demo-family-bio-01", "Azkuna Zentroa", "medio"),
-        _fixture_event("evt-demo-family-06", "Malaga Mini Circus — Carpa de Verano", "Family", "Circus", "Circus", "Málaga", "2026-08-19", "18:00", "rec-demo-family-mal-01", "Auditorio Municipal Malaga", "medio"),
-        _fixture_event("evt-demo-family-07", "Zaragoza Kids Theatre — Viaje Lunar", "Family", "Kids", "Theatre", "Zaragoza", "2026-08-20", "17:30", "rec-demo-family-zgz-01", "Teatro Arbolé", "bajo"),
-        _fixture_event("evt-demo-family-08", "Granada Family Stars — Planetario Vivo", "Family", "Exhibition", "Astronomy", "Granada", "2026-08-21", "11:00", "rec-demo-family-gra-01", "Parque de las Ciencias", "medio"),
-        _fixture_event("evt-demo-family-09", "Alicante Kids Beach — Juegos del Mar", "Family", "Kids", "Outdoor", "Alicante", "2026-08-22", "10:00", "rec-demo-family-ali-01", "Playa del Postiguet", "bajo"),
-        _fixture_event("evt-demo-family-10", "A Coruna Circus Harbor — Carpa Atlantica", "Family", "Circus", "Circus", "A Coruña", "2026-08-23", "18:30", "rec-demo-family-cor-01", "Muelle de Trasatlanticos", "medio"),
+        _fixture_event("evt-demo-family-01", "Madrid Kids Lab — Robots Curiosos", "Family", "Kids", "Science", "Madrid", "2026-08-14", "11:00", "rec-demo-family-mad-01", "Museo Nacional de Ciencia"),
+        _fixture_event("evt-demo-family-02", "Barcelona Circus Day — Pequenos Equilibristas", "Family", "Circus", "Circus", "Barcelona", "2026-08-15", "12:00", "rec-demo-family-bcn-01", "Ateneu Popular 9 Barris"),
+        _fixture_event("evt-demo-family-03", "Valencia Ocean Kids — Exploradores Marinos", "Family", "Kids", "Aquarium", "Valencia", "2026-08-16", "10:30", "rec-demo-family-val-01", "Oceanografic"),
+        _fixture_event("evt-demo-family-04", "Sevilla Magic Morning — Trucos de Patio", "Family", "Kids", "Magic", "Sevilla", "2026-08-17", "11:30", "rec-demo-family-sev-01", "Teatro Alameda"),
+        _fixture_event("evt-demo-family-05", "Bilbao Family Expo — Inventos del Futuro", "Family", "Exhibition", "Science", "Bilbao", "2026-08-18", "12:00", "rec-demo-family-bio-01", "Azkuna Zentroa"),
+        _fixture_event("evt-demo-family-06", "Malaga Mini Circus — Carpa de Verano", "Family", "Circus", "Circus", "Málaga", "2026-08-19", "18:00", "rec-demo-family-mal-01", "Auditorio Municipal Malaga"),
+        _fixture_event("evt-demo-family-07", "Zaragoza Kids Theatre — Viaje Lunar", "Family", "Kids", "Theatre", "Zaragoza", "2026-08-20", "17:30", "rec-demo-family-zgz-01", "Teatro Arbolé"),
+        _fixture_event("evt-demo-family-08", "Granada Family Stars — Planetario Vivo", "Family", "Exhibition", "Astronomy", "Granada", "2026-08-21", "11:00", "rec-demo-family-gra-01", "Parque de las Ciencias"),
+        _fixture_event("evt-demo-family-09", "Alicante Kids Beach — Juegos del Mar", "Family", "Kids", "Outdoor", "Alicante", "2026-08-22", "10:00", "rec-demo-family-ali-01", "Playa del Postiguet"),
+        _fixture_event("evt-demo-family-10", "A Coruna Circus Harbor — Carpa Atlantica", "Family", "Circus", "Circus", "A Coruña", "2026-08-23", "18:30", "rec-demo-family-cor-01", "Muelle de Trasatlanticos"),
         # Film: 10
-        _fixture_event("evt-demo-film-01", "Madrid Cine Clasico — Noche Hitchcock", "Film", "Classic", "Thriller", "Madrid", "2026-08-24", "22:00", "rec-demo-film-mad-01", "Cineteca Madrid", "bajo"),
-        _fixture_event("evt-demo-film-02", "Barcelona Anime Night — Pantalla Grande", "Film", "Animation", "Anime", "Barcelona", "2026-08-25", "20:30", "rec-demo-film-bcn-01", "Phenomena Experience", "medio"),
-        _fixture_event("evt-demo-film-03", "Valencia Sci-Fi Dock — Futuro Cercano", "Film", "Sci-Fi", "Science Fiction", "Valencia", "2026-08-26", "22:00", "rec-demo-film-val-01", "La Filmoteca Valencia", "bajo"),
-        _fixture_event("evt-demo-film-04", "Sevilla Cine de Verano — Comedia Bajo Estrellas", "Film", "Comedy", "Outdoor Cinema", "Sevilla", "2026-08-27", "22:15", "rec-demo-film-sev-01", "Jardines del Prado", "bajo"),
-        _fixture_event("evt-demo-film-05", "Bilbao Docs Live — Historias Urbanas", "Film", "Documentary", "Urban Stories", "Bilbao", "2026-08-28", "19:30", "rec-demo-film-bio-01", "Sala BBK", "medio"),
-        _fixture_event("evt-demo-film-06", "Malaga Premiere Club — Cine Español", "Film", "Drama", "Spanish Cinema", "Málaga", "2026-08-29", "21:00", "rec-demo-film-mal-01", "Cine Albéniz", "medio"),
-        _fixture_event("evt-demo-film-07", "Zaragoza Short Fest — Cortos Emergentes", "Film", "Shorts", "Festival", "Zaragoza", "2026-08-30", "20:00", "rec-demo-film-zgz-01", "Filmoteca Zaragoza", "bajo"),
-        _fixture_event("evt-demo-film-08", "Granada Cine Andalusi — Pantalla Historica", "Film", "Drama", "Historical", "Granada", "2026-08-31", "21:30", "rec-demo-film-gra-01", "Palacio de los Córdova", "medio"),
-        _fixture_event("evt-demo-film-09", "Alicante Horror Dock — Sesion Medianoche", "Film", "Horror", "Midnight Screening", "Alicante", "2026-09-01", "23:45", "rec-demo-film-ali-01", "Cines Panoramis", "medio"),
-        _fixture_event("evt-demo-film-10", "A Coruna Atlantic Cinema — Cine y Mar", "Film", "Documentary", "Ocean", "A Coruña", "2026-09-02", "20:30", "rec-demo-film-cor-01", "Domus", "bajo"),
+        _fixture_event("evt-demo-film-01", "Madrid Cine Clasico — Noche Hitchcock", "Film", "Classic", "Thriller", "Madrid", "2026-08-24", "22:00", "rec-demo-film-mad-01", "Cineteca Madrid"),
+        _fixture_event("evt-demo-film-02", "Barcelona Anime Night — Pantalla Grande", "Film", "Animation", "Anime", "Barcelona", "2026-08-25", "20:30", "rec-demo-film-bcn-01", "Phenomena Experience"),
+        _fixture_event("evt-demo-film-03", "Valencia Sci-Fi Dock — Futuro Cercano", "Film", "Sci-Fi", "Science Fiction", "Valencia", "2026-08-26", "22:00", "rec-demo-film-val-01", "La Filmoteca Valencia"),
+        _fixture_event("evt-demo-film-04", "Sevilla Cine de Verano — Comedia Bajo Estrellas", "Film", "Comedy", "Outdoor Cinema", "Sevilla", "2026-08-27", "22:15", "rec-demo-film-sev-01", "Jardines del Prado"),
+        _fixture_event("evt-demo-film-05", "Bilbao Docs Live — Historias Urbanas", "Film", "Documentary", "Urban Stories", "Bilbao", "2026-08-28", "19:30", "rec-demo-film-bio-01", "Sala BBK"),
+        _fixture_event("evt-demo-film-06", "Malaga Premiere Club — Cine Español", "Film", "Drama", "Spanish Cinema", "Málaga", "2026-08-29", "21:00", "rec-demo-film-mal-01", "Cine Albéniz"),
+        _fixture_event("evt-demo-film-07", "Zaragoza Short Fest — Cortos Emergentes", "Film", "Shorts", "Festival", "Zaragoza", "2026-08-30", "20:00", "rec-demo-film-zgz-01", "Filmoteca Zaragoza"),
+        _fixture_event("evt-demo-film-08", "Granada Cine Andalusi — Pantalla Historica", "Film", "Drama", "Historical", "Granada", "2026-08-31", "21:30", "rec-demo-film-gra-01", "Palacio de los Córdova"),
+        _fixture_event("evt-demo-film-09", "Alicante Horror Dock — Sesion Medianoche", "Film", "Horror", "Midnight Screening", "Alicante", "2026-09-01", "23:45", "rec-demo-film-ali-01", "Cines Panoramis"),
+        _fixture_event("evt-demo-film-10", "A Coruna Atlantic Cinema — Cine y Mar", "Film", "Documentary", "Ocean", "A Coruña", "2026-09-02", "20:30", "rec-demo-film-cor-01", "Domus"),
     ]
 )
 
@@ -985,7 +983,6 @@ EXTRA_EVENT_SLUGS = {
 
 def _build_extra_events() -> list[dict]:
     cities = list(CITY_META)
-    price_bands = ["bajo", "medio", "alto"]
     start_date = date(2026, 9, 3)
     events = []
     day_offset = 0
@@ -1012,7 +1009,6 @@ def _build_extra_events() -> list[dict]:
                     hour,
                     f"rec-demo-extra-{slug}-{index:02d}",
                     f"{city} Demo Venue {index:02d}",
-                    price_bands[(index + day_offset) % len(price_bands)],
                 )
             )
             day_offset += 1

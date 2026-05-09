@@ -233,7 +233,6 @@ export default function EventDetailsPage() {
                 const genreBits = [genero, subgenero].filter(Boolean).join(' / ');
                 if (genreBits) parts.push(`Genre: ${genreBits}.`);
                 if (segmento) parts.push(`Category: ${segmento}.`);
-                if (event.banda_precio) parts.push(`Price range: ${event.banda_precio}.`);
                 if (event.recinto_nombre || event.ciudad || event.direccion) {
                   parts.push(
                     `Taking place at ${[event.recinto_nombre, event.direccion, event.ciudad].filter(Boolean).join(', ')}.`
