@@ -19,8 +19,11 @@ _EVENT_FIELDS = [
     "venta_inicio", "venta_fin", "segmento", "genero", "subgenero",
     "recinto_id", "recinto_nombre", "ciudad", "banda_precio", "direccion", "latitud", "longitud",
     "artista_id", "artista_nombre", "artista_imagen", "imagen_evento",
-    "promotor", "restaurantes_cercanos", "alojamientos_cercanos",
-    "antelacion_recomendada",
+    "promotor", "descripcion",
+    "categoria", "subcategoria", "franja_horaria", "vibra", "interior_exterior",
+    "duracion_minutos_estimada",
+    "puntuacion_familiar", "puntuacion_grupo", "puntuacion_romantica", "puntuacion_turista",
+    "restaurantes_cercanos", "alojamientos_cercanos", "antelacion_recomendada",
 ]
 
 
