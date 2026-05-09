@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -35,10 +36,10 @@ def _count_swipes_with_deltas_sync() -> tuple[int, int, int]:
         rows = list(get_bq_client().query(f"""
             SELECT
                 COUNT(*) AS total,
-                COUNTIF(DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) AS this_week,
+                COUNTIF(DATE(swiped_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) AS this_week,
                 COUNTIF(
-                    DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)
-                    AND DATE(timestamp) < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+                    DATE(swiped_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)
+                    AND DATE(swiped_at) < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
                 ) AS last_week
             FROM {table}
         """).result())
@@ -70,18 +71,19 @@ async def get_stats(
             select(func.count()).select_from(User).where(User.is_active == True)  # noqa: E712
         )
     ).scalar_one()
+    now = datetime.now(timezone.utc)
+    week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
     new_users_this_week = (
         await db.execute(
-            select(func.count()).select_from(User).where(
-                User.created_at >= text("NOW() - INTERVAL '7 days'")
-            )
+            select(func.count()).select_from(User).where(User.created_at >= week_ago)
         )
     ).scalar_one()
     new_users_last_week = (
         await db.execute(
             select(func.count()).select_from(User).where(
-                User.created_at >= text("NOW() - INTERVAL '14 days'"),
-                User.created_at < text("NOW() - INTERVAL '7 days'"),
+                User.created_at >= two_weeks_ago,
+                User.created_at < week_ago,
             )
         )
     ).scalar_one()

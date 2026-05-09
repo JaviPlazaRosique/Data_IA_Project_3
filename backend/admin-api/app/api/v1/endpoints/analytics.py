@@ -40,11 +40,11 @@ class AnalyticsResponse(BaseModel):
 
 def _build_date_filter(start_date: str | None, end_date: str | None) -> str:
     if start_date and end_date:
-        return f"WHERE DATE(timestamp) BETWEEN '{start_date}' AND '{end_date}'"
+        return f"WHERE DATE(swiped_at) BETWEEN '{start_date}' AND '{end_date}'"
     if start_date:
-        return f"WHERE DATE(timestamp) >= '{start_date}'"
+        return f"WHERE DATE(swiped_at) >= '{start_date}'"
     if end_date:
-        return f"WHERE DATE(timestamp) <= '{end_date}'"
+        return f"WHERE DATE(swiped_at) <= '{end_date}'"
     return ""
 
 
@@ -67,12 +67,12 @@ def _query_analytics_sync(start_date: str | None, end_date: str | None) -> Analy
             r = totals_rows[0]
             totals = SwipeTotals(left=r["left_count"] or 0, right=r["right_count"] or 0)
 
-        daily_filter = date_filter or "WHERE DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)"
+        daily_filter = date_filter or "WHERE DATE(swiped_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)"
         daily = [
             DailySwipe(date=r["date"], left=r["left_count"] or 0, right=r["right_count"] or 0)
             for r in client.query(f"""
                 SELECT
-                    CAST(DATE(timestamp) AS STRING) AS date,
+                    CAST(DATE(swiped_at) AS STRING) AS date,
                     COUNTIF(direction = 'left') AS left_count,
                     COUNTIF(direction = 'right') AS right_count
                 FROM {table}
