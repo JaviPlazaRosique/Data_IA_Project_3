@@ -7,7 +7,6 @@ export default function BottomNav() {
 
   const navItems = [
     { icon: 'style', label: t.nav.discover, path: '/swipe' },
-    { icon: 'auto_awesome_motion', label: t.nav.recommendations, path: '/recommendations' },
     { icon: 'map', label: t.nav.map, path: '/map' },
     { icon: 'auto_awesome', label: t.nav.planner, path: '/planner' },
   ];
