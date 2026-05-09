@@ -1,11 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import agent, events, plans, recommendations, saved_events, swipe_events, users
+from app.api.v1.endpoints import agent, events, recommendations, saved_events, swipe_events, users
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(users.router)
 router.include_router(agent.router)
-router.include_router(plans.router)
 router.include_router(saved_events.router)
 router.include_router(swipe_events.router)
 router.include_router(recommendations.router)
