@@ -571,6 +571,12 @@ function Card({
             {dateLine}
           </p>
         )}
+        {event.banda_precio && (
+          <p className="text-on-surface/70 text-sm flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">sell</span>
+            {event.banda_precio}
+          </p>
+        )}
       </div>
     </div>
   );
