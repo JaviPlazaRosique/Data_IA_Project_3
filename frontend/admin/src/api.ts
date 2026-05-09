@@ -1,9 +1,9 @@
+import { awaitConfig, getAdminApiUrl } from './config';
 import { getFirebaseAuth } from './lib/firebase';
-import { getAdminApiUrl } from './config';
 
 async function getToken(): Promise<string | null> {
   try {
-    const auth = getFirebaseAuth();
+    const auth = await getFirebaseAuth();
     const u = auth.currentUser;
     if (!u) return null;
     return u.getIdToken();
@@ -13,6 +13,7 @@ async function getToken(): Promise<string | null> {
 }
 
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  await awaitConfig();
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
