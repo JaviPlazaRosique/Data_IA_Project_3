@@ -41,7 +41,6 @@ GENRES = [
     "Circus",
     "Exhibition",
 ]
-PRICE_BANDS = ["bajo", "medio", "alto"]
 CSV_RECOMMENDATION_FIELDS = [
     "user_id",
     "event_id",
@@ -104,17 +103,8 @@ def normalize_genre(value: str | None, segment: str | None = None) -> str:
     return value or "Unknown"
 
 
-def price_band(value: str | None) -> str:
-    normalized = (value or "").strip().lower()
-    return normalized if normalized in PRICE_BANDS else "medio"
-
-
-def price_mid(event: dict[str, Any]) -> float:
-    price_min = event.get("precio_min")
-    price_max = event.get("precio_max")
-    if isinstance(price_min, (int, float)) and isinstance(price_max, (int, float)):
-        return (float(price_min) + float(price_max)) / 2.0
-    return {"bajo": 15.0, "medio": 45.0, "alto": 90.0}.get(price_band(event.get("banda_precio")), 45.0)
+def price_mid(_event: dict[str, Any]) -> float:
+    return 45.0
 
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -181,7 +171,6 @@ def load_swipes(events: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
             "genero": genre,
             "subgenero": snapshot.get("subgenero") or catalog_event.get("subgenero"),
             "ciudad": snapshot.get("ciudad") or catalog_event.get("ciudad"),
-            "banda_precio": price_band(snapshot.get("banda_precio") or catalog_event.get("banda_precio")),
             "price_mid": price_mid({**catalog_event, **snapshot}),
             "fecha_evento": parse_date(snapshot.get("fecha_evento") or catalog_event.get("fecha")),
         }
@@ -284,14 +273,6 @@ def summarize_window(swipes: list[dict[str, Any]], days: int, ref_time: datetime
         output[f"liked_share_genre_{key}_{days}d"] = ratio(liked_genre, liked_total)
         output[f"preference_lift_genre_{key}_{days}d"] = ratio(liked_genre, total_genre) - ratio(liked_total, total)
 
-    for band in PRICE_BANDS:
-        total_band = len([s for s in window_swipes if s["banda_precio"] == band])
-        liked_band = len([s for s in liked_swipes if s["banda_precio"] == band])
-        key = {"bajo": "low", "medio": "medium", "alto": "high"}[band]
-        output[f"like_rate_price_band_{key}_{days}d"] = ratio(liked_band, total_band)
-        output[f"swipe_share_price_band_{key}_{days}d"] = ratio(total_band, total)
-        output[f"liked_share_price_band_{key}_{days}d"] = ratio(liked_band, liked_total)
-        output[f"preference_lift_price_band_{key}_{days}d"] = ratio(liked_band, total_band) - ratio(liked_total, total)
     return output
 
 
@@ -346,10 +327,10 @@ def load_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def taxonomy(event: dict[str, Any]) -> tuple[str, str, str]:
+def taxonomy(event: dict[str, Any]) -> tuple[str, str]:
     segment = normalize_segment(event.get("segmento"))
     genre = normalize_genre(event.get("genero"), segment)
-    return segment, genre, price_band(event.get("banda_precio"))
+    return segment, genre
 
 
 def event_display_key(event: dict[str, Any]) -> tuple[str, str, str]:
@@ -384,7 +365,7 @@ def build_recommendations(
             )
         )
         if swipe["liked"]:
-            key = (swipe["segmento"], swipe["genero"], swipe["banda_precio"])
+            key = (swipe["segmento"], swipe["genero"])
             liked_taxonomy_by_user[user_id][key] += 1
             cluster_id = int(assignments_by_user[user_id]["cluster_id"])
             cluster_taxonomy[cluster_id][key] += 1
@@ -407,8 +388,8 @@ def build_recommendations(
             if display_key in scored_display_keys:
                 continue
             scored_display_keys.add(display_key)
-            segment, genre, band = taxonomy(event)
-            key = (segment, genre, band)
+            segment, genre = taxonomy(event)
+            key = (segment, genre)
             event_date = parse_date(event.get("fecha"))
             days_until = (event_date - today).days if event_date else 30
             score = 0.10

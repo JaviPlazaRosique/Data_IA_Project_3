@@ -17,7 +17,7 @@ COLLECTION = "eventos"
 _EVENT_FIELDS = [
     "nombre", "url", "fecha", "hora", "fecha_utc", "estado",
     "venta_inicio", "venta_fin", "segmento", "genero", "subgenero",
-    "recinto_id", "recinto_nombre", "ciudad", "banda_precio", "direccion", "latitud", "longitud",
+    "recinto_id", "recinto_nombre", "ciudad", "direccion", "latitud", "longitud",
     "artista_id", "artista_nombre", "artista_imagen", "imagen_evento",
     "promotor", "descripcion",
     "categoria", "subcategoria", "franja_horaria", "vibra", "interior_exterior",
