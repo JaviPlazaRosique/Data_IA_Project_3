@@ -675,6 +675,42 @@ module "bigquery" {
   ]
 }
 
+module "agent_engine_eventos_rag_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "rag-agent-engine-sa"
+  nombre_despliege   = "Cuenta de servicio para Vertex AI Agent Engine RAG"
+  cuenta_servicio_roles = [
+    "roles/aiplatform.user",
+    "roles/bigquery.jobUser",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "agent_engine_eventos_rag" {
+  source                = "./modules/vertex_ai_agent_engine"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_agente         = "eventos-rag-agent"
+  email_cuenta_servicio = module.agent_engine_eventos_rag_sa.email_cuenta_servicio
+  ruta_codigo_fuente    = "${path.root}/.."
+
+  bigquery_dataset   = module.bigquery.id_dataset
+  bigquery_rag_table = "eventos"
+
+  agent_model         = "gemini-2.5-flash"
+  embedding_model     = "gemini-embedding-001"
+  embedding_dimension = 3072
+
+  depends_on = [
+    module.setup,
+    module.bigquery,
+    module.agent_engine_eventos_rag_sa
+  ]
+}
+
 module "bucket_funciones_cloud_run" {
   source      = "./modules/bucket"
   nombre      = "funciones-cloud-run-${var.id_proyecto}"

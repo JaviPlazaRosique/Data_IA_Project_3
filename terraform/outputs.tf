@@ -109,3 +109,18 @@ output "maps_api_key" {
   value       = module.setup.google_maps_key_string
   sensitive   = true
 }
+
+output "agent_engine_eventos_rag_nombre" {
+  description = "Nombre completo del Agent Engine RAG para usarlo como AGENT_ENGINE_RESOURCE_NAME."
+  value       = module.agent_engine_eventos_rag.nombre_agent_engine
+}
+
+output "agent_engine_eventos_rag_cuenta_servicio" {
+  description = "Cuenta de servicio que ejecuta el Agent Engine RAG."
+  value       = module.agent_engine_eventos_rag.email_cuenta_servicio
+}
+
+output "agent_engine_eventos_rag_console_url" {
+  description = "URL de consola del Agent Engine RAG."
+  value       = module.agent_engine_eventos_rag.console_url
+}
