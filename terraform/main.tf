@@ -1,5 +1,6 @@
 locals {
-  cors_origins = "https://storage.googleapis.com,${module.frontend_usuarios.url_web}"
+  cors_origins       = "https://storage.googleapis.com,${module.frontend_usuarios.url_web}"
+  cors_origins_admin = "https://storage.googleapis.com,${module.frontend_admin.url_web}"
 
   flex_template_launch_url = "https://dataflow.googleapis.com/v1b3/projects/${var.id_proyecto}/locations/${var.region}/flexTemplates:launch"
 
@@ -55,9 +56,9 @@ module "frontend_usuarios" {
 }
 
 resource "google_storage_bucket_object" "public_config" {
-  name         = "public-config.json"
-  bucket       = module.frontend_usuarios.nombre_bucket
-  content_type = "application/json"
+  name          = "public-config.json"
+  bucket        = module.frontend_usuarios.nombre_bucket
+  content_type  = "application/json"
   cache_control = "no-cache"
 
   content = jsonencode({
@@ -146,6 +147,142 @@ resource "google_storage_bucket_iam_member" "cicd_backend_public_config" {
   role   = "roles/storage.objectUser"
   member = "serviceAccount:${module.cicd_backend_portal_api.email_cuenta_servicio}"
 }
+
+# ─── Admin Panel ──────────────────────────────────────────────────────────────
+
+module "frontend_admin" {
+  source           = "./modules/bucket_web"
+  nombre_bucket    = "app-admin-${var.id_proyecto}"
+  ruta_recurso_web = "../frontend/admin"
+  id_proyecto      = var.id_proyecto
+  depends_on = [
+    module.setup
+  ]
+}
+
+resource "google_storage_bucket_object" "public_config_admin" {
+  name          = "public-config.json"
+  bucket        = module.frontend_admin.nombre_bucket
+  content_type  = "application/json"
+  cache_control = "no-cache"
+
+  content = jsonencode({
+    adminApiUrl = module.cloud_run_admin_api.service_url
+    firebase = {
+      apiKey     = module.setup.firebase_api_key
+      authDomain = module.setup.firebase_auth_domain
+      projectId  = var.id_proyecto
+    }
+  })
+
+  depends_on = [
+    module.frontend_admin,
+    module.cloud_run_admin_api,
+    module.setup,
+  ]
+}
+
+module "cicd_frontend_admin" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-frontend-admin"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del frontend del panel de administración"
+  cuenta_servicio_roles = [
+    "roles/storage.objectAdmin",
+    "roles/run.viewer",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_frontend_admin"
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "admin_api_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "admin-api-sa"
+  nombre_despliege   = "Cuenta de servicio del Admin API en Cloud Run"
+  cuenta_servicio_roles = [
+    "roles/cloudsql.client",
+    "roles/secretmanager.secretAccessor",
+    "roles/datastore.user",
+    "roles/bigquery.dataViewer",
+    "roles/bigquery.jobUser",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "cloud_run_admin_api" {
+  source                = "./modules/cloud_run"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_servicio       = "admin-api"
+  nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
+  ruta_contexto_docker  = "${path.root}/../backend/admin-api"
+  email_cuenta_servicio = module.admin_api_sa.email_cuenta_servicio
+  id_conector_vpc       = module.vpc_portal.vpc_connector_id
+
+  cpu           = "1"
+  memoria       = "512Mi"
+  min_instances = 0
+  max_instances = 3
+
+  variables_entorno = {
+    ENVIRONMENT                = "production"
+    CORS_ORIGINS               = local.cors_origins_admin
+    DB_HOST                    = module.cloudsql_portal.private_ip
+    DB_NAME                    = module.cloudsql_portal.database_name
+    DB_USER                    = module.cloudsql_portal.db_user
+    GOOGLE_CLOUD_PROJECT       = var.id_proyecto
+    FIREBASE_AUTH_PROJECT_ID   = var.id_proyecto
+    BIGQUERY_PROJECT_ID        = var.id_proyecto
+    BIGQUERY_ANALYTICS_DATASET = module.bigquery.id_dataset
+    BIGQUERY_MARTS_DATASET     = "${module.bigquery.id_dataset}_marts"
+  }
+
+  secretos_entorno = {
+    DB_PASSWORD = {
+      secret  = module.secretos_proyecto.ids_secretos["portal-api-db-password"]
+      version = "latest"
+    }
+  }
+
+  depends_on = [
+    module.cloudsql_portal,
+    module.secretos_proyecto,
+    module.admin_api_sa,
+    module.vpc_portal,
+    module.bigquery,
+  ]
+}
+
+module "cicd_backend_admin_api" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-backend-admin-api"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del backend Admin API"
+  cuenta_servicio_roles = [
+    "roles/artifactregistry.writer",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_backend_admin_api"
+  depends_on = [
+    module.setup
+  ]
+}
+
+resource "google_storage_bucket_iam_member" "cicd_backend_admin_public_config" {
+  bucket = module.frontend_admin.nombre_bucket
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${module.cicd_backend_admin_api.email_cuenta_servicio}"
+}
+
+# ─── End Admin Panel ──────────────────────────────────────────────────────────
 
 module "repo_artifact" {
   source         = "./modules/artifact_registry"
@@ -274,8 +411,8 @@ module "cloud_run_portal_api" {
   max_instances = 5
 
   variables_entorno = {
-    ENVIRONMENT                    = "production"
-    CORS_ORIGINS                   = local.cors_origins
+    ENVIRONMENT                            = "production"
+    CORS_ORIGINS                           = local.cors_origins
     DB_HOST                                = module.cloudsql_portal.private_ip
     DB_NAME                                = module.cloudsql_portal.database_name
     DB_USER                                = module.cloudsql_portal.db_user
