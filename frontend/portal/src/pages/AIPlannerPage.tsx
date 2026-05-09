@@ -6,7 +6,7 @@ import { quickActions, itineraryMapImage } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
-import { apiListPlans, apiCreatePlan, apiUpdatePlan } from '../api';
+import { apiListPlans, apiCreatePlan, apiUpdatePlan, apiSendAgentMessage } from '../api';
 
 interface Message {
   id: string;
@@ -25,6 +25,10 @@ export default function AIPlannerPage() {
     () => user !== null && localStorage.getItem('planner_disclosure_seen') !== '1'
   );
   const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [agentSessionId, setAgentSessionId] = useState(
+    () => `planner-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`
+  );
   const [showItinerary, setShowItinerary] = useState(false);
   const [mode, setMode] = useState<'surprise' | 'idea' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -36,6 +40,8 @@ export default function AIPlannerPage() {
       if (plans.length === 0) return;
       const latest = plans[0];
       setActivePlanId(latest.plan_id);
+      setAgentSessionId(`planner-${latest.plan_id}`);
+      setMode('idea');
       setMessages(
         latest.messages.map((m) => ({
           id: `${m.timestamp}-${m.role}`,
@@ -71,32 +77,71 @@ export default function AIPlannerPage() {
     }
   }
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  async function persistMessages(updatedMessages: Message[], title: string) {
+    const planMessages = updatedMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp,
+    }));
+    if (activePlanId) {
+      await apiUpdatePlan(activePlanId, { messages: planMessages });
+      return activePlanId;
+    }
+    const plan = await apiCreatePlan({
+      title: title.slice(0, 60),
+      messages: planMessages,
+    });
+    setActivePlanId(plan.plan_id);
+    return plan.plan_id;
+  }
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || isSending) return;
+    const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     const newMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: text,
       timestamp,
     };
     const updated = [...messages, newMsg];
     setMessages(updated);
     setInput('');
 
-    // Persist to backend (fire-and-forget)
-    const planMessages = updated.map((m) => ({
-      role: m.role,
-      content: m.content,
-      timestamp: m.timestamp,
-    }));
-    if (activePlanId) {
-      apiUpdatePlan(activePlanId, { messages: planMessages }).catch(() => {});
-    } else {
-      apiCreatePlan({
-        title: input.slice(0, 60),
-        messages: planMessages,
-      }).then((plan) => setActivePlanId(plan.plan_id)).catch(() => {});
+    if (mode !== 'idea') {
+      persistMessages(updated, text).catch(() => {});
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const response = await apiSendAgentMessage({
+        message: text,
+        session_id: agentSessionId,
+      });
+      setAgentSessionId(response.session_id);
+      const assistantMsg: Message = {
+        id: `${Date.now()}-assistant`,
+        role: 'assistant',
+        content: response.answer,
+        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      };
+      const withAnswer = [...updated, assistantMsg];
+      setMessages(withAnswer);
+      await persistMessages(withAnswer, text);
+    } catch {
+      const errorMsg: Message = {
+        id: `${Date.now()}-assistant-error`,
+        role: 'assistant',
+        content: 'No he podido conectar con el asistente ahora mismo. Prueba otra vez en unos segundos.',
+        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      };
+      const withError = [...updated, errorMsg];
+      setMessages(withError);
+      persistMessages(withError, text).catch(() => {});
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -236,6 +281,19 @@ export default function AIPlannerPage() {
                   </div>
                 </div>
               ))}
+              {isSending && (
+                <div className="flex gap-4 w-full px-4 md:px-8">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-primary-container">
+                    <span className="material-symbols-outlined text-on-primary-container">smart_toy</span>
+                  </div>
+                  <div className="p-4 rounded-2xl rounded-tl-none border border-outline-variant/15 bg-surface-container-high">
+                    <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+                      <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      Pensando en planes reales...
+                    </div>
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
@@ -269,9 +327,10 @@ export default function AIPlannerPage() {
                   />
                   <button
                     onClick={handleSend}
-                    className="w-10 h-10 bg-primary text-on-primary rounded-xl flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
+                    disabled={isSending}
+                    className="w-10 h-10 bg-primary text-on-primary rounded-xl flex items-center justify-center hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
                   >
-                    <span className="material-symbols-outlined">send</span>
+                    <span className="material-symbols-outlined">{isSending ? 'hourglass_top' : 'send'}</span>
                   </button>
                 </div>
               </div>
