@@ -97,7 +97,7 @@ def _query_cold_start_recommendations_sync(user: User, limit: int) -> list[Clust
 with event_catalog as (
   select
     id as event_id,
-    coalesce(nullif(cast(uuid_evento as string), ''), cast(id as string)) as uuid_evento,
+    coalesce(nullif(cast(e.uuid_evento as string), ''), cast(id as string)) as uuid_evento,
     nombre as event_name,
     cast(fecha as string) as fecha_evento,
     fecha,
