@@ -687,9 +687,7 @@ Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
 """
 
-CAMPOS_GEMINI = {"vibra", "etiquetas_ocasion", "banda_precio", "interior_exterior", "franja_horaria",
-                 "puntuacion_romantica", "puntuacion_familiar", "puntuacion_grupo", "puntuacion_turista",
-                 "duracion_minutos_estimada", "maridajes_plan", "categoria", "subcategoria"}
+CAMPOS_GEMINI = {"uuid_evento", "franja_horaria", "categoria", "subcategoria", "contexto_rag", "antelacion_recomendada"}
 
 
 class EnriquecerConGemini(beam.DoFn):
