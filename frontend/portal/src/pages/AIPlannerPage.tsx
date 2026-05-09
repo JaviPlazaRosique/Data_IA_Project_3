@@ -82,7 +82,7 @@ export default function AIPlannerPage() {
     setMessages(updated);
     setInput('');
 
-    if (!mode) return;
+    if (!mode) setMode('idea');
 
     setIsSending(true);
     try {
