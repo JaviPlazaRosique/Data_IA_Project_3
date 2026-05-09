@@ -936,8 +936,7 @@ module "clustering_train_assign_job" {
   nombre_job            = "clustering-train-assign"
   nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
   nombre_imagen         = "clustering-train-assign"
-  ruta_contexto_docker  = "${path.root}/.."
-  ruta_dockerfile       = "clustering/2_integracion_datos_gcp/gcp_batch/Dockerfile"
+  ruta_contexto_docker  = "${path.root}/../clustering/2_integracion_datos_gcp/gcp_batch/Dockerfile"
   email_cuenta_servicio = module.clustering_sa.email_cuenta_servicio
 
   cpu     = "1"
