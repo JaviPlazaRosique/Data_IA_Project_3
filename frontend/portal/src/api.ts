@@ -54,6 +54,7 @@ export interface UserRead {
   avatar_url: string | null;
   is_active: boolean;
   is_verified: boolean;
+  is_admin: boolean;
   preferred_budget: string | null;
   preferred_location: string | null;
   preferred_location_lat: number | null;
@@ -237,9 +238,6 @@ export interface SwipeEventSnapshot {
   ciudad?: string | null;
   recinto_id?: string | null;
   fecha_evento?: string | null;
-  precio_min?: number | null;
-  precio_max?: number | null;
-  banda_precio?: string | null;
 }
 
 export interface SwipeEventProducer {
@@ -265,22 +263,6 @@ export interface SwipeEventAccepted {
   accepted: boolean;
 }
 
-// ─── Cluster recommendations types ───────────────────────────────────────────
-
-export interface ClusterRecommendationRead {
-  event_id: string;
-  event_name: string | null;
-  fecha_evento: string | null;
-  ciudad: string | null;
-  recinto_nombre: string | null;
-  segmento: string | null;
-  genero: string | null;
-  subgenero: string | null;
-  recommendation_rank: number;
-  recommendation_score: number;
-  cluster_source: 'own_cluster' | 'neighbor_cluster' | string;
-}
-
 // ─── Event catalog types ──────────────────────────────────────────────────────
 
 export interface EventCatalogItem {
@@ -294,9 +276,6 @@ export interface EventCatalogItem {
   ciudad: string | null;
   recinto_id: string | null;
   recinto_nombre: string | null;
-  precio_min: number | null;
-  precio_max: number | null;
-  banda_precio: string | null;
   direccion: string | null;
   latitud: number | null;
   longitud: number | null;
@@ -374,13 +353,6 @@ export async function apiSwipeEvent(data: SwipeEventCreate): Promise<SwipeEventA
   return res.json();
 }
 
-export async function apiListClusterRecommendations(limit = 30): Promise<ClusterRecommendationRead[]> {
-  const q = new URLSearchParams({ limit: String(limit) });
-  const res = await authFetch(`/api/v1/users/me/recommendations?${q.toString()}`);
-  if (!res.ok) throw new ApiError(res.status, 'Failed to load recommendations');
-  return res.json();
-}
-
 // ─── Events catalog API (public) ──────────────────────────────────────────────
 
 export async function apiListEvents(
@@ -450,6 +422,28 @@ export async function apiGetEvent(eventId: string): Promise<EventCatalogItem> {
   await awaitConfig();
   const res = await fetch(`${getBackendUrl()}/api/v1/events/${eventId}`);
   if (!res.ok) throw new ApiError(res.status, 'Failed to load event');
+  return res.json();
+}
+
+// ─── Cluster recommendations ──────────────────────────────────────────────────
+
+export interface ClusterRecommendationRead {
+  event_id: string;
+  event_name: string | null;
+  fecha_evento: string | null;
+  ciudad: string | null;
+  recinto_nombre: string | null;
+  segmento: string | null;
+  genero: string | null;
+  subgenero: string | null;
+  recommendation_rank: number;
+  recommendation_score: number;
+  cluster_source: string;
+}
+
+export async function apiListRecommendations(limit = 10): Promise<ClusterRecommendationRead[]> {
+  const res = await authFetch(`/api/v1/users/me/recommendations?limit=${limit}`);
+  if (!res.ok) throw new ApiError(res.status, 'Failed to load recommendations');
   return res.json();
 }
 

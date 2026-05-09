@@ -1,0 +1,87 @@
+name: cicd_backend_admin_api
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/admin-api/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/admin-api/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: europe-west1
+  SERVICIO: admin-api
+  REPO: repo-recomendador-eventos
+
+jobs:
+  ci:
+    name: Test build imagen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Test build imagen
+        run: docker build --check backend/${{ env.SERVICIO }}
+
+  cd:
+    if: github.ref == 'refs/heads/main'
+    name: Build, push y despliegue
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Cargar repo
+        uses: actions/checkout@v4
+
+      - name: Autenticacion GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.BACKEND_ADMIN_API_CUENTA_SERVICIO }}
+
+      - name: Configurar Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configurar Docker para Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build y push imagen
+        env:
+          PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${PROJECT}/${{ env.REPO }}/${{ env.SERVICIO }}"
+          docker build -t "${IMAGE}:latest" backend/${{ env.SERVICIO }}/
+          docker push "${IMAGE}:latest"
+
+      - name: Desplegar en Cloud Run
+        env:
+          PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${PROJECT}/${{ env.REPO }}/${{ env.SERVICIO }}"
+          gcloud run services update ${{ env.SERVICIO }} \
+            --image="${IMAGE}:latest" \
+            --region=${{ env.REGION }} \
+            --project="${PROJECT}"
+
+      - name: Actualizar adminApiUrl en public-config.json del admin
+        env:
+          BUCKET: ${{ secrets.BUCKET_FRONTEND_ADMIN }}
+          PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          ADMIN_API_URL=$(gcloud run services describe ${{ env.SERVICIO }} \
+            --region=${{ env.REGION }} \
+            --project="${PROJECT}" \
+            --format='value(status.url)')
+          gsutil cp "gs://${BUCKET}/public-config.json" public-config.json || echo '{}' > public-config.json
+          jq --arg url "${ADMIN_API_URL}" '.adminApiUrl = $url' public-config.json > tmp.json && mv tmp.json public-config.json
+          gsutil -h "Cache-Control:no-cache" cp public-config.json "gs://${BUCKET}/public-config.json"
