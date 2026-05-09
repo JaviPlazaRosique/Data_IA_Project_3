@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.auth.dependencies import get_admin_user
+from app.config import settings
 from app.db.bigquery import bq_table, get_bq_client
 from app.models.user import User
 
@@ -31,7 +32,7 @@ class AnalyticsResponse(BaseModel):
 
 def _query_analytics_sync() -> AnalyticsResponse:
     try:
-        table = bq_table("recomendacion_planes", "fct_swipes")
+        table = bq_table(settings.BIGQUERY_MARTS_DATASET, "fct_swipes")
         client = get_bq_client()
 
         totals_query = f"""

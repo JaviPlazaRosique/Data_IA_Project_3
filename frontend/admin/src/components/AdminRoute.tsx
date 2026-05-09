@@ -14,7 +14,7 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   }
 
   if (!fbUser) return <Navigate to="/login" replace />;
-  if (user && !user.is_admin) return <Navigate to="/not-admin" replace />;
+  if (!user || !user.is_admin) return <Navigate to="/not-admin" replace />;
 
   return <>{children}</>;
 }
