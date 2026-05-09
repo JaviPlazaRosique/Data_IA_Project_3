@@ -55,6 +55,10 @@ export interface StatsResponse {
   total_events: number;
   total_saved_events: number;
   total_swipes: number;
+  new_users_this_week: number;
+  new_users_last_week: number;
+  swipes_this_week: number;
+  swipes_last_week: number;
 }
 
 export interface EventAdminRead {
@@ -82,6 +86,34 @@ export interface DailySwipe {
 export interface AnalyticsResponse {
   swipe_totals: SwipeTotals;
   daily_swipes: DailySwipe[];
+}
+
+export interface EventSwipeStats {
+  event_id: string;
+  left: number;
+  right: number;
+  total: number;
+  right_ratio: number;
+}
+
+export interface TopSavedEvent {
+  event_id: string;
+  event_title: string | null;
+  event_venue: string | null;
+  save_count: number;
+}
+
+export interface RecentSave {
+  event_id: string;
+  event_title: string | null;
+  user_email: string;
+  saved_at: string;
+}
+
+export interface SavedEventsAdminResponse {
+  total: number;
+  top_events: TopSavedEvent[];
+  recent_saves: RecentSave[];
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -117,6 +149,18 @@ export function apiListEvents(limit = 100, ciudad?: string, segmento?: string): 
   return apiFetch(`/api/v1/events?${params}`);
 }
 
-export function apiGetAnalytics(): Promise<AnalyticsResponse> {
-  return apiFetch('/api/v1/analytics');
+export function apiGetAnalytics(startDate?: string, endDate?: string): Promise<AnalyticsResponse> {
+  const params = new URLSearchParams();
+  if (startDate) params.set('start_date', startDate);
+  if (endDate) params.set('end_date', endDate);
+  const qs = params.toString();
+  return apiFetch(`/api/v1/analytics${qs ? `?${qs}` : ''}`);
+}
+
+export function apiGetEventSwipeStats(limit = 20): Promise<EventSwipeStats[]> {
+  return apiFetch(`/api/v1/analytics/events?limit=${limit}`);
+}
+
+export function apiGetSavedEvents(limit = 20): Promise<SavedEventsAdminResponse> {
+  return apiFetch(`/api/v1/saved-events?limit=${limit}`);
 }
