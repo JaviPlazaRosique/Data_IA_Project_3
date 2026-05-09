@@ -5,9 +5,9 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY clustering/2_integracion_datos_gcp/gcp_batch/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r ./requirements.txt
 
-COPY job_main.py .
+COPY clustering ./clustering
 
-CMD ["python", "job_main.py"]
+CMD ["python", "clustering/2_integracion_datos_gcp/gcp_batch/job_main.py"]
