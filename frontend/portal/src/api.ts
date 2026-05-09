@@ -240,7 +240,6 @@ export interface SwipeEventSnapshot {
   fecha_evento?: string | null;
   precio_min?: number | null;
   precio_max?: number | null;
-  banda_precio?: string | null;
 }
 
 export interface SwipeEventProducer {
@@ -295,7 +294,6 @@ export interface EventCatalogItem {
   ciudad: string | null;
   recinto_id: string | null;
   recinto_nombre: string | null;
-  banda_precio: string | null;
   direccion: string | null;
   latitud: number | null;
   longitud: number | null;
