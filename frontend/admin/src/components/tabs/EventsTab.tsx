@@ -101,9 +101,23 @@ export function EventsTab() {
         >
           Filter
         </button>
-        <span className="text-gray-500 text-xs ml-auto">
-          {events.length} events · {grouped.length} groups
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setExpanded(new Set(grouped.map(([name]) => name)))}
+            className="text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-400"
+          >
+            Expand all
+          </button>
+          <button
+            onClick={() => setExpanded(new Set())}
+            className="text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-400"
+          >
+            Collapse all
+          </button>
+          <span className="text-gray-500 text-xs">
+            {events.length} events · {grouped.length} groups
+          </span>
+        </div>
       </div>
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
