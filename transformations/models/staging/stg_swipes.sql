@@ -27,9 +27,6 @@ select
     json_value(data, '$.event_snapshot.ciudad')           as snapshot_ciudad,
     json_value(data, '$.event_snapshot.recinto_id')       as snapshot_recinto_id,
     safe_cast(json_value(data, '$.event_snapshot.fecha_evento') as date) as snapshot_fecha_evento,
-    safe_cast(json_value(data, '$.event_snapshot.precio_min') as float64) as snapshot_precio_min,
-    safe_cast(json_value(data, '$.event_snapshot.precio_max') as float64) as snapshot_precio_max,
-    json_value(data, '$.event_snapshot.banda_precio')     as snapshot_banda_precio,
     publish_time                                          as ingestion_timestamp
 from {{ source('raw', 'swipes_raw') }}
 where data is not null
