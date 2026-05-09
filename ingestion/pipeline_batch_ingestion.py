@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
 import math
 import random
 import threading
 import time
+import uuid
 import requests
 import argparse
 import json
@@ -12,7 +14,7 @@ from google.cloud import secretmanager, firestore
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions
 from apache_beam.io import WriteToText
 from apache_beam.io.gcp.bigquery import WriteToBigQuery, BigQueryDisposition, ReadFromBigQuery
 
@@ -151,9 +153,14 @@ def transformar_evento(evento_raw: dict) -> dict:
 schema_bq = {
     "fields": [
         {
-            "name": "id",             
-            "type": "STRING",    
+            "name": "id",
+            "type": "STRING",
             "mode": "REQUIRED"
+        },
+        {
+            "name": "uuid_evento",
+            "type": "STRING",
+            "mode": "NULLABLE"
         },
         {
             "name": "nombre",
@@ -270,59 +277,9 @@ schema_bq = {
             ],
         },
         {
-            "name": "vibra",
-            "type": "STRING",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "etiquetas_ocasion",
-            "type": "STRING",
-            "mode": "REPEATED"
-        },
-        {
-            "name": "banda_precio",
-            "type": "STRING",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "interior_exterior",
-            "type": "STRING",
-            "mode": "NULLABLE"
-        },
-        {
             "name": "franja_horaria",
             "type": "STRING",
             "mode": "NULLABLE"
-        },
-        {
-            "name": "puntuacion_romantica",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "puntuacion_familiar",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "puntuacion_grupo",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "puntuacion_turista",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "duracion_minutos_estimada",
-            "type": "INTEGER",
-            "mode": "NULLABLE"
-        },
-        {
-            "name": "maridajes_plan",
-            "type": "STRING",
-            "mode": "REPEATED"
         },
         {
             "name": "categoria",
@@ -334,13 +291,22 @@ schema_bq = {
             "type": "STRING",
             "mode": "NULLABLE"
         },
+        {
+            "name": "contexto_rag",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        },
+        {
+            "name": "embedding",
+            "type": "FLOAT64",
+            "mode": "REPEATED"  # Esto permite guardar el vector como una lista de números
+        }
     ]
 }
 
 def limpiar_datos_bq(evento: dict) -> dict:
     campos_bq = {f["name"] for f in schema_bq["fields"]}
     return {campo: evento.get(campo) for campo in campos_bq}
-
 
 class ObtenerEventosTicketmaster(beam.DoFn):
     def __init__(self, id_proyecto: str, id_secreto: str):
@@ -537,73 +503,18 @@ class EnriquecerConRecinto(beam.DoFn):
 schema_salida_enriquecimiento_gemini = {
     "type": "object",
     "properties": {
-        "minutos_antelacion": {
-            "type": "integer",
-            "description": "Minutos de antelación recomendados antes del inicio del evento"
-        },
-        "motivo": {
+        "descripcion_rag": {
             "type": "string",
-            "description": "Razón principal de la recomendación en una frase corta"
-        },
-        "vibra": {
-            "type": "string",
-            "enum": ["romantico", "energetico", "tranquilo", "familiar", "premium", "alternativo"],
-            "description": "Vibra principal del evento"
-        },
-        "etiquetas_ocasion": {
-            "type": "array",
-            "items": {
-                "type": "string",
-                "enum": ["pareja", "amigos", "familia", "solo", "afterwork"],
-            },
-            "description": "Etiquetas de ocasión recomendadas"
-        },
-        "banda_precio": {
-            "type": "string",
-            "enum": ["bajo", "medio", "alto"],
-            "description": "Banda de precio inferida"
-        },
-        "interior_exterior": {
-            "type": "string",
-            "enum": ["interior", "exterior", "mixto", "desconocido"],
-            "description": "Tipo de espacio del evento"
-        },
-        "franja_horaria": {
-            "type": "string",
-            "enum": ["mañana", "tarde", "noche"],
-            "description": "Franja horaria más adecuada"
-        },
-        "puntuacion_romantica": {
-            "type": "integer",
-            "description": "Puntuación para planes románticos entre 0 y 100"
-        },
-        "puntuacion_familiar": {
-            "type": "integer",
-            "description": "Puntuación para planes familiares entre 0 y 100"
-        },
-        "puntuacion_grupo": {
-            "type": "integer",
-            "description": "Puntuación para grupos entre 0 y 100"
-        },
-        "puntuacion_turista": {
-            "type": "integer",
-            "description": "Puntuación para turistas entre 0 y 100"
-        },
-        "duracion_minutos_estimada": {
-            "type": "integer",
-            "description": "Duración estimada del evento en minutos"
-        },
-        "maridajes_plan": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "description": "Etiquetas cortas de maridaje del plan en snake_case"
+            "description": (
+                "Descripción detallada del evento en prosa (4-8 frases), no comercial, "
+                "que describa qué es el evento, su atmósfera/vibe inferida y para qué "
+                "público encaja. Debe mencionar explícitamente la categoría y subcategoría."
+            ),
         },
         "categoria": {
             "type": "string",
             "enum": ["Música", "Arte y Teatro", "Deportes", "Familia y otros"],
-            "description": "Categoría principal del evento"
+            "description": "Categoría principal del evento",
         },
         "subcategoria": {
             "type": "string",
@@ -633,31 +544,71 @@ schema_salida_enriquecimiento_gemini = {
                 "Espectáculos de Magia",
                 "Parques temáticos",
                 "Teatro infantil",
-                "Visitas Guiadas/Exposiciones"
+                "Visitas Guiadas/Exposiciones",
             ],
-            "description": "Subcategoría del evento compatible con la categoría"
+            "description": "Subcategoría del evento compatible con la categoría",
+        },
+        "franja_horaria": {
+            "type": "string",
+            "enum": ["mañana", "tarde", "noche"],
+            "description": "Franja horaria del evento según la hora de inicio",
+        },
+        "minutos_antelacion": {
+            "type": "integer",
+            "description": "Minutos de antelación recomendados antes del inicio del evento",
+        },
+        "motivo": {
+            "type": "string",
+            "description": "Razón principal de la recomendación de antelación en una frase corta",
         },
     },
     "required": [
-        "minutos_antelacion",
-        "motivo",
-        "vibra",
-        "etiquetas_ocasion",
-        "banda_precio",
-        "interior_exterior",
-        "franja_horaria",
-        "puntuacion_romantica",
-        "puntuacion_familiar",
-        "puntuacion_grupo",
-        "puntuacion_turista",
-        "duracion_minutos_estimada",
-        "maridajes_plan",
+        "descripcion_rag",
         "categoria",
         "subcategoria",
+        "franja_horaria",
+        "minutos_antelacion",
+        "motivo",
     ],
 }
 
 gemini_semaforo = threading.Semaphore(10)
+embedding_semaforo = threading.Semaphore(5)
+
+
+class GenerarEmbeddings(beam.DoFn):
+    def __init__(self, id_proyecto: str, region: str = "europe-west1"):
+        self.id_proyecto = id_proyecto
+        self.region = region
+
+    def setup(self):
+        from google import genai
+        self.client = genai.Client(vertexai=True, project=self.id_proyecto, location=self.region)
+
+    def process(self, evento: dict):
+        contexto = evento.get("contexto_rag")
+        if not contexto:
+            logging.warning("[Embeddings] Sin contexto_rag — id=%s | nombre=%s", evento.get("id"), evento.get("nombre"))
+            yield evento
+            return
+
+        try:
+            from google.genai.types import EmbedContentConfig
+            with embedding_semaforo:
+                respuesta = reintentos_peticiones(
+                    lambda: self.client.models.embed_content(
+                        model="gemini-embedding-001",
+                        contents=contexto,
+                        config=EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
+                    ),
+                    max_intentos=8,
+                    espera_base=5.0,
+                )
+            evento["embedding"] = [float(v) for v in respuesta.embeddings[0].values]
+            yield evento
+        except Exception as e:
+            logging.error(f"Error en embedding para {evento.get('id')}: {e}")
+            yield evento
 
 SUBCATEGORIAS_POR_CATEGORIA = {
     "Música": [
@@ -704,12 +655,11 @@ def construir_prompt_enriquecimiento_gemini(evento: dict) -> str:
         for categoria, subcategorias in SUBCATEGORIAS_POR_CATEGORIA.items()
     )
 
-    return f"""Eres un clasificador semántico de eventos en España.
+    return f"""Eres un analista cultural que prepara descripciones para un sistema RAG de recomendación de eventos en España.
 Debes devolver solo JSON válido que cumpla exactamente el schema indicado.
-No inventes información fuera de lo que permitan inferir los datos.
-Si falta contexto, elige la opción más prudente y coherente.
+No inventes hechos: trabaja únicamente con lo que se pueda inferir razonablemente de los datos.
 
-Usa únicamente estos 7 campos del evento para inferir la respuesta:
+Datos del evento:
 - nombre: {evento.get("nombre")}
 - descripcion: {evento.get("descripcion")}
 - segmento: {evento.get("segmento")}
@@ -718,19 +668,20 @@ Usa únicamente estos 7 campos del evento para inferir la respuesta:
 - recinto_nombre: {evento.get("recinto_nombre")}
 - hora: {evento.get("hora")}
 
-Reglas de salida:
-- minutos_antelacion: entero razonable entre 15 y 120.
-- motivo: una frase corta en español.
-- vibra: elige exactamente una opción entre romantico, energetico, tranquilo, familiar, premium, alternativo.
-- etiquetas_ocasion: devuelve de 1 a 3 etiquetas entre pareja, amigos, familia, solo, afterwork.
-- banda_precio: infiere la banda de precio (bajo, medio, alto) a partir del tipo de evento, género y recinto.
-- interior_exterior: elige interior, exterior, mixto o desconocido.
-- franja_horaria: mañana para eventos de mañana, tarde para tarde, noche para noche.
-- puntuacion_romantica, puntuacion_familiar, puntuacion_grupo y puntuacion_turista: enteros entre 0 y 100.
-- duracion_minutos_estimada: duración típica estimada en minutos.
-- maridajes_plan: devuelve de 1 a 3 etiquetas cortas en snake_case; prioriza valores como cena_antes, copas_despues, paseo cuando encajen.
+Genera el campo `descripcion_rag` siguiendo estas reglas:
+- 4 a 8 frases en español, en prosa natural y NO comercial (nada de "imprescindible", "no te lo pierdas", "una experiencia única", etc.).
+- Describe qué es el evento, de qué trata, quiénes participan y qué cabe esperar musical/artísticamente o deportivamente.
+- Interpreta y describe la atmósfera o vibe del evento (íntimo, enérgico, festivo, reposado, familiar, ruidoso, multitudinario, formal, alternativo…) cuando el contexto lo permita; si la `descripcion` original menciona o sugiere que es un plan apropiado para parejas, familias, grupos de amigos, turistas o asistencia individual, recoge esa información en prosa.
+- Si los datos no permiten inferir vibe o público, no lo inventes: limítate a lo que se pueda afirmar.
+- Menciona explícitamente y de forma natural en el texto la categoría y la subcategoría que has asignado (ej.: "es un evento de la categoría Música, subcategoría Jazz/Blues").
+- Evita listas con guiones; escribe en prosa continua para que el embedding capture bien el contenido.
+
+Resto de campos:
 - categoria: elige exactamente una entre Música, Arte y Teatro, Deportes, Familia y otros.
 - subcategoria: elige exactamente una subcategoría compatible con la categoria seleccionada.
+- franja_horaria: mañana, tarde o noche según la `hora`. Si no hay hora, usa la que mejor encaje con el tipo de evento.
+- minutos_antelacion: entero razonable entre 15 y 120.
+- motivo: frase corta en español que justifique la antelación.
 
 Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
@@ -794,11 +745,11 @@ class EnriquecerConGemini(beam.DoFn):
                 )
             enriquecimiento = json.loads(respuesta.text)
             logging.info(
-                "[Gemini] Enriquecimiento generado — id=%s | categoria=%s | subcategoria=%s | vibra=%s",
+                "[Gemini] Enriquecimiento generado — id=%s | categoria=%s | subcategoria=%s | franja=%s",
                 evento.get("id"),
                 enriquecimiento.get("categoria"),
                 enriquecimiento.get("subcategoria"),
-                enriquecimiento.get("vibra"),
+                enriquecimiento.get("franja_horaria"),
             )
         except Exception as e:
             enriquecimiento = None
@@ -809,23 +760,15 @@ class EnriquecerConGemini(beam.DoFn):
             return
 
         datos_cache = {
+            "uuid_evento": str(uuid.uuid4()),
             "antelacion_recomendada": {
                 "minutos_antelacion": enriquecimiento.get("minutos_antelacion"),
-                "motivo": enriquecimiento.get("motivo"),
+                "motivo":             enriquecimiento.get("motivo"),
             },
-            "vibra":                      enriquecimiento.get("vibra"),
-            "etiquetas_ocasion":          enriquecimiento.get("etiquetas_ocasion", []),
-            "banda_precio":               enriquecimiento.get("banda_precio"),
-            "interior_exterior":          enriquecimiento.get("interior_exterior"),
-            "franja_horaria":             enriquecimiento.get("franja_horaria"),
-            "puntuacion_romantica":       enriquecimiento.get("puntuacion_romantica"),
-            "puntuacion_familiar":        enriquecimiento.get("puntuacion_familiar"),
-            "puntuacion_grupo":           enriquecimiento.get("puntuacion_grupo"),
-            "puntuacion_turista":         enriquecimiento.get("puntuacion_turista"),
-            "duracion_minutos_estimada":  enriquecimiento.get("duracion_minutos_estimada"),
-            "maridajes_plan":             enriquecimiento.get("maridajes_plan", []),
-            "categoria":                  enriquecimiento.get("categoria"),
-            "subcategoria":               enriquecimiento.get("subcategoria"),
+            "contexto_rag":  enriquecimiento.get("descripcion_rag"),
+            "categoria":     enriquecimiento.get("categoria"),
+            "subcategoria":  enriquecimiento.get("subcategoria"),
+            "franja_horaria": enriquecimiento.get("franja_horaria"),
         }
 
         self.guardar_cache(nombre, datos_cache)
@@ -980,6 +923,13 @@ def run():
         help = "Colección de Firestore para la caché de enriquecimientos de Gemini"
     )
 
+    parser.add_argument(
+        "--max_eventos",
+        type=int,
+        default=0,
+        help="Limitar a N eventos (solo para pruebas locales, 0 = sin límite)"
+    )
+
     argumentos, pipeline_opts = parser.parse_known_args()
 
     worker_image = (
@@ -1014,6 +964,13 @@ def run():
             )
         )
 
+        if argumentos.max_eventos > 0:
+            eventos_ticketmaster = (
+                eventos_ticketmaster
+                | "LimitarN" >> beam.combiners.Sample.FixedSizeGlobally(argumentos.max_eventos)
+                | "AplanarMuestra" >> beam.FlatMap(lambda x: x)
+            )
+
         _ = (
             eventos_ticketmaster
             | "EventosCrudosJSON" >> beam.Map(json.dumps)
@@ -1043,6 +1000,11 @@ def run():
         eventos_gemini = (
             resultado_transformacion.validos
             | "FiltrarEventosTest" >> beam.Filter(lambda e: not e.get("es_test"))
+            | "ClaveDeduplicacion" >> beam.Map(
+                lambda e: ((e.get("recinto_id"), e.get("fecha"), e.get("hora")), e)
+            )
+            | "AgruparDuplicados" >> beam.GroupByKey()
+            | "TomarPrimero" >> beam.Map(lambda kv: next(iter(kv[1])))
             | "EnriquecerConRecinto" >> beam.ParDo(
                 EnriquecerConRecinto(
                     argumentos.id_proyecto,
@@ -1088,6 +1050,7 @@ def run():
             | "LeerIDsExistentes" >> ReadFromBigQuery(
                 query=f"SELECT id FROM `{ref_tabla_bq}` WHERE fecha >= '{fecha_limite}'",
                 use_standard_sql=True,
+                gcs_location=configuracion_pipeline.view_as(GoogleCloudOptions).temp_location,
             )
             | "ExtraerIDs" >> beam.Map(lambda row: row["id"])
         )
@@ -1095,19 +1058,19 @@ def run():
         tabla_bq = f"{argumentos.id_proyecto}:{argumentos.dataset_bigquery}.{argumentos.tabla_eventos_bigquery}"
         _ = (
             eventos_enriquecidos
-            | "LimpiarParaBigQuery" >> beam.Map(limpiar_datos_bq)
             | "FiltrarEventosNuevos" >> beam.Filter(
                 lambda evento, ids: evento["id"] not in set(ids),
                 ids=beam.pvalue.AsList(ids_existentes),
             )
-            | "GuardarEventosBigQuery" >> WriteToBigQuery(
+            | "GenerarEmbeddingsYContexto" >> beam.ParDo(GenerarEmbeddings(argumentos.id_proyecto))
+            | "LimpiarParaBigQuery" >> beam.Map(limpiar_datos_bq)
+            | "GuardarEventosConEmbeddingsBQ" >> WriteToBigQuery(
                 tabla_bq,
                 schema=schema_bq,
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
                 create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
