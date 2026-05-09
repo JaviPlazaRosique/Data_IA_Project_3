@@ -117,6 +117,8 @@ export default function AIPlannerPage() {
     setMessages(updated);
     setInput('');
 
+    if (!mode) setMode('idea');
+
     setIsSending(true);
     try {
       const response = await apiSendAgentMessage({ message: text, session_id: agentSessionId });
