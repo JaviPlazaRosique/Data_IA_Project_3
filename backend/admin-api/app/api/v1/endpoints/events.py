@@ -54,6 +54,16 @@ async def list_events(
     results = []
     for doc in docs:
         data = _coerce(doc.to_dict())
-        data.pop("id", None)
-        results.append(EventAdminRead(id=doc.id, **{k: data.get(k) for k in EventAdminRead.model_fields if k != "id"}))
+        results.append(EventAdminRead(
+            id=doc.id,
+            nombre=data.get("nombre"),
+            ciudad=data.get("ciudad"),
+            segmento=data.get("segmento"),
+            fecha=data.get("fecha"),
+            hora=data.get("hora"),
+            recinto_nombre=data.get("recinto_nombre"),
+            precio_min=data.get("precio_min"),
+            precio_max=data.get("precio_max"),
+            estado=data.get("estado"),
+        ))
     return results

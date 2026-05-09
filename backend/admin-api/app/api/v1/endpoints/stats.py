@@ -7,6 +7,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_admin_user, get_db
+from app.config import settings
 from app.db.bigquery import bq_table, get_bq_client
 from app.db.firestore import get_firestore
 from app.models.user import User
@@ -26,7 +27,7 @@ class StatsResponse(BaseModel):
 
 def _count_swipes_sync() -> int:
     try:
-        table = bq_table("recomendacion_planes", "fct_swipes")
+        table = bq_table(settings.BIGQUERY_MARTS_DATASET, "fct_swipes")
         rows = get_bq_client().query(f"SELECT COUNT(*) as n FROM {table}").result()
         return next(iter(rows))["n"]
     except Exception:
