@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     RATING_EMAIL_FUNCTION_URL: str = ""
     RATING_FUNCTION_SA_EMAIL: str = ""
 
+    # Vertex AI Agent Engine — RAG assistant
+    AGENT_ENGINE_RESOURCE_NAME: str = ""
+    AGENT_REGION: str = "europe-west1"
+
     @model_validator(mode="after")
     def validate_db_config(self) -> "Settings":
         has_full_url = bool(self.DATABASE_URL)
