@@ -79,7 +79,6 @@ with clustered_swipes as (
     a.cluster_id,
     {segment_expr} as segmento,
     {genre_expr} as genero,
-    coalesce(lower(s.banda_precio), 'unknown') as banda_precio,
     s.liked
   from {fct_swipes} s
   inner join {assignments} a
@@ -101,12 +100,11 @@ global_taxonomy as (
   select
     segmento,
     genero,
-    banda_precio,
     count(*) as global_swipes,
     countif(liked) as global_likes,
     safe_divide(countif(liked), count(*)) as global_like_rate
   from clustered_swipes
-  group by segmento, genero, banda_precio
+  group by segmento, genero
 ),
 
 taxonomy_affinity as (
@@ -114,7 +112,6 @@ taxonomy_affinity as (
     s.cluster_id,
     s.segmento,
     s.genero,
-    s.banda_precio,
     count(*) as swipe_count,
     countif(s.liked) as like_count,
     safe_divide(countif(s.liked), count(*)) as like_rate,
@@ -126,8 +123,8 @@ taxonomy_affinity as (
   inner join cluster_totals t
     using (cluster_id)
   left join global_taxonomy g
-    using (segmento, genero, banda_precio)
-  group by s.cluster_id, s.segmento, s.genero, s.banda_precio
+    using (segmento, genero)
+  group by s.cluster_id, s.segmento, s.genero
 )
 
 select
@@ -136,7 +133,6 @@ select
   cluster_id,
   segmento,
   genero,
-  banda_precio,
   swipe_count,
   like_count,
   like_rate,

@@ -35,12 +35,6 @@ GENRE_RATES = [
     ("exhibition", "Exhibition"),
 ]
 
-PRICE_BANDS = [
-    ("low", "bajo"),
-    ("medium", "medio"),
-    ("high", "alto"),
-]
-
 PREFERENCE_PREFIXES = [
     "like_rate",
     "swipe_share",
@@ -60,9 +54,6 @@ FEATURE_DEFAULTS = [
     ("local_like_rate", "0.0"),
     ("local_swipe_share", "0.0"),
     ("avg_days_until_event_liked", "0.0"),
-    ("avg_price_mid_liked", "0.0"),
-    ("median_price_mid_liked", "0.0"),
-    ("avg_price_mid_disliked", "0.0"),
     ("chat_swipe_share", "0.0"),
     ("chat_right_rate", "0.0"),
 ]
@@ -127,9 +118,6 @@ select
     json_value(data, '$.event_snapshot.ciudad')           as snapshot_ciudad,
     json_value(data, '$.event_snapshot.recinto_id')       as snapshot_recinto_id,
     safe_cast(json_value(data, '$.event_snapshot.fecha_evento') as date) as snapshot_fecha_evento,
-    safe_cast(json_value(data, '$.event_snapshot.precio_min') as float64) as snapshot_precio_min,
-    safe_cast(json_value(data, '$.event_snapshot.precio_max') as float64) as snapshot_precio_max,
-    json_value(data, '$.event_snapshot.banda_precio')     as snapshot_banda_precio,
     publish_time                                          as ingestion_timestamp
 from {table(project_id, raw_dataset, "swipes_raw")}
 where data is not null
@@ -159,8 +147,7 @@ eventos as (
         subgenero,
         ciudad,
         recinto_id,
-        fecha       as fecha_evento,
-        banda_precio
+        fecha       as fecha_evento
     from {table(project_id, raw_dataset, "eventos")}
 ),
 
@@ -191,27 +178,6 @@ select
     coalesce(d.snapshot_genero, e.genero) as genero,
     coalesce(d.snapshot_subgenero, e.subgenero) as subgenero,
     coalesce(d.snapshot_ciudad, e.ciudad) as ciudad,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo'  then 0.0
-        when 'medio' then 30.0
-        when 'alto'  then 60.0
-    end as precio_min,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo'  then 30.0
-        when 'medio' then 60.0
-        when 'alto'  then 120.0
-    end as precio_max,
-    coalesce(d.snapshot_banda_precio, e.banda_precio) as banda_precio,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo' then 1
-        when 'medio' then 2
-        when 'alto' then 3
-    end as banda_precio_score,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo' then 15.0
-        when 'medio' then 45.0
-        when 'alto' then 90.0
-    end as price_proxy_mid,
     coalesce(d.snapshot_fecha_evento, e.fecha_evento) as fecha_evento,
     coalesce(d.snapshot_recinto_id, e.recinto_id) as recinto_id,
     d.ingestion_timestamp
@@ -260,20 +226,11 @@ def features_sql(project_id: str, intermediate_dataset: str, marts_dataset: str,
     default_days_since = 37 if window_days == 30 else 97
     segment_preferences = feature_preference_sql("segmento", "segment", SEGMENT_RATES, suffix)
     genre_preferences = feature_preference_sql("genero", "genre", GENRE_RATES, suffix)
-    price_preferences = feature_preference_sql("lower(banda_precio)", "price_band", PRICE_BANDS, suffix)
 
     return f"""
 create or replace table {table(project_id, intermediate_dataset, f"int_user_swipe_features_{suffix}")} as
 with base as (
-    select
-        *,
-        coalesce(
-            case
-                when precio_min is not null and precio_max is not null
-                    then (precio_min + precio_max) / 2.0
-            end,
-            price_proxy_mid
-        ) as price_mid
+    select *
     from {table(project_id, marts_dataset, "fct_swipes")}
     where event_timestamp >= timestamp_sub(current_timestamp(), interval {window_days} day)
 ),
@@ -295,9 +252,6 @@ agg as (
             avg(if(liked and fecha_evento is not null, date_diff(fecha_evento, date(event_timestamp), day), null)),
             0.0
         ) as avg_days_until_event_liked_{suffix},
-        coalesce(avg(if(liked, price_mid, null)), 0.0) as avg_price_mid_liked_{suffix},
-        coalesce(approx_quantiles(if(liked, price_mid, null), 2)[safe_offset(1)], 0.0) as median_price_mid_liked_{suffix},
-        coalesce(avg(if(not liked, price_mid, null)), 0.0) as avg_price_mid_disliked_{suffix},
         coalesce(safe_divide(countif(recommendation_context = 'chat'), count(*)), 0.0) as chat_swipe_share_{suffix},
         coalesce(
             safe_divide(
@@ -311,8 +265,7 @@ agg as (
             {default_days_since}
         ) as days_since_last_right_swipe_{suffix},
         {segment_preferences},
-        {genre_preferences},
-        {price_preferences}
+        {genre_preferences}
     from base
     group by user_id
 )
@@ -332,8 +285,6 @@ def dim_sql(project_id: str, intermediate_dataset: str, marts_dataset: str) -> s
             select_columns.append(f"coalesce(f30.{prefix}_segment_{name}_30d, 0.0) as {prefix}_segment_{name}_30d")
         for name, _ in GENRE_RATES:
             select_columns.append(f"coalesce(f30.{prefix}_genre_{name}_30d, 0.0) as {prefix}_genre_{name}_30d")
-        for name, _ in PRICE_BANDS:
-            select_columns.append(f"coalesce(f30.{prefix}_price_band_{name}_30d, 0.0) as {prefix}_price_band_{name}_30d")
 
     for base_name, default in FEATURE_DEFAULTS:
         select_columns.append(f"coalesce(f90.{base_name}_90d, {default}) as {base_name}_90d")
@@ -343,8 +294,6 @@ def dim_sql(project_id: str, intermediate_dataset: str, marts_dataset: str) -> s
             select_columns.append(f"coalesce(f90.{prefix}_segment_{name}_90d, 0.0) as {prefix}_segment_{name}_90d")
         for name, _ in GENRE_RATES:
             select_columns.append(f"coalesce(f90.{prefix}_genre_{name}_90d, 0.0) as {prefix}_genre_{name}_90d")
-        for name, _ in PRICE_BANDS:
-            select_columns.append(f"coalesce(f90.{prefix}_price_band_{name}_90d, 0.0) as {prefix}_price_band_{name}_90d")
 
     select_columns.append(
         "coalesce(f30.right_swipe_rate_30d, 0.0) - coalesce(f90.right_swipe_rate_90d, 0.0) "

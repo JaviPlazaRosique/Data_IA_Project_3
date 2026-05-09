@@ -81,16 +81,6 @@ models:
         description: "Subgenero del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: ciudad
         description: "Ciudad del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
-      - name: precio_min
-        description: "Precio minimo del evento enviado en el snapshot."
-      - name: precio_max
-        description: "Precio maximo del evento enviado en el snapshot."
-      - name: banda_precio
-        description: "Banda de precio del evento, priorizando snapshot y usando catalogo como fallback."
-      - name: banda_precio_score
-        description: "Codificacion ordinal de banda_precio: bajo=1, medio=2, alto=3."
-      - name: price_proxy_mid
-        description: "Proxy numerico de precio mientras no exista precio real: bajo=15, medio=45, alto=90."
       - name: fecha_evento
         description: "Fecha del evento, priorizando el snapshot del swipe y usando catalogo como fallback."
       - name: recinto_id
