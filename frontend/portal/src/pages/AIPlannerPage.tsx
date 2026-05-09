@@ -4,7 +4,7 @@ import BottomNav from '../components/layout/BottomNav';
 import { quickActions, itineraryMapImage } from '../data/mockData';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
-import { apiSendAgentMessage } from '../api';
+import { apiSendAgentMessage, apiListRecommendations, ClusterRecommendationRead } from '../api';
 
 interface Message {
   id: string;
@@ -24,6 +24,7 @@ export default function AIPlannerPage() {
   );
   const [showItinerary, setShowItinerary] = useState(false);
   const [mode, setMode] = useState<'surprise' | 'idea' | null>(null);
+  const [surpriseRecs, setSurpriseRecs] = useState<ClusterRecommendationRead[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function AIPlannerPage() {
 
   function handleSelectMode(selected: 'surprise' | 'idea') {
     setMode(selected);
+    setSurpriseRecs([]);
     if (selected === 'surprise') {
       const surpriseText = '¡Sorpréndeme! Prepárame un plan para hoy.';
       const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -39,9 +41,14 @@ export default function AIPlannerPage() {
       const initial = [newMsg];
       setMessages(initial);
       setIsSending(true);
-      apiSendAgentMessage({ message: surpriseText, session_id: agentSessionId })
-        .then((response) => {
+
+      Promise.all([
+        apiSendAgentMessage({ message: surpriseText, session_id: agentSessionId }),
+        apiListRecommendations(6).catch(() => [] as ClusterRecommendationRead[]),
+      ])
+        .then(([response, recs]) => {
           setAgentSessionId(response.session_id);
+          setSurpriseRecs(recs);
           setMessages([...initial, {
             id: `${Date.now()}-assistant`,
             role: 'assistant',
@@ -228,6 +235,68 @@ export default function AIPlannerPage() {
                       <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                       Pensando en planes reales...
                     </div>
+                  </div>
+                </div>
+              )}
+              {mode === 'surprise' && surpriseRecs.length > 0 && (
+                <div className="px-4 md:px-8 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base text-secondary">auto_awesome</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-on-surface-variant">
+                      Elegido para ti
+                    </span>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                    {surpriseRecs.map((rec) => {
+                      const iconMap: Record<string, string> = {
+                        Music: 'music_note',
+                        Sports: 'sports',
+                        Arts_Theatre: 'theater_comedy',
+                        Family: 'family_restroom',
+                      };
+                      const icon = iconMap[rec.segmento ?? ''] ?? 'event';
+                      const dateLabel = rec.fecha_evento
+                        ? new Date(rec.fecha_evento).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+                        : null;
+                      return (
+                        <div
+                          key={rec.event_id}
+                          className="flex-shrink-0 w-52 bg-surface-container rounded-2xl border border-outline-variant/10 hover:bg-surface-container-high transition-colors overflow-hidden"
+                        >
+                          <div className="bg-primary/10 flex items-center justify-center h-20">
+                            <span className="material-symbols-outlined text-4xl text-primary">{icon}</span>
+                          </div>
+                          <div className="p-4 space-y-1">
+                            <p className="text-xs font-black uppercase tracking-wide text-on-surface-variant">
+                              {rec.genero ?? rec.segmento ?? '—'}
+                            </p>
+                            <p className="text-sm font-semibold leading-snug line-clamp-2">
+                              {rec.event_name ?? 'Evento'}
+                            </p>
+                            <div className="flex items-center gap-1 text-xs text-on-surface-variant pt-1">
+                              {dateLabel && (
+                                <>
+                                  <span className="material-symbols-outlined text-xs">calendar_today</span>
+                                  <span>{dateLabel}</span>
+                                </>
+                              )}
+                              {rec.ciudad && (
+                                <>
+                                  <span className="mx-1 opacity-30">·</span>
+                                  <span className="material-symbols-outlined text-xs">location_on</span>
+                                  <span>{rec.ciudad}</span>
+                                </>
+                              )}
+                            </div>
+                            {rec.cluster_source === 'cold_start' && (
+                              <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">
+                                Popular cerca
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
