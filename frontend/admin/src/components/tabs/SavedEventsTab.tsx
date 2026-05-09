@@ -83,23 +83,36 @@ export function SavedEventsTab({ refreshTick }: { refreshTick?: number }) {
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-500 uppercase bg-gray-900">
                 <tr>
-                  <th className="px-4 py-3">Event</th>
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Saved At</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {data?.recent_saves.map((r, i) => (
-                  <tr key={i} className="bg-gray-950 hover:bg-gray-900/50">
-                    <td className="px-4 py-3 text-white max-w-48 truncate">
-                      {r.event_title ?? r.event_id}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400">{r.user_email}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
-                      {new Date(r.saved_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {data && (() => {
+                  const groups = data.recent_saves.reduce<Record<string, typeof data.recent_saves>>((acc, r) => {
+                    const key = r.event_title ?? r.event_id;
+                    (acc[key] ??= []).push(r);
+                    return acc;
+                  }, {});
+                  return Object.entries(groups).map(([title, saves]) => (
+                    <>
+                      <tr key={`group-${title}`} className="bg-gray-900">
+                        <td colSpan={2} className="px-4 py-2 text-violet-300 font-semibold text-xs uppercase tracking-wider">
+                          {title}
+                          <span className="ml-2 text-gray-500 font-normal normal-case tracking-normal">{saves.length} save{saves.length !== 1 ? 's' : ''}</span>
+                        </td>
+                      </tr>
+                      {saves.map((r, i) => (
+                        <tr key={`${title}-${i}`} className="bg-gray-950 hover:bg-gray-900/50">
+                          <td className="px-4 py-3 text-gray-400 pl-8">{r.user_email}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">
+                            {new Date(r.saved_at).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
