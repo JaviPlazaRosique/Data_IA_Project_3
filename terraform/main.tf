@@ -196,6 +196,7 @@ module "portal_api_sa" {
     "roles/bigquery.dataViewer",
     "roles/bigquery.dataEditor",
     "roles/bigquery.jobUser",
+    "roles/aiplatform.user",
   ]
   depends_on = [
     module.setup
@@ -290,6 +291,8 @@ module "cloud_run_portal_api" {
     CLOUD_TASKS_QUEUE_PATH                 = module.cola_valoracion_emails.id_cola
     RATING_EMAIL_FUNCTION_URL              = module.fn_envio_email.url_funcion
     RATING_FUNCTION_SA_EMAIL               = module.envio_email_valoracion_sa.email_cuenta_servicio
+    AGENT_ENGINE_RESOURCE_NAME             = module.agent_engine_eventos_rag.nombre_agent_engine
+    AGENT_REGION                           = var.region
   }
 
   secretos_entorno = {
@@ -307,7 +310,8 @@ module "cloud_run_portal_api" {
     module.cloudsql_portal,
     module.secretos_proyecto,
     module.portal_api_sa,
-    module.pubsub_swipe_events
+    module.pubsub_swipe_events,
+    module.agent_engine_eventos_rag
   ]
 }
 
@@ -972,7 +976,7 @@ module "clustering_train_assign_job" {
   nombre_job            = "clustering-train-assign"
   nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
   nombre_imagen         = "clustering-train-assign"
-  ruta_contexto_docker  = "${path.root}/../clustering/2_integracion_datos_gcp/gcp_batch/Dockerfile"
+  ruta_contexto_docker  = "${path.root}/../clustering/2_integracion_datos_gcp/gcp_batch"
   email_cuenta_servicio = module.clustering_sa.email_cuenta_servicio
 
   cpu     = "1"

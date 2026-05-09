@@ -178,6 +178,28 @@ export interface PlanUpdate {
   itinerary?: Partial<PlanItinerary>;
 }
 
+// ─── Agent API ───────────────────────────────────────────────────────────────
+
+export interface AgentChatResponse {
+  answer: string;
+  session_id: string;
+}
+
+export async function apiSendAgentMessage(data: {
+  message: string;
+  session_id?: string | null;
+}): Promise<AgentChatResponse> {
+  const res = await authFetch('/api/v1/agent/chat', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, err.detail ?? 'Failed to ask agent');
+  }
+  return res.json();
+}
+
 // ─── Saved event types ────────────────────────────────────────────────────────
 
 export interface SavedEventRead {
