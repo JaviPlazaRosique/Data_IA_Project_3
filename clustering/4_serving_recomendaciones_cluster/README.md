@@ -58,6 +58,7 @@ Cada usuario recibe candidatos desde:
 - pequeno boost por urgencia temporal.
 
 Tambien se excluyen eventos que el usuario ya ha visto en `fct_swipes`.
+Cuando el catalogo trae varias funciones del mismo evento, el serving deduplica por `uuid_evento` y conserva una sola recomendacion por usuario.
 
 ## Notas GCP
 
