@@ -14,6 +14,7 @@ from app.models.saved_event import SavedEvent
 from app.models.user import User
 from app.schemas.saved_event import SavedEventRead
 from app.schemas.user import UserRead, UserUpdate
+from app.services.user_preferences import sync_user_preferences
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,8 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/me", response_model=UserRead)
 async def get_me(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.preferred_location or current_user.preferred_budget:
+        await sync_user_preferences(current_user)
     return current_user
 
 
@@ -96,6 +99,7 @@ async def update_me(
 
     await db.commit()
     await db.refresh(current_user)
+    await sync_user_preferences(current_user)
     return current_user
 
 

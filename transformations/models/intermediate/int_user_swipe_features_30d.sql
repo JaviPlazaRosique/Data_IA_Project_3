@@ -44,9 +44,16 @@ with base as (
     where event_timestamp >= timestamp_sub(current_timestamp(), interval 30 day)
 ),
 
-agg as (
+reference_city as (
     select
         user_id,
+        reference_city
+    from {{ ref('int_user_reference_city') }}
+),
+
+agg as (
+    select
+        base.user_id,
         count(*) as total_swipes_30d,
         countif(liked) as total_right_swipes_30d,
         coalesce(safe_divide(countif(liked), count(*)), 0.0) as right_swipe_rate_30d,
@@ -55,8 +62,8 @@ agg as (
         count(distinct if(liked, segmento, null)) as distinct_segments_liked_30d,
         count(distinct if(liked, genero, null)) as distinct_genres_liked_30d,
         count(distinct if(liked, ciudad, null)) as distinct_cities_liked_30d,
-        0.0 as local_like_rate_30d,
-        0.0 as local_swipe_share_30d,
+        coalesce(safe_divide(countif(liked and ciudad = reference_city.reference_city), countif(liked)), 0.0) as local_like_rate_30d,
+        coalesce(safe_divide(countif(ciudad = reference_city.reference_city), count(*)), 0.0) as local_swipe_share_30d,
         coalesce(
             avg(if(liked and fecha_evento is not null, date_diff(fecha_evento, date(event_timestamp), day), null)),
             0.0
@@ -98,7 +105,9 @@ agg as (
             - coalesce(safe_divide(countif(liked), count(*)), 0.0) as preference_lift_price_band_{{ feature_name }}_30d{% if not loop.last %},{% endif %}
         {% endfor %}
     from base
-    group by user_id
+    left join reference_city
+      on base.user_id = reference_city.user_id
+    group by base.user_id
 )
 
 select *

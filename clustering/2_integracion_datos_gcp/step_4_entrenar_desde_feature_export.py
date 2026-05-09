@@ -14,7 +14,13 @@ from typing import Any
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_DIR = BASE_DIR / "training_outputs" / "real_feature_clustering"
 RANDOM_SEED = 20260501
-RESERVED_METADATA_COLUMNS = {"user_id", "home_city", "synthetic_persona"}
+RESERVED_METADATA_COLUMNS = {
+    "user_id",
+    "home_city",
+    "reference_city",
+    "reference_city_source",
+    "synthetic_persona",
+}
 MIN_FEATURE_STD = 1e-9
 
 
@@ -355,10 +361,13 @@ def build_assignments(feature_rows: list[dict[str, Any]], points: list[list[floa
     assignments = []
     for row, point, cluster_id in zip(feature_rows, points, labels):
         ordered = sorted(((index, euclidean_distance(point, center)) for index, center in enumerate(centers)), key=lambda item: item[1])
+        reference_city = row.get("reference_city") or row.get("home_city", "")
         assignments.append(
             {
                 "user_id": row["user_id"],
-                "home_city": row.get("home_city", ""),
+                "home_city": row.get("home_city") or reference_city,
+                "reference_city": reference_city,
+                "reference_city_source": row.get("reference_city_source", ""),
                 "synthetic_persona": row.get("synthetic_persona", ""),
                 "cluster_id": cluster_id,
                 "distance_to_centroid": ordered[0][1],
@@ -381,7 +390,11 @@ def build_cluster_profiles(feature_rows: list[dict[str, Any]], assignments: list
         members = users_by_cluster[cluster_id]
         aggregate = {column: mean_or_zero([float(member[column]) for member in members]) for column in numeric_columns}
         persona_counter = Counter(str(member.get("synthetic_persona", "")) for member in members if member.get("synthetic_persona"))
-        city_counter = Counter(str(member.get("home_city", "")) for member in members if member.get("home_city"))
+        city_counter = Counter(
+            str(member.get("reference_city") or member.get("home_city", ""))
+            for member in members
+            if member.get("reference_city") or member.get("home_city")
+        )
         top_segments = top_preference_labels(aggregate, "liked_share_segment_", "like_rate_segment_")
         top_genres = top_preference_labels(aggregate, "liked_share_genre_", "like_rate_genre_")
         dominant_persona, dominant_persona_share = ("n/a", 0.0)

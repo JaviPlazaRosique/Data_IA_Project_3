@@ -28,3 +28,17 @@ models:
         description: "Tiempo medio de permanencia de la tarjeta antes del swipe."
       - name: avg_right_dwell_ms_90d
         description: "Tiempo medio de permanencia solo en swipes positivos."
+
+  - name: int_user_reference_city
+    description: "Ciudad de referencia inferida por usuario para features locales y serving de recomendaciones."
+    columns:
+      - name: user_id
+        data_tests: [not_null, unique]
+      - name: reference_city
+        description: "Ciudad canonica inferida desde likes recientes o, si no existen, desde swipes recientes."
+      - name: reference_city_source
+        description: "Origen de la ciudad de referencia: preferred_location, liked_swipes_90d o swipes_90d."
+      - name: reference_city_swipes_90d
+        description: "Swipes de 90 dias en la ciudad de referencia."
+      - name: reference_city_likes_90d
+        description: "Likes de 90 dias en la ciudad de referencia."

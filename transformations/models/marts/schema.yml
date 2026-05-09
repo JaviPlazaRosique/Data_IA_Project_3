@@ -107,6 +107,14 @@ models:
     columns:
       - name: user_id
         data_tests: [not_null, unique]
+      - name: reference_city
+        description: "Ciudad de referencia del usuario para features locales y boost de serving."
+      - name: reference_city_source
+        description: "Origen de la ciudad de referencia."
+      - name: reference_city_swipes_90d
+        description: "Swipes recientes en la ciudad de referencia."
+      - name: reference_city_likes_90d
+        description: "Likes recientes en la ciudad de referencia."
       - name: total_swipes_30d
         description: "Volumen de swipes en 30 dias."
       - name: total_swipes_90d

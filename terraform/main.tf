@@ -194,6 +194,7 @@ module "portal_api_sa" {
     "roles/datastore.user",
     "roles/cloudtasks.enqueuer",
     "roles/bigquery.dataViewer",
+    "roles/bigquery.dataEditor",
     "roles/bigquery.jobUser",
   ]
   depends_on = [
@@ -274,18 +275,21 @@ module "cloud_run_portal_api" {
   variables_entorno = {
     ENVIRONMENT                    = "production"
     CORS_ORIGINS                   = local.cors_origins
-    DB_HOST                        = module.cloudsql_portal.private_ip
-    DB_NAME                        = module.cloudsql_portal.database_name
-    DB_USER                        = module.cloudsql_portal.db_user
-    GOOGLE_CLOUD_PROJECT           = var.id_proyecto
-    PUBSUB_TOPIC_SWIPE_EVENTS      = module.pubsub_swipe_events.nombre
-    BIGQUERY_PROJECT_ID            = var.id_proyecto
-    BIGQUERY_MARTS_DATASET         = "${module.bigquery.id_dataset}_marts"
-    BIGQUERY_RECOMMENDATIONS_TABLE = "user_recommendation_candidates"
-    AVATAR_BUCKET_NAME             = module.bucket_avatares.nombre
-    CLOUD_TASKS_QUEUE_PATH         = module.cola_valoracion_emails.id_cola
-    RATING_EMAIL_FUNCTION_URL      = module.fn_envio_email.url_funcion
-    RATING_FUNCTION_SA_EMAIL       = module.envio_email_valoracion_sa.email_cuenta_servicio
+    DB_HOST                                = module.cloudsql_portal.private_ip
+    DB_NAME                                = module.cloudsql_portal.database_name
+    DB_USER                                = module.cloudsql_portal.db_user
+    GOOGLE_CLOUD_PROJECT                   = var.id_proyecto
+    PUBSUB_TOPIC_SWIPE_EVENTS              = module.pubsub_swipe_events.nombre
+    BIGQUERY_PROJECT_ID                    = var.id_proyecto
+    BIGQUERY_ANALYTICS_DATASET             = module.bigquery.id_dataset
+    BIGQUERY_USER_PREFERENCES_TABLE        = "user_preferences"
+    BIGQUERY_USER_PREFERENCES_SYNC_ENABLED = "true"
+    BIGQUERY_MARTS_DATASET                 = "${module.bigquery.id_dataset}_marts"
+    BIGQUERY_RECOMMENDATIONS_TABLE         = "user_recommendation_candidates"
+    AVATAR_BUCKET_NAME                     = module.bucket_avatares.nombre
+    CLOUD_TASKS_QUEUE_PATH                 = module.cola_valoracion_emails.id_cola
+    RATING_EMAIL_FUNCTION_URL              = module.fn_envio_email.url_funcion
+    RATING_FUNCTION_SA_EMAIL               = module.envio_email_valoracion_sa.email_cuenta_servicio
   }
 
   secretos_entorno = {
@@ -583,6 +587,42 @@ module "bigquery" {
           name = "fecha_valoracion",
           type = "TIMESTAMP",
           mode = "REQUIRED"
+        }
+      ])
+    },
+    {
+      id_tabla        = "user_preferences"
+      campo_particion = null
+      schema_json = jsonencode([
+        {
+          name = "user_id",
+          type = "STRING",
+          mode = "REQUIRED"
+        },
+        {
+          name = "preferred_location",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "preferred_location_lat",
+          type = "FLOAT64",
+          mode = "NULLABLE"
+        },
+        {
+          name = "preferred_location_lng",
+          type = "FLOAT64",
+          mode = "NULLABLE"
+        },
+        {
+          name = "preferred_budget",
+          type = "STRING",
+          mode = "NULLABLE"
+        },
+        {
+          name = "synced_at",
+          type = "TIMESTAMP",
+          mode = "NULLABLE"
         }
       ])
     },
@@ -896,7 +936,7 @@ module "clustering_train_assign_job" {
   nombre_job            = "clustering-train-assign"
   nombre_repo_artifact  = module.repo_artifact.id_repo_artifact
   nombre_imagen         = "clustering-train-assign"
-  ruta_contexto_docker  = "${path.root}/../clustering/2_integracion_datos_gcp/gcp_batch"
+  ruta_contexto_docker  = "${path.root}/../clustering/2_integracion_datos_gcp/gcp_batch/Dockerfile"
   email_cuenta_servicio = module.clustering_sa.email_cuenta_servicio
 
   cpu     = "1"

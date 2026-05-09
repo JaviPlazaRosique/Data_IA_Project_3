@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 from serving_config import (
@@ -18,7 +20,8 @@ from serving_config import (
 SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
 
 ASSIGNMENTS_SCHEMA = (
-    "user_id:STRING,home_city:STRING,synthetic_persona:STRING,cluster_id:INT64,"
+    "user_id:STRING,home_city:STRING,reference_city:STRING,reference_city_source:STRING,"
+    "synthetic_persona:STRING,cluster_id:INT64,"
     "distance_to_centroid:FLOAT64,distance_to_next_centroid:FLOAT64"
 )
 PROFILES_SCHEMA = (
@@ -31,6 +34,16 @@ NEIGHBORS_SCHEMA = (
     "cluster_id:INT64,neighbor_rank:INT64,neighbor_cluster_id:INT64,"
     "euclidean_distance:FLOAT64,cosine_similarity:FLOAT64"
 )
+ASSIGNMENTS_COLUMNS = [
+    "user_id",
+    "home_city",
+    "reference_city",
+    "reference_city_source",
+    "synthetic_persona",
+    "cluster_id",
+    "distance_to_centroid",
+    "distance_to_next_centroid",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -82,6 +95,34 @@ def load_csv(project_id: str, destination: str, csv_path: Path, schema: str) -> 
     )
 
 
+def normalize_assignments_csv(csv_path: Path) -> Path:
+    with csv_path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        rows = list(reader)
+        if reader.fieldnames == ASSIGNMENTS_COLUMNS:
+            return csv_path
+
+    temp = tempfile.NamedTemporaryFile("w", newline="", encoding="utf-8", suffix=".csv", delete=False)
+    with temp:
+        writer = csv.DictWriter(temp, fieldnames=ASSIGNMENTS_COLUMNS)
+        writer.writeheader()
+        for row in rows:
+            reference_city = row.get("reference_city") or row.get("home_city") or ""
+            writer.writerow(
+                {
+                    "user_id": row.get("user_id", ""),
+                    "home_city": row.get("home_city") or reference_city,
+                    "reference_city": reference_city,
+                    "reference_city_source": row.get("reference_city_source", ""),
+                    "synthetic_persona": row.get("synthetic_persona", ""),
+                    "cluster_id": row.get("cluster_id", ""),
+                    "distance_to_centroid": row.get("distance_to_centroid", ""),
+                    "distance_to_next_centroid": row.get("distance_to_next_centroid", ""),
+                }
+            )
+    return Path(temp.name)
+
+
 def create_assignments_sql(project_id: str, dataset: str, tmp_table: str, model_run_id: str) -> str:
     escaped_run_id = safe_sql_literal(model_run_id)
     return f"""
@@ -92,6 +133,8 @@ select
   current_timestamp() as model_run_at,
   user_id,
   nullif(home_city, '') as home_city,
+  nullif(reference_city, '') as reference_city,
+  nullif(reference_city_source, '') as reference_city_source,
   nullif(synthetic_persona, '') as synthetic_persona,
   cluster_id,
   distance_to_centroid,
@@ -152,7 +195,7 @@ def main() -> None:
     load_csv(
         args.project_id,
         f"{args.project_id}:{args.marts_dataset}.{tmp_assignments}",
-        args.training_output_dir / "user_cluster_assignments.csv",
+        normalize_assignments_csv(args.training_output_dir / "user_cluster_assignments.csv"),
         ASSIGNMENTS_SCHEMA,
     )
     load_csv(
