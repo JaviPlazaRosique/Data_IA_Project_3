@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
-import { quickActions, itineraryMapImage } from '../data/mockData';
+import { itineraryMapImage } from '../data/mockData';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
 import { apiSendAgentMessage, apiListRecommendations, ClusterRecommendationRead } from '../api';
@@ -305,22 +305,6 @@ export default function AIPlannerPage() {
 
             {/* Input Area */}
             <div className="px-4 md:px-8 py-6 pb-20 md:pb-6 bg-surface/80 backdrop-blur-xl border-t border-outline-variant/10">
-              <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-                {quickActions.map((action) => (
-                  <button
-                    key={action.label}
-                    onClick={() => setInput(action.label)}
-                    className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full border text-xs font-medium hover:bg-surface-container-high transition-all flex items-center gap-2 ${
-                      action.isPrimary
-                        ? 'border-primary/30 text-primary bg-primary/5 font-bold hover:bg-primary/10'
-                        : 'border-outline-variant/20'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-sm">{action.icon}</span>
-                    {action.label}
-                  </button>
-                ))}
-              </div>
               <div className="relative group">
                 <div className="absolute inset-0 bg-primary/10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
                 <div className="relative bg-surface-container-lowest rounded-2xl flex items-center px-4 border border-outline-variant/20 focus-within:border-secondary transition-all">
