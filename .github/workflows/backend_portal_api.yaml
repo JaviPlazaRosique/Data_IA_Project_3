@@ -68,3 +68,16 @@ jobs:
             --image="${IMAGE}:latest" \
             --region=${{ env.REGION }} \
             --project=${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Actualizar backendUrl en public-config.json
+        env:
+          BUCKET: ${{ secrets.BUCKET_FRONTEND_USUARIOS }}
+          PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          BACKEND_URL=$(gcloud run services describe ${{ env.SERVICIO }} \
+            --region=${{ env.REGION }} \
+            --project="$PROJECT" \
+            --format='value(status.url)')
+          gsutil cp "gs://$BUCKET/public-config.json" public-config.json
+          jq --arg url "$BACKEND_URL" '.backendUrl = $url' public-config.json > tmp.json && mv tmp.json public-config.json
+          gsutil -h "Cache-Control:no-cache" cp public-config.json "gs://$BUCKET/public-config.json"
