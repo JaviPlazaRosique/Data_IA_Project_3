@@ -94,11 +94,13 @@ limit @limit
 def _query_cold_start_recommendations_sync(user: User, limit: int) -> list[ClusterRecommendationRead]:
     preferred_categories = user.preferred_categories or []
     query = f"""
-with scored_events as (
+with event_catalog as (
   select
     id as event_id,
+    coalesce(nullif(cast(uuid_evento as string), ''), cast(id as string)) as uuid_evento,
     nombre as event_name,
     cast(fecha as string) as fecha_evento,
+    fecha,
     ciudad,
     recinto_nombre,
     segmento,
@@ -126,15 +128,27 @@ with scored_events as (
     ) as recommendation_score
   from {_events_table()} e
   left join (
-    select distinct event_id
-    from {_marts_table("fct_swipes")}
-    where user_id = @user_id
+    select distinct
+      coalesce(nullif(cast(e.uuid_evento as string), ''), cast(s.event_id as string)) as uuid_evento
+    from {_marts_table("fct_swipes")} s
+    left join {_events_table()} e
+      on e.id = s.event_id
+    where s.user_id = @user_id
   ) seen
-    on seen.event_id = e.id
+    on seen.uuid_evento = coalesce(nullif(cast(e.uuid_evento as string), ''), cast(e.id as string))
   where id is not null
     and fecha is not null
     and fecha >= current_date()
-    and seen.event_id is null
+    and seen.uuid_evento is null
+),
+
+scored_events as (
+  select * except(fecha)
+  from event_catalog
+  qualify row_number() over (
+    partition by uuid_evento
+    order by recommendation_score desc, fecha asc, event_id asc
+  ) = 1
 )
 select
   event_id,
