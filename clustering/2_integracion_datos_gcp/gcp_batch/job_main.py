@@ -14,7 +14,19 @@ from google.cloud import bigquery
 
 
 BASE_DIR = Path(__file__).resolve().parent
-REPO_ROOT = BASE_DIR.parents[2]
+
+
+def resolve_repo_root() -> Path:
+    for candidate in (BASE_DIR, *BASE_DIR.parents):
+        if (candidate / "clustering").is_dir():
+            return candidate
+    raise RuntimeError(
+        "Could not resolve repository root from job_main.py location. "
+        "Expected a build that includes the 'clustering' directory."
+    )
+
+
+REPO_ROOT = resolve_repo_root()
 SERVING_DIR = REPO_ROOT / "clustering" / "4_serving_recomendaciones_cluster"
 TRAINING_SCRIPT = (
     REPO_ROOT

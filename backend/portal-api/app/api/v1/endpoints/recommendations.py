@@ -18,7 +18,7 @@ async def list_recommendations(
     current_user: User = Depends(get_current_user),
 ) -> list[ClusterRecommendationRead]:
     try:
-        return await list_user_recommendations(str(current_user.id), limit)
+        return await list_user_recommendations(current_user, limit)
     except Exception:
         logger.exception("Failed to load cluster recommendations")
         raise HTTPException(

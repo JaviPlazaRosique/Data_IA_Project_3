@@ -3,7 +3,7 @@ COMPOSE := docker compose -f docker-compose.yml
 .PHONY: help up up-full down reset logs logs-backend logs-firebase \
         seed-events migrate dev frontend-config psql build ps \
         pubsub-topics pubsub-sub pubsub-pull pubsub-listen \
-        sink-logs sink-tail sink-clear dbt-build dbt-test \
+        sink-logs sink-tail sink-clear local-pipeline local-recommendations-tail dbt-build dbt-test \
         bq-query bq-swipes bq-tables bq-seed-eventos
 
 help:
@@ -31,6 +31,8 @@ help:
 	@echo "  make sink-logs       tail logs of the local Pub/Sub→BQ sink"
 	@echo "  make sink-tail       follow the sink JSONL file (envelope rows)"
 	@echo "  make sink-clear      truncate the sink JSONL file"
+	@echo "  make local-pipeline  build local clustering recommendations from swipes"
+	@echo "  make local-recommendations-tail  inspect generated recommendations CSV"
 	@echo "  make dbt-build       run dbt build against GCP dev dataset (needs ADC)"
 	@echo "  make dbt-test        run dbt test against GCP dev dataset"
 	@echo "  make bq-tables       list tables in the local BQ emulator"
@@ -133,6 +135,12 @@ sink-tail:
 
 sink-clear:
 	@: > $(SINK_FILE) && echo "cleared $(SINK_FILE)"
+
+local-pipeline: seed-events
+	$(COMPOSE) --profile tools run --rm local-reco-pipeline
+
+local-recommendations-tail:
+	@tail -n +1 swipes_data/recommendations_local.csv
 
 # ─── dbt (runs against real GCP dev dataset; emulator has no BQ) ─────────────
 DBT := docker run --rm \

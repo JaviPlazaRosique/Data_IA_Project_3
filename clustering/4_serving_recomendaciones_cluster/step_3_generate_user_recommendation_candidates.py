@@ -189,11 +189,11 @@ scored_candidates as (
     coalesce(aff.affinity_score, 0.0) as affinity_score,
     coalesce(aff.like_rate, 0.0) as cluster_like_rate_for_event_type,
     coalesce(aff.liked_share, 0.0) as cluster_liked_share_for_event_type,
-    if(a.home_city is not null and lower(a.home_city) = lower(e.ciudad), 0.08, 0.0) as home_city_boost,
+    if(coalesce(a.reference_city, a.home_city) is not null and lower(coalesce(a.reference_city, a.home_city)) = lower(e.ciudad), 0.08, 0.0) as home_city_boost,
     greatest(0.0, 0.04 - (date_diff(e.fecha_evento, current_date(), day) * 0.002)) as urgency_boost,
     (
       rc.cluster_weight * coalesce(aff.affinity_score, 0.0)
-      + if(a.home_city is not null and lower(a.home_city) = lower(e.ciudad), 0.08, 0.0)
+      + if(coalesce(a.reference_city, a.home_city) is not null and lower(coalesce(a.reference_city, a.home_city)) = lower(e.ciudad), 0.08, 0.0)
       + greatest(0.0, 0.04 - (date_diff(e.fecha_evento, current_date(), day) * 0.002))
     ) as recommendation_score
   from {assignments} a
