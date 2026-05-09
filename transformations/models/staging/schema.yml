@@ -51,11 +51,5 @@ models:
         description: "ID del recinto en el momento del swipe."
       - name: snapshot_fecha_evento
         description: "Fecha del evento en el momento del swipe."
-      - name: snapshot_precio_min
-        description: "Precio minimo del snapshot, si existe."
-      - name: snapshot_precio_max
-        description: "Precio maximo del snapshot, si existe."
-      - name: snapshot_banda_precio
-        description: "Banda de precio del snapshot, si no hay precio numerico estable."
       - name: interaction_type
         description: "Default 'swipe' si el payload no lo trae."

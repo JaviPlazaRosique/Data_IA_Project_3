@@ -63,6 +63,11 @@ output "dbt_cuenta_servicio" {
   value       = module.cicd_dbt_transformations.email_cuenta_servicio
 }
 
+output "clustering_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del Cloud Run Job de clustering (GitHub Secret: CLUSTERING_CUENTA_SERVICIO)"
+  value       = module.cicd_clustering_train_assign.email_cuenta_servicio
+}
+
 output "host_bd" {
   description = "IP privada de CloudSQL (GitHub Secret: HOST_BD)"
   value       = module.cloudsql_portal.private_ip
