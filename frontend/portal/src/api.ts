@@ -238,8 +238,6 @@ export interface SwipeEventSnapshot {
   ciudad?: string | null;
   recinto_id?: string | null;
   fecha_evento?: string | null;
-  precio_min?: number | null;
-  precio_max?: number | null;
 }
 
 export interface SwipeEventProducer {

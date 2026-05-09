@@ -103,11 +103,7 @@ def normalize_genre(value: str | None, segment: str | None = None) -> str:
     return value or "Unknown"
 
 
-def price_mid(event: dict[str, Any]) -> float:
-    price_min = event.get("precio_min")
-    price_max = event.get("precio_max")
-    if isinstance(price_min, (int, float)) and isinstance(price_max, (int, float)):
-        return (float(price_min) + float(price_max)) / 2.0
+def price_mid(_event: dict[str, Any]) -> float:
     return 45.0
 
 
