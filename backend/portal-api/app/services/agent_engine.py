@@ -13,6 +13,9 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+_AGENT_TIMEOUT_SECONDS = 60.0
+
+
 class AgentEngineError(RuntimeError):
     pass
 
@@ -65,7 +68,15 @@ async def ask_agent(*, user_id: str, session_id: str, message: str) -> str:
                 result.append(text)
         return result
 
-    chunks = await asyncio.to_thread(_do_stream)
+    try:
+        chunks = await asyncio.wait_for(
+            asyncio.to_thread(_do_stream),
+            timeout=_AGENT_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError as exc:
+        raise AgentEngineError(
+            f"El agente no respondió en {_AGENT_TIMEOUT_SECONDS:.0f}s"
+        ) from exc
 
     answer = "\n".join(chunk for chunk in chunks if chunk).strip()
     if not answer:

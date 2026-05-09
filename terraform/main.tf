@@ -197,7 +197,19 @@ module "portal_api_sa" {
     "roles/bigquery.dataEditor",
     "roles/bigquery.jobUser",
     "roles/aiplatform.user",
+    "roles/modelarmor.user",
   ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "model_armor_portal_api" {
+  source      = "./modules/model_armor"
+  id_proyecto = var.id_proyecto
+  region      = var.region
+  id_template = "portal-api-armor"
+
   depends_on = [
     module.setup
   ]
@@ -293,6 +305,9 @@ module "cloud_run_portal_api" {
     RATING_FUNCTION_SA_EMAIL               = module.envio_email_valoracion_sa.email_cuenta_servicio
     AGENT_ENGINE_RESOURCE_NAME             = module.agent_engine_eventos_rag.nombre_agent_engine
     AGENT_REGION                           = var.region
+    MODEL_ARMOR_ENABLED                    = "true"
+    MODEL_ARMOR_LOCATION                   = module.model_armor_portal_api.location
+    MODEL_ARMOR_TEMPLATE_ID                = module.model_armor_portal_api.id_template
   }
 
   secretos_entorno = {
@@ -311,7 +326,8 @@ module "cloud_run_portal_api" {
     module.secretos_proyecto,
     module.portal_api_sa,
     module.pubsub_swipe_events,
-    module.agent_engine_eventos_rag
+    module.agent_engine_eventos_rag,
+    module.model_armor_portal_api
   ]
 }
 
