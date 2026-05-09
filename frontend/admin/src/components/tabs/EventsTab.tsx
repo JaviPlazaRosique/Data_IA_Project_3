@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiListEvents, type EventAdminRead } from '../../api';
+
+type SortKey = 'nombre' | 'ciudad' | 'segmento' | 'fecha';
+type SortDir = 'asc' | 'desc';
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <span className="text-gray-700 ml-1">↕</span>;
+  return <span className="text-violet-400 ml-1">{dir === 'asc' ? '↑' : '↓'}</span>;
+}
 
 export function EventsTab() {
   const [events, setEvents] = useState<EventAdminRead[]>([]);
@@ -7,17 +15,68 @@ export function EventsTab() {
   const [error, setError] = useState<string | null>(null);
   const [ciudad, setCiudad] = useState('');
   const [segmento, setSegmento] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('nombre');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function load() {
     setLoading(true);
     setError(null);
-    apiListEvents(200, ciudad || undefined, segmento || undefined)
+    apiListEvents(500, ciudad || undefined, segmento || undefined)
       .then(setEvents)
       .catch((e: unknown) => setError(String(e)))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  }
+
+  function toggleGroup(name: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, EventAdminRead[]>();
+    for (const e of events) {
+      const key = e.nombre ?? '—';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(e);
+    }
+
+    for (const list of map.values()) {
+      list.sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''));
+    }
+
+    const groups = [...map.entries()];
+    groups.sort(([nameA, listA], [nameB, listB]) => {
+      let a: string;
+      let b: string;
+      if (sortKey === 'nombre') { a = nameA; b = nameB; }
+      else if (sortKey === 'fecha') { a = listA[0]?.fecha ?? ''; b = listB[0]?.fecha ?? ''; }
+      else if (sortKey === 'ciudad') { a = listA[0]?.ciudad ?? ''; b = listB[0]?.ciudad ?? ''; }
+      else { a = listA[0]?.segmento ?? ''; b = listB[0]?.segmento ?? ''; }
+      const cmp = a.localeCompare(b);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return groups;
+  }, [events, sortKey, sortDir]);
+
+  function thProps(key: SortKey) {
+    return {
+      className: 'px-4 py-3 cursor-pointer select-none hover:text-white whitespace-nowrap',
+      onClick: () => toggleSort(key),
+    };
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -42,7 +101,9 @@ export function EventsTab() {
         >
           Filter
         </button>
-        <span className="text-gray-500 text-xs ml-auto">{events.length} events</span>
+        <span className="text-gray-500 text-xs ml-auto">
+          {events.length} events · {grouped.length} groups
+        </span>
       </div>
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -51,10 +112,18 @@ export function EventsTab() {
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-gray-500 uppercase bg-gray-900">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">City</th>
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Date</th>
+              <th {...thProps('nombre')}>
+                Name <SortIcon active={sortKey === 'nombre'} dir={sortDir} />
+              </th>
+              <th {...thProps('ciudad')}>
+                City <SortIcon active={sortKey === 'ciudad'} dir={sortDir} />
+              </th>
+              <th {...thProps('segmento')}>
+                Category <SortIcon active={sortKey === 'segmento'} dir={sortDir} />
+              </th>
+              <th {...thProps('fecha')}>
+                Date <SortIcon active={sortKey === 'fecha'} dir={sortDir} />
+              </th>
               <th className="px-4 py-3">Venue</th>
               <th className="px-4 py-3">Status</th>
             </tr>
@@ -64,16 +133,42 @@ export function EventsTab() {
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-500">Loading…</td>
               </tr>
-            ) : events.map((e) => (
-              <tr key={e.id} className="bg-gray-950 hover:bg-gray-900/50">
-                <td className="px-4 py-3 font-medium text-white max-w-48 truncate">{e.nombre ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-400">{e.ciudad ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-400">{e.segmento ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-400">{e.fecha ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-400 max-w-36 truncate">{e.recinto_nombre ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs">{e.estado ?? '—'}</td>
-              </tr>
-            ))}
+            ) : grouped.map(([groupName, items]) => {
+              const isOpen = expanded.has(groupName);
+              const first = items[0];
+              return (
+                <>
+                  <tr
+                    key={`g-${groupName}`}
+                    className="bg-gray-900 hover:bg-gray-800/80 cursor-pointer"
+                    onClick={() => toggleGroup(groupName)}
+                  >
+                    <td className="px-4 py-3 font-semibold text-white">
+                      <div className="flex items-center gap-2 max-w-48">
+                        <span className="text-gray-500 text-xs shrink-0">{isOpen ? '▾' : '▸'}</span>
+                        <span className="truncate">{groupName}</span>
+                        <span className="text-xs text-gray-500 font-normal shrink-0">({items.length})</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400">{first?.ciudad ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-400">{first?.segmento ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-400">{first?.fecha ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-400 max-w-36 truncate">{first?.recinto_nombre ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{first?.estado ?? '—'}</td>
+                  </tr>
+                  {isOpen && items.map((e) => (
+                    <tr key={e.id} className="bg-gray-950 hover:bg-gray-900/30">
+                      <td className="py-2 pl-12 pr-4 text-gray-400 max-w-48 truncate">{e.nombre ?? '—'}</td>
+                      <td className="px-4 py-2 text-gray-500">{e.ciudad ?? '—'}</td>
+                      <td className="px-4 py-2 text-gray-500">{e.segmento ?? '—'}</td>
+                      <td className="px-4 py-2 text-gray-500">{e.fecha ?? '—'}</td>
+                      <td className="px-4 py-2 text-gray-500 max-w-36 truncate">{e.recinto_nombre ?? '—'}</td>
+                      <td className="px-4 py-2 text-gray-600 text-xs">{e.estado ?? '—'}</td>
+                    </tr>
+                  ))}
+                </>
+              );
+            })}
           </tbody>
         </table>
       </div>
