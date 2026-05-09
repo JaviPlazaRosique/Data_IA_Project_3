@@ -20,24 +20,22 @@ function mapAuthError(code: string | undefined): string {
 }
 
 export default function LoginPage() {
-  const { loginEmail, loginGoogle, loginMicrosoft, loginDemo, user } = useAuth();
+  const { loginEmail, loginGoogle, loginMicrosoft, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingRedirect, setPendingRedirect] = useState(false);
 
   useEffect(() => {
-    if (pendingRedirect && user) {
-      setPendingRedirect(false);
+    if (!authLoading && user) {
       const onboarded =
         !!user.preferred_location ||
         (user.preferred_categories?.length ?? 0) > 0;
       navigate(onboarded ? '/map' : '/onboarding');
     }
-  }, [pendingRedirect, user, navigate]);
+  }, [user, authLoading, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -45,10 +43,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await loginEmail(email, password);
-      setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }
@@ -58,10 +54,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await loginGoogle();
-      setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }
@@ -71,23 +65,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await loginMicrosoft();
-      setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDemo() {
-    setError('');
-    setLoading(true);
-    try {
-      await loginDemo();
-      navigate('/recommendations');
-    } catch {
-      setError('No se pudo iniciar el usuario demo local');
-    } finally {
       setLoading(false);
     }
   }
@@ -176,15 +155,6 @@ export default function LoginPage() {
             className="w-full bg-surface-container-lowest border border-outline-variant/20 text-on-surface font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continuar con Microsoft
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDemo}
-            disabled={loading}
-            className="w-full bg-secondary text-on-secondary font-bold py-3 rounded-full hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Entrar como demo clustering
           </button>
 
           <p className="text-center text-sm text-on-surface-variant">
