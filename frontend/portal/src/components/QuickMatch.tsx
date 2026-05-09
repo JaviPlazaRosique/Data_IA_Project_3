@@ -27,8 +27,6 @@ function buildEventSnapshot(event: EventCatalogItem) {
     ciudad: event.ciudad,
     recinto_id: event.recinto_id,
     fecha_evento: event.fecha,
-    precio_min: event.precio_min,
-    precio_max: event.precio_max,
     banda_precio: event.banda_precio,
   };
 }

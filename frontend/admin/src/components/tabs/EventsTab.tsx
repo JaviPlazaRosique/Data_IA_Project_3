@@ -56,14 +56,13 @@ export function EventsTab() {
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Date</th>
               <th className="px-4 py-3">Venue</th>
-              <th className="px-4 py-3">Price</th>
               <th className="px-4 py-3">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">Loading…</td>
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">Loading…</td>
               </tr>
             ) : events.map((e) => (
               <tr key={e.id} className="bg-gray-950 hover:bg-gray-900/50">
@@ -72,10 +71,6 @@ export function EventsTab() {
                 <td className="px-4 py-3 text-gray-400">{e.segmento ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-400">{e.fecha ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-400 max-w-36 truncate">{e.recinto_nombre ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-400">
-                  {e.precio_min != null ? `€${e.precio_min}` : '—'}
-                  {e.precio_max != null && e.precio_max !== e.precio_min ? `–€${e.precio_max}` : ''}
-                </td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{e.estado ?? '—'}</td>
               </tr>
             ))}
