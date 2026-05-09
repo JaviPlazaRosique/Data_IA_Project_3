@@ -44,6 +44,17 @@ class EventRead(BaseModel):
     artista_imagen: str | None = None
     imagen_evento: str | None = None
     promotor: str | None = None
+    descripcion: str | None = None
+    categoria: str | None = None
+    subcategoria: str | None = None
+    franja_horaria: str | None = None
+    vibra: str | None = None
+    interior_exterior: str | None = None
+    duracion_minutos_estimada: int | None = None
+    puntuacion_familiar: int | None = None
+    puntuacion_grupo: int | None = None
+    puntuacion_romantica: int | None = None
+    puntuacion_turista: int | None = None
     restaurantes_cercanos: list[NearbyPlace] = []
     alojamientos_cercanos: list[NearbyPlace] = []
     antelacion_recomendada: AntelacionRecomendada | None = None
