@@ -2,14 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { OverviewTab } from '../components/tabs/OverviewTab';
-import { UsersTab } from '../components/tabs/UsersTab';
 import { EventsTab } from '../components/tabs/EventsTab';
 import { AnalyticsTab } from '../components/tabs/AnalyticsTab';
 import { ArchitectureTab } from '../components/tabs/ArchitectureTab';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'dashboard' },
-  { id: 'users', label: 'Users', icon: 'group' },
   { id: 'events', label: 'Events', icon: 'event' },
   { id: 'analytics', label: 'Analytics', icon: 'bar_chart' },
   { id: 'architecture', label: 'Architecture', icon: 'hub' },
@@ -74,7 +72,6 @@ export function DashboardPage() {
             {TABS.find((t) => t.id === activeTab)?.label}
           </h2>
           {activeTab === 'overview' && <OverviewTab />}
-          {activeTab === 'users' && <UsersTab />}
           {activeTab === 'events' && <EventsTab />}
           {activeTab === 'analytics' && <AnalyticsTab />}
           {activeTab === 'architecture' && <ArchitectureTab />}
