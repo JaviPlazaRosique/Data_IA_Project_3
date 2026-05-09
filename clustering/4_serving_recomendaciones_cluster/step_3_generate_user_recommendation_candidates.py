@@ -145,17 +145,7 @@ event_catalog as (
     e.recinto_nombre,
     {segment_expr} as segmento,
     {genre_expr} as genero,
-    coalesce(e.subgenero, e.subcategoria, 'Unknown') as subgenero,
-    coalesce(lower(e.banda_precio), 'unknown') as banda_precio,
-    e.banda_precio as banda_precio_original,
-    coalesce(
-      case lower(e.banda_precio)
-        when 'bajo' then 15.0
-        when 'medio' then 45.0
-        when 'alto' then 90.0
-      end,
-      45.0
-    ) as price_proxy_mid
+    coalesce(e.subgenero, e.subcategoria, 'Unknown') as subgenero
   from {eventos} e
   where e.id is not null
     and e.fecha is not null
@@ -184,8 +174,6 @@ scored_candidates as (
     e.segmento,
     e.genero,
     e.subgenero,
-    e.banda_precio_original as banda_precio,
-    e.price_proxy_mid,
     coalesce(aff.affinity_score, 0.0) as affinity_score,
     coalesce(aff.like_rate, 0.0) as cluster_like_rate_for_event_type,
     coalesce(aff.liked_share, 0.0) as cluster_liked_share_for_event_type,
@@ -204,7 +192,6 @@ scored_candidates as (
     on aff.cluster_id = rc.recommendation_cluster_id
    and aff.segmento = e.segmento
    and aff.genero = e.genero
-   and aff.banda_precio = e.banda_precio
   left join seen_events seen
     on seen.user_id = a.user_id
    and seen.event_id = e.event_id
@@ -245,8 +232,6 @@ select
   segmento,
   genero,
   subgenero,
-  banda_precio,
-  price_proxy_mid,
   recommendation_cluster_id,
   cluster_source,
   cluster_rank,

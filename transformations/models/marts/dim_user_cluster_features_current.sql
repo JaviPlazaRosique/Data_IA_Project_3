@@ -12,9 +12,6 @@
     ('local_like_rate', '0.0'),
     ('local_swipe_share', '0.0'),
     ('avg_days_until_event_liked', '0.0'),
-    ('avg_price_mid_liked', '0.0'),
-    ('median_price_mid_liked', '0.0'),
-    ('avg_price_mid_disliked', '0.0'),
     ('chat_swipe_share', '0.0'),
     ('chat_right_rate', '0.0')
 ] %}
@@ -41,12 +38,6 @@
     ('kids', 'Kids'),
     ('circus', 'Circus'),
     ('exhibition', 'Exhibition')
-] %}
-
-{% set price_bands = [
-    ('low', 'bajo'),
-    ('medium', 'medio'),
-    ('high', 'alto')
 ] %}
 
 {% set preference_prefixes = [
@@ -86,9 +77,6 @@ select
         {% for feature_name, _ in genres %}
     coalesce(f30.{{ prefix }}_genre_{{ feature_name }}_30d, 0.0) as {{ prefix }}_genre_{{ feature_name }}_30d,
         {% endfor %}
-        {% for feature_name, _ in price_bands %}
-    coalesce(f30.{{ prefix }}_price_band_{{ feature_name }}_30d, 0.0) as {{ prefix }}_price_band_{{ feature_name }}_30d,
-        {% endfor %}
     {% endfor %}
     {% for base_name, default in feature_defaults %}
     coalesce(f90.{{ base_name }}_90d, {{ default }}) as {{ base_name }}_90d,
@@ -100,9 +88,6 @@ select
         {% endfor %}
         {% for feature_name, _ in genres %}
     coalesce(f90.{{ prefix }}_genre_{{ feature_name }}_90d, 0.0) as {{ prefix }}_genre_{{ feature_name }}_90d,
-        {% endfor %}
-        {% for feature_name, _ in price_bands %}
-    coalesce(f90.{{ prefix }}_price_band_{{ feature_name }}_90d, 0.0) as {{ prefix }}_price_band_{{ feature_name }}_90d,
         {% endfor %}
     {% endfor %}
     coalesce(f30.right_swipe_rate_30d, 0.0) - coalesce(f90.right_swipe_rate_90d, 0.0) as right_swipe_rate_delta_30_vs_90,

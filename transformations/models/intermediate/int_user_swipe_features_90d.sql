@@ -24,22 +24,8 @@
     ('exhibition', 'Exhibition')
 ] %}
 
-{% set price_bands = [
-    ('low', 'bajo'),
-    ('medium', 'medio'),
-    ('high', 'alto')
-] %}
-
 with base as (
-    select
-        *,
-        coalesce(
-            case
-                when precio_min is not null and precio_max is not null
-                    then (precio_min + precio_max) / 2.0
-            end,
-            price_proxy_mid
-        ) as price_mid
+    select *
     from {{ ref('fct_swipes') }}
     where event_timestamp >= timestamp_sub(current_timestamp(), interval 90 day)
 ),
@@ -68,9 +54,6 @@ agg as (
             avg(if(liked and fecha_evento is not null, date_diff(fecha_evento, date(event_timestamp), day), null)),
             0.0
         ) as avg_days_until_event_liked_90d,
-        coalesce(avg(if(liked, price_mid, null)), 0.0) as avg_price_mid_liked_90d,
-        coalesce(approx_quantiles(if(liked, price_mid, null), 2)[safe_offset(1)], 0.0) as median_price_mid_liked_90d,
-        coalesce(avg(if(not liked, price_mid, null)), 0.0) as avg_price_mid_disliked_90d,
         coalesce(safe_divide(countif(recommendation_context = 'chat'), count(*)), 0.0) as chat_swipe_share_90d,
         coalesce(
             safe_divide(
@@ -95,14 +78,7 @@ agg as (
         coalesce(safe_divide(countif(genero = '{{ genre_value }}'), count(*)), 0.0) as swipe_share_genre_{{ feature_name }}_90d,
         coalesce(safe_divide(countif(liked and genero = '{{ genre_value }}'), countif(liked)), 0.0) as liked_share_genre_{{ feature_name }}_90d,
         coalesce(safe_divide(countif(liked and genero = '{{ genre_value }}'), countif(genero = '{{ genre_value }}')), 0.0)
-            - coalesce(safe_divide(countif(liked), count(*)), 0.0) as preference_lift_genre_{{ feature_name }}_90d,
-        {% endfor %}
-        {% for feature_name, band_value in price_bands %}
-        coalesce(safe_divide(countif(liked and lower(banda_precio) = '{{ band_value }}'), countif(lower(banda_precio) = '{{ band_value }}')), 0.0) as like_rate_price_band_{{ feature_name }}_90d,
-        coalesce(safe_divide(countif(lower(banda_precio) = '{{ band_value }}'), count(*)), 0.0) as swipe_share_price_band_{{ feature_name }}_90d,
-        coalesce(safe_divide(countif(liked and lower(banda_precio) = '{{ band_value }}'), countif(liked)), 0.0) as liked_share_price_band_{{ feature_name }}_90d,
-        coalesce(safe_divide(countif(liked and lower(banda_precio) = '{{ band_value }}'), countif(lower(banda_precio) = '{{ band_value }}')), 0.0)
-            - coalesce(safe_divide(countif(liked), count(*)), 0.0) as preference_lift_price_band_{{ feature_name }}_90d{% if not loop.last %},{% endif %}
+            - coalesce(safe_divide(countif(liked), count(*)), 0.0) as preference_lift_genre_{{ feature_name }}_90d{% if not loop.last %},{% endif %}
         {% endfor %}
     from base
     left join reference_city
