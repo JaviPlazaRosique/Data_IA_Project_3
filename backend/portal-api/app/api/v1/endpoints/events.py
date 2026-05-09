@@ -13,6 +13,19 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 COLLECTION = "eventos"
 
+# Fields to fetch from Firestore — must match EventRead (minus "id" which comes from doc.id)
+_EVENT_FIELDS = [
+    "nombre", "url", "fecha", "hora", "fecha_utc", "estado",
+    "venta_inicio", "venta_fin", "segmento", "genero", "subgenero",
+    "recinto_id", "recinto_nombre", "ciudad", "banda_precio", "direccion", "latitud", "longitud",
+    "artista_id", "artista_nombre", "artista_imagen", "imagen_evento",
+    "promotor", "descripcion",
+    "categoria", "subcategoria", "franja_horaria", "vibra", "interior_exterior",
+    "duracion_minutos_estimada",
+    "puntuacion_familiar", "puntuacion_grupo", "puntuacion_romantica", "puntuacion_turista",
+    "restaurantes_cercanos", "alojamientos_cercanos", "antelacion_recomendada",
+]
+
 
 def _coerce(value):
     if isinstance(value, datetime):
@@ -38,7 +51,7 @@ async def _run_query(
     fecha: str | None = None,
 ) -> list[EventRead]:
     db = get_firestore()
-    q = db.collection(COLLECTION)
+    q = db.collection(COLLECTION).select(_EVENT_FIELDS)
     if ciudad:
         q = q.where("ciudad", "==", ciudad)
     if fecha:
@@ -123,20 +136,19 @@ async def registrar_visita(
     usuario: User = Depends(get_current_user),
 ) -> dict:
     db = get_firestore()
-    doc = await db.collection(COLLECTION).document(event_id).get()
+    doc = await db.collection(COLLECTION).document(event_id).select(["fecha", "nombre"]).get()
     if not doc.exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento no encontrado")
 
-    evento = _doc_to_event(doc.id, doc.to_dict())
-
-    if evento.fecha:
+    data = doc.to_dict()
+    if data.get("fecha"):
         asyncio.get_event_loop().run_in_executor(
             None,
             tasks.programar_email_valoracion,
             str(usuario.id),
             event_id,
-            evento.nombre or "el evento",
-            evento.fecha,
+            data.get("nombre") or "el evento",
+            data["fecha"],
         )
 
     return {"status": "accepted"}

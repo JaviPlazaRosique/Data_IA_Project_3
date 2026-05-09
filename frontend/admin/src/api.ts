@@ -65,8 +65,6 @@ export interface EventAdminRead {
   fecha: string | null;
   hora: string | null;
   recinto_nombre: string | null;
-  precio_min: number | null;
-  precio_max: number | null;
   estado: string | null;
 }
 

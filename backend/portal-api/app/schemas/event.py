@@ -6,8 +6,8 @@ class NearbyPlace(BaseModel):
 
     nombre: str | None = None
     direccion: str | None = None
-    rating: float | None = None
-    distancia_m: float | None = None
+    valoracion: float | None = None
+    distancia_metros: float | None = None
 
 
 class AntelacionRecomendada(BaseModel):
@@ -35,8 +35,6 @@ class EventRead(BaseModel):
     recinto_id: str | None = None
     recinto_nombre: str | None = None
     ciudad: str | None = None
-    precio_min: float | None = None
-    precio_max: float | None = None
     banda_precio: str | None = None
     direccion: str | None = None
     latitud: float | None = None
@@ -46,6 +44,17 @@ class EventRead(BaseModel):
     artista_imagen: str | None = None
     imagen_evento: str | None = None
     promotor: str | None = None
+    descripcion: str | None = None
+    categoria: str | None = None
+    subcategoria: str | None = None
+    franja_horaria: str | None = None
+    vibra: str | None = None
+    interior_exterior: str | None = None
+    duracion_minutos_estimada: int | None = None
+    puntuacion_familiar: int | None = None
+    puntuacion_grupo: int | None = None
+    puntuacion_romantica: int | None = None
+    puntuacion_turista: int | None = None
     restaurantes_cercanos: list[NearbyPlace] = []
     alojamientos_cercanos: list[NearbyPlace] = []
     antelacion_recomendada: AntelacionRecomendada | None = None
