@@ -20,24 +20,22 @@ function mapAuthError(code: string | undefined): string {
 }
 
 export default function LoginPage() {
-  const { loginEmail, loginGoogle, loginMicrosoft, user } = useAuth();
+  const { loginEmail, loginGoogle, loginMicrosoft, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingRedirect, setPendingRedirect] = useState(false);
 
   useEffect(() => {
-    if (pendingRedirect && user) {
-      setPendingRedirect(false);
+    if (!authLoading && user) {
       const onboarded =
         !!user.preferred_location ||
         (user.preferred_categories?.length ?? 0) > 0;
       navigate(onboarded ? '/map' : '/onboarding');
     }
-  }, [pendingRedirect, user, navigate]);
+  }, [user, authLoading, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -45,10 +43,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await loginEmail(email, password);
-      setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }
@@ -58,10 +54,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await loginGoogle();
-      setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }
@@ -71,10 +65,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await loginMicrosoft();
-      setPendingRedirect(true);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }
