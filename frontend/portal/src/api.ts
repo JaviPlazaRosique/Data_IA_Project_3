@@ -54,6 +54,7 @@ export interface UserRead {
   avatar_url: string | null;
   is_active: boolean;
   is_verified: boolean;
+  is_admin: boolean;
   preferred_budget: string | null;
   preferred_location: string | null;
   preferred_location_lat: number | null;
