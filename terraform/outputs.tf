@@ -129,3 +129,13 @@ output "agent_engine_eventos_rag_console_url" {
   description = "URL de consola del Agent Engine RAG."
   value       = module.agent_engine_eventos_rag.console_url
 }
+
+output "agent_rag_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del Agent Engine RAG (GitHub Secret: AGENT_RAG_CUENTA_SERVICIO)"
+  value       = module.cicd_agent_rag.email_cuenta_servicio
+}
+
+output "agent_staging_bucket" {
+  description = "URL del bucket de staging del Agent Engine (GitHub Secret: AGENT_STAGING_BUCKET)"
+  value       = module.bucket_staging_agent.url
+}

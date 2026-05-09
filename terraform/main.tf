@@ -1213,3 +1213,36 @@ module "cicd_valoracion_envio_email" {
     module.setup
   ]
 }
+
+module "bucket_staging_agent" {
+  source      = "./modules/bucket"
+  nombre      = "staging-agent-engine-${var.id_proyecto}"
+  id_proyecto = var.id_proyecto
+  ubicacion   = upper(var.region)
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "cicd_agent_rag" {
+  source             = "./modules/wif_workflow"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "cicd-agent-rag"
+  nombre_despliege   = "Cuenta de servicio para el CI/CD del Agent Engine RAG"
+  cuenta_servicio_roles = [
+    "roles/aiplatform.user",
+    "roles/run.developer",
+    "roles/iam.serviceAccountUser",
+  ]
+  nombre_pool     = module.setup.nombre_pool
+  nombre_workflow = "cicd_agent_rag"
+  depends_on = [
+    module.setup
+  ]
+}
+
+resource "google_storage_bucket_iam_member" "cicd_agent_rag_staging" {
+  bucket = module.bucket_staging_agent.nombre
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${module.cicd_agent_rag.email_cuenta_servicio}"
+}
