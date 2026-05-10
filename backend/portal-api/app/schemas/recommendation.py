@@ -13,3 +13,4 @@ class ClusterRecommendationRead(BaseModel):
     recommendation_rank: int
     recommendation_score: float
     cluster_source: str
+    recommendation_reason: str | None = None
