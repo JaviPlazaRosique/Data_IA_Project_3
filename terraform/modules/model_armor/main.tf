@@ -11,6 +11,8 @@ resource "google_model_armor_template" "plantilla" {
   location    = var.region
   template_id = var.id_template
 
+  template_metadata {}
+
   filter_config {
     pi_and_jailbreak_filter_settings {
       filter_enforcement = "ENABLED"
