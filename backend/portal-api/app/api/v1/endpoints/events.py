@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -56,6 +56,8 @@ async def _run_query(
         q = q.where("ciudad", "==", ciudad)
     if fecha:
         q = q.where("fecha", "==", fecha)
+    else:
+        q = q.where("fecha_utc", ">=", datetime.now(timezone.utc))
     if segmento:
         if len(segmento) == 1:
             q = q.where("segmento", "==", segmento[0])
