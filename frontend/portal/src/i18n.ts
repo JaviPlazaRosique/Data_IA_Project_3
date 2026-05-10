@@ -1,7 +1,7 @@
 export type Lang = 'es' | 'en';
 
 export interface I18n {
-  nav: { discover: string; recommendations: string; planner: string; map: string; profile: string; roadmap: string };
+  nav: { discover: string; planner: string; map: string; profile: string; roadmap: string };
   brand_tagline: string;
   cta_plan: string;
   cta_surprise: string;
@@ -67,7 +67,7 @@ export interface I18n {
 }
 
 const es: I18n = {
-  nav: { discover: '¿Sí o No?', recommendations: 'Para ti', planner: 'Discover', map: 'Mapa', profile: 'Perfil', roadmap: 'Próximo' },
+  nav: { discover: '¿Sí o No?', planner: 'Discover', map: 'Mapa', profile: 'Perfil', roadmap: 'Próximo' },
   brand_tagline: 'Planes que encajan con tu día, tu gente y el tiempo que hace.',
   cta_plan: 'Planéame la noche',
   cta_surprise: 'Sorpréndeme',
@@ -133,7 +133,7 @@ const es: I18n = {
 };
 
 const en: I18n = {
-  nav: { discover: 'Discover', recommendations: 'For you', planner: 'AI Planner', map: 'Map', profile: 'Profile', roadmap: 'Roadmap' },
+  nav: { discover: 'Discover', planner: 'AI Planner', map: 'Map', profile: 'Profile', roadmap: 'Roadmap' },
   brand_tagline: 'Plans that match your day, your crew, and the weather outside.',
   cta_plan: 'Plan my night',
   cta_surprise: 'Surprise me',

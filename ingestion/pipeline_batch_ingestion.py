@@ -687,9 +687,7 @@ Mapa obligatorio de categorías y subcategorías:
 {subcategorias_formateadas}
 """
 
-CAMPOS_GEMINI = {"vibra", "etiquetas_ocasion", "banda_precio", "interior_exterior", "franja_horaria",
-                 "puntuacion_romantica", "puntuacion_familiar", "puntuacion_grupo", "puntuacion_turista",
-                 "duracion_minutos_estimada", "maridajes_plan", "categoria", "subcategoria"}
+CAMPOS_GEMINI = {"uuid_evento", "franja_horaria", "categoria", "subcategoria", "contexto_rag", "antelacion_recomendada"}
 
 
 class EnriquecerConGemini(beam.DoFn):
@@ -731,7 +729,8 @@ class EnriquecerConGemini(beam.DoFn):
         cache = self.leer_cache(nombre)
         if cache is not None:
             logging.info("[Gemini] Caché HIT — id=%s | nombre=%s", evento.get("id"), nombre)
-            yield {**evento, **{campo: cache[campo] for campo in CAMPOS_GEMINI | {"antelacion_recomendada"} if campo in cache}}
+            uuid_evento = str(uuid.uuid5(uuid.NAMESPACE_DNS, nombre))
+            yield {**evento, "uuid_evento": uuid_evento, **{campo: cache[campo] for campo in (CAMPOS_GEMINI - {"uuid_evento"}) | {"antelacion_recomendada"} if campo in cache}}
             return
 
         prompt = construir_prompt_enriquecimiento_gemini(evento)
@@ -760,7 +759,7 @@ class EnriquecerConGemini(beam.DoFn):
             return
 
         datos_cache = {
-            "uuid_evento": str(uuid.uuid4()),
+            "uuid_evento": str(uuid.uuid5(uuid.NAMESPACE_DNS, nombre)),
             "antelacion_recomendada": {
                 "minutos_antelacion": enriquecimiento.get("minutos_antelacion"),
                 "motivo":             enriquecimiento.get("motivo"),

@@ -63,6 +63,11 @@ output "dbt_cuenta_servicio" {
   value       = module.cicd_dbt_transformations.email_cuenta_servicio
 }
 
+output "clustering_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del Cloud Run Job de clustering (GitHub Secret: CLUSTERING_CUENTA_SERVICIO)"
+  value       = module.cicd_clustering_train_assign.email_cuenta_servicio
+}
+
 output "host_bd" {
   description = "IP privada de CloudSQL (GitHub Secret: HOST_BD)"
   value       = module.cloudsql_portal.private_ip
@@ -108,4 +113,54 @@ output "maps_api_key" {
   description = "API Key de Google Maps JavaScript para el frontend (GitHub Secret: MAPS_API_KEY)"
   value       = module.setup.google_maps_key_string
   sensitive   = true
+}
+
+output "agent_engine_eventos_rag_nombre" {
+  description = "Nombre completo del Agent Engine RAG para usarlo como AGENT_ENGINE_RESOURCE_NAME."
+  value       = module.agent_engine_eventos_rag.nombre_agent_engine
+}
+
+output "agent_engine_eventos_rag_cuenta_servicio" {
+  description = "Cuenta de servicio que ejecuta el Agent Engine RAG."
+  value       = module.agent_engine_eventos_rag.email_cuenta_servicio
+}
+
+output "agent_engine_eventos_rag_console_url" {
+  description = "URL de consola del Agent Engine RAG."
+  value       = module.agent_engine_eventos_rag.console_url
+}
+
+output "agent_rag_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del Agent Engine RAG (GitHub Secret: AGENT_RAG_CUENTA_SERVICIO)"
+  value       = module.cicd_agent_rag.email_cuenta_servicio
+}
+
+output "agent_staging_bucket" {
+  description = "URL del bucket de staging del Agent Engine (GitHub Secret: AGENT_STAGING_BUCKET)"
+  value       = module.bucket_staging_agent.url
+}
+
+output "url_frontend_admin" {
+  description = "URL del panel de administración alojado en GCS"
+  value       = module.frontend_admin.url_web
+}
+
+output "admin_api_url" {
+  description = "URL del Admin API en Cloud Run"
+  value       = module.cloud_run_admin_api.service_url
+}
+
+output "bucket_frontend_admin" {
+  description = "Nombre del bucket GCS del panel de administración (GitHub Secret: BUCKET_FRONTEND_ADMIN)"
+  value       = module.frontend_admin.nombre_bucket
+}
+
+output "frontend_admin_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del frontend admin (GitHub Secret: FRONTEND_ADMIN_CUENTA_SERVICIO)"
+  value       = module.cicd_frontend_admin.email_cuenta_servicio
+}
+
+output "backend_admin_api_cuenta_servicio" {
+  description = "Cuenta de servicio del CI/CD del Admin API (GitHub Secret: BACKEND_ADMIN_API_CUENTA_SERVICIO)"
+  value       = module.cicd_backend_admin_api.email_cuenta_servicio
 }
