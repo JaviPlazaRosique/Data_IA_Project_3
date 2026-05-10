@@ -313,7 +313,8 @@ export default function QuickMatch({ onSaved, recommendationContext = 'swipe' }:
             {upcoming
               .map((ev, i) => {
                 const depth = i + 1;
-                const image = ev.imagen_evento ?? ev.artista_imagen ?? IMAGE_FALLBACK;
+                // --- AJUSTE IA EN COLA ---
+                const image = `/portadas/${ev.id}_var_1.jpg`;
                 const title = ev.nombre ?? 'Evento';
                 const locationLine = [ev.recinto_nombre, ev.ciudad].filter(Boolean).join(' • ');
                 return (
@@ -328,6 +329,7 @@ export default function QuickMatch({ onSaved, recommendationContext = 'swipe' }:
                   >
                     <img
                       src={image}
+                      onError={(e) => { (e.target as HTMLImageElement).src = ev.imagen_evento ?? ev.artista_imagen ?? IMAGE_FALLBACK; }}
                       alt={title}
                       draggable={false}
                       className="w-full h-full object-cover pointer-events-none select-none"
@@ -486,15 +488,15 @@ export default function QuickMatch({ onSaved, recommendationContext = 'swipe' }:
   );
 }
 
-function Card({
-  event,
-  style,
-  likeOpacity,
+function Card({ 
+  event, 
+  style, 
+  likeOpacity, 
   nopeOpacity,
   onPointerDown,
   onPointerMove,
   onPointerUp,
-  onPointerCancel,
+  onPointerCancel
 }: {
   event: EventCatalogItem;
   style: React.CSSProperties;
@@ -505,7 +507,8 @@ function Card({
   onPointerUp: (e: React.PointerEvent) => void;
   onPointerCancel: (e: React.PointerEvent) => void;
 }) {
-  const image = event.imagen_evento ?? event.artista_imagen ?? IMAGE_FALLBACK;
+  // --- AJUSTE IA: Buscamos tu imagen en /portadas/{id}.jpg ---
+  const imageIA = `/portadas/${event.id}.jpg`;
   const title = event.nombre ?? 'Evento';
   const locationLine = [event.recinto_nombre, event.ciudad].filter(Boolean).join(' • ');
   const dateLine = [event.fecha, event.hora].filter(Boolean).join(' · ');
@@ -523,61 +526,63 @@ function Card({
       onPointerCancel={onPointerCancel}
     >
       <img
-        src={image}
+        src={imageIA}
+        // Si la imagen de la IA no existe todavía, usamos la original de la API
+        onError={(e) => { (e.target as HTMLImageElement).src = event.imagen_evento ?? event.artista_imagen ?? IMAGE_FALLBACK; }}
         alt={title}
         draggable={false}
         className="w-full h-full object-cover pointer-events-none select-none"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/30 to-transparent" />
 
-      <div
-        className="absolute top-6 left-6 border-4 border-primary text-primary px-4 py-2 rounded-xl font-black text-2xl tracking-widest uppercase rotate-[-12deg] pointer-events-none"
-        style={{ opacity: likeOpacity }}
-      >
-        Like
-      </div>
-      <div
-        className="absolute top-6 right-6 border-4 border-error text-error px-4 py-2 rounded-xl font-black text-2xl tracking-widest uppercase rotate-[12deg] pointer-events-none"
-        style={{ opacity: nopeOpacity }}
-      >
-        Skip
-      </div>
+        <div
+          className="absolute top-6 left-6 border-4 border-primary text-primary px-4 py-2 rounded-xl font-black text-2xl tracking-widest uppercase rotate-[-12deg] pointer-events-none"
+          style={{ opacity: likeOpacity }}
+        >
+          Like
+        </div>
+        <div
+          className="absolute top-6 right-6 border-4 border-error text-error px-4 py-2 rounded-xl font-black text-2xl tracking-widest uppercase rotate-[12deg] pointer-events-none"
+          style={{ opacity: nopeOpacity }}
+        >
+          Skip
+        </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-6 space-y-2 pointer-events-none">
-        {tags.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {tags.map((t) => (
-              <span
-                key={t}
-                className="bg-surface-container-lowest/60 backdrop-blur-md text-primary font-bold text-[10px] px-3 py-1 rounded-full border border-primary/20 uppercase tracking-widest"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-        <h3 className="text-2xl md:text-3xl font-headline font-extrabold leading-tight">
-          {title}
-        </h3>
-        {locationLine && (
-          <p className="text-on-surface/70 text-sm flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">location_on</span>
-            {locationLine}
-          </p>
-        )}
-        {dateLine && (
-          <p className="text-on-surface/70 text-sm flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">calendar_today</span>
-            {dateLine}
-          </p>
-        )}
-        {event.banda_precio && (
-          <p className="text-on-surface/70 text-sm flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">sell</span>
-            {event.banda_precio}
-          </p>
-        )}
+        <div className="absolute bottom-0 left-0 right-0 p-6 space-y-2 pointer-events-none">
+          {tags.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="bg-surface-container-lowest/60 backdrop-blur-md text-primary font-bold text-[10px] px-3 py-1 rounded-full border border-primary/20 uppercase tracking-widest"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+          <h3 className="text-2xl md:text-3xl font-headline font-extrabold leading-tight">
+            {title}
+          </h3>
+          {locationLine && (
+            <p className="text-on-surface/70 text-sm flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm">location_on</span>
+              {locationLine}
+            </p>
+          )}
+          {dateLine && (
+            <p className="text-on-surface/70 text-sm flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm">calendar_today</span>
+              {dateLine}
+            </p>
+          )}
+          {event.banda_precio && (
+            <p className="text-on-surface/70 text-sm flex items-center gap-1">
+              <span className="material-symbols-outlined text-sm">sell</span>
+              {event.banda_precio}
+            </p>
+          )}
+        </div>
       </div>
-    </div>
-  );
+      );
 }
