@@ -24,6 +24,7 @@ _EVENT_FIELDS = [
     "duracion_minutos_estimada",
     "puntuacion_familiar", "puntuacion_grupo", "puntuacion_romantica", "puntuacion_turista",
     "restaurantes_cercanos", "alojamientos_cercanos", "antelacion_recomendada",
+    "tiempo",
 ]
 
 
