@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import firebase_admin
+import httpx
 from firebase_admin import credentials, firestore
 
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "demo-local")
@@ -2226,6 +2227,96 @@ def _build_extra_events() -> list[dict]:
 EVENTS.extend(_build_extra_events())
 
 
+# ── Open-Meteo weather enrichment ─────────────────────────────────────────────
+
+_WMO_DESC: dict[int, str] = {
+    0: "Cielos despejados", 1: "Principalmente despejado", 2: "Parcialmente nublado", 3: "Nublado",
+    45: "Niebla", 48: "Niebla con escarcha",
+    51: "Llovizna ligera", 53: "Llovizna moderada", 55: "Llovizna densa",
+    61: "Lluvia ligera", 63: "Lluvia moderada", 65: "Lluvia intensa",
+    71: "Nevada ligera", 73: "Nevada moderada", 75: "Nevada intensa",
+    80: "Chubascos ligeros", 81: "Chubascos moderados", 82: "Chubascos violentos",
+    95: "Tormenta", 96: "Tormenta con granizo", 99: "Tormenta con granizo intenso",
+}
+
+
+def _wmo_desc(code: int) -> str:
+    if code in _WMO_DESC:
+        return _WMO_DESC[code]
+    return _WMO_DESC[min(_WMO_DESC, key=lambda k: abs(k - code))]
+
+
+def _fetch_tiempo(lat: float, lng: float, fecha_str: str) -> "dict | None":
+    today = date.today()
+    event_date = date.fromisoformat(fecha_str)
+    near_cutoff = today + timedelta(days=16)
+    old_cutoff = today - timedelta(days=90)
+
+    if old_cutoff <= event_date <= near_cutoff:
+        url = "https://api.open-meteo.com/v1/forecast"
+        target = event_date
+    elif event_date > near_cutoff:
+        # Far future — use same date last year as proxy
+        url = "https://archive-api.open-meteo.com/v1/archive"
+        target = event_date.replace(year=event_date.year - 1)
+    else:
+        # Old past date
+        url = "https://archive-api.open-meteo.com/v1/archive"
+        target = event_date
+
+    params = {
+        "latitude": round(lat, 4),
+        "longitude": round(lng, 4),
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max",
+        "timezone": "Europe/Madrid",
+        "start_date": target.isoformat(),
+        "end_date": target.isoformat(),
+    }
+    try:
+        resp = httpx.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        daily = resp.json().get("daily", {})
+        if not daily.get("time"):
+            return None
+        code = int(daily["weather_code"][0])
+        return {
+            "temp_max": daily["temperature_2m_max"][0],
+            "temp_min": daily["temperature_2m_min"][0],
+            "precipitacion_mm": daily["precipitation_sum"][0] or 0.0,
+            "viento_max_kmh": daily["wind_speed_10m_max"][0],
+            "codigo_wmo": code,
+            "descripcion": _wmo_desc(code),
+        }
+    except Exception as exc:
+        print(f"  ⚠ weather fetch failed ({lat}, {lng}, {fecha_str}): {exc}")
+        return None
+
+
+def _enrich_with_weather(events: list[dict]) -> None:
+    if os.environ.get("SKIP_WEATHER_ENRICHMENT", "").lower() in ("1", "true", "yes"):
+        print("  ⚡ Weather enrichment skipped (SKIP_WEATHER_ENRICHMENT=true)")
+        return
+
+    cache: dict[tuple, "dict | None"] = {}
+    enriched = 0
+    for event in events:
+        lat = event.get("latitud")
+        lng = event.get("longitud")
+        fecha = event.get("fecha")
+        if lat is None or lng is None or not fecha:
+            continue
+        key = (round(lat, 2), round(lng, 2), fecha)
+        if key not in cache:
+            cache[key] = _fetch_tiempo(lat, lng, fecha)
+        if cache[key]:
+            event["tiempo"] = cache[key]
+            enriched += 1
+
+    print(f"  ✓ Weather enriched {enriched}/{len(events)} events ({len(cache)} unique API calls)")
+
+
+# ── Firestore helpers ──────────────────────────────────────────────────────────
+
 class _EmulatorCredential(credentials.Base):
     """Stub credential — the Firestore emulator ignores auth."""
 
@@ -2253,6 +2344,9 @@ def main() -> None:
             "FIRESTORE_EMULATOR_HOST is not set — this script only targets the emulator.",
         )
     _wait_for_emulator(host_port)
+
+    print("Fetching weather forecasts from Open-Meteo…")
+    _enrich_with_weather(EVENTS)
 
     firebase_admin.initialize_app(_EmulatorCredential(), {"projectId": PROJECT_ID})
     db = firestore.client()

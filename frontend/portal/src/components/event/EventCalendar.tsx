@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export type CalendarSlot = { time: string; url: string | null };
 export type CalendarEntry = { date: string; slots: CalendarSlot[] };
 
 type Props = {
   entries: CalendarEntry[];
+  onDateSelect?: (date: string | null) => void;
 };
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -27,7 +28,7 @@ function toISO(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export default function EventCalendar({ entries }: Props) {
+export default function EventCalendar({ entries, onDateSelect }: Props) {
   const todayISO = toISO(new Date());
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
 
@@ -89,6 +90,10 @@ export default function EventCalendar({ entries }: Props) {
     if (canGoPrev) setViewMonth((v) => new Date(v.getFullYear(), v.getMonth() - 1, 1));
   };
   const goNext = () => setViewMonth((v) => new Date(v.getFullYear(), v.getMonth() + 1, 1));
+
+  useEffect(() => {
+    onDateSelect?.(selectedDate);
+  }, [selectedDate, onDateSelect]);
 
   const selectedEntry = selectedDate ? futureEntryMap.get(selectedDate) ?? null : null;
 
