@@ -26,6 +26,7 @@ def deploy() -> str:
     staging_bucket = _required_env("STAGING_BUCKET")
     if not staging_bucket.startswith("gs://"):
         staging_bucket = f"gs://{staging_bucket}"
+    agent_sa = os.getenv("AGENT_ENGINE_SA", "").strip() or None
 
     if isinstance(root_agent, _MissingAgentEnvironment):
         raise RuntimeError(
@@ -65,6 +66,7 @@ def deploy() -> str:
         description="Agente ADK que recomienda eventos con BigQuery Vector Search.",
         env_vars=env_vars,
         gcs_dir_name="eventos-rag-agent",
+        service_account=agent_sa,
     )
 
     resource_name = getattr(remote_agent, "resource_name", "") or str(remote_agent)
