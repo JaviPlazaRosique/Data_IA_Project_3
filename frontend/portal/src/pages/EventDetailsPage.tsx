@@ -86,12 +86,15 @@ function buildScheduleEntries(items: EventCatalogItem[]): ScheduleEntry[] {
     }));
 }
 
-const weatherMetrics = [
-  { label: 'Precipitación', value: '2%' },
-  { label: 'Humedad', value: '45%' },
-  { label: 'Viento', value: '12 km/h' },
-  { label: 'Índice UV', value: '0 Bajo' },
-];
+function wmoToIcon(code: number): string {
+  if (code === 0) return 'wb_sunny';
+  if (code <= 3) return 'partly_cloudy_day';
+  if (code <= 48) return 'foggy';
+  if (code <= 67) return 'rainy';
+  if (code <= 77) return 'weather_snowy';
+  if (code <= 86) return 'rainy';
+  return 'thunderstorm';
+}
 
 export default function EventDetailsPage() {
   const { id: routeId } = useParams<{ id: string }>();
@@ -105,6 +108,7 @@ export default function EventDetailsPage() {
   const [occurrences, setOccurrences] = useState<EventCatalogItem[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   const shareData = useMemo(() => {
     if (!event) return null;
@@ -159,6 +163,14 @@ export default function EventDetailsPage() {
   }, [routeId]);
 
   const schedule = buildScheduleEntries(occurrences);
+
+  const activeTiempo = useMemo(() => {
+    if (selectedCalendarDate) {
+      const match = occurrences.find((o) => o.fecha === selectedCalendarDate);
+      if (match?.tiempo) return match.tiempo;
+    }
+    return event?.tiempo ?? null;
+  }, [selectedCalendarDate, occurrences, event]);
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -273,34 +285,50 @@ export default function EventDetailsPage() {
             className="md:col-span-8 glass-panel rounded-xl p-8 border border-outline-variant/20 overflow-hidden relative"
             style={{ background: 'linear-gradient(135deg, rgba(182,160,255,0.15) 0%, rgba(169,143,255,0.15) 100%)' }}
           >
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div>
-                <h2 className="text-2xl font-bold font-headline mb-1">Previsión del tiempo</h2>
-                <p className="text-on-surface-variant font-label text-sm">Real-time data powered by Open-Meteo</p>
-              </div>
-              <div className="flex items-center gap-4 bg-surface-container-lowest/50 p-4 rounded-xl">
-                <span className="material-symbols-outlined text-secondary" style={{ fontSize: '3rem' }}>partly_cloudy_night</span>
-                <div>
-                  <div className="text-4xl font-black font-headline">18°C</div>
-                  <div className="text-sm font-label text-on-surface-variant">Cielos despejados</div>
+            {activeTiempo ? (
+              <>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div>
+                    <h2 className="text-2xl font-bold font-headline mb-1">Previsión del tiempo</h2>
+                    <p className="text-on-surface-variant font-label text-sm">
+                      {selectedCalendarDate ?? event?.fecha ?? ''} · Open-Meteo
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 bg-surface-container-lowest/50 p-4 rounded-xl">
+                    <span className="material-symbols-outlined text-secondary" style={{ fontSize: '3rem' }}>{wmoToIcon(activeTiempo.codigo_wmo)}</span>
+                    <div>
+                      <div className="text-4xl font-black font-headline">{Math.round(activeTiempo.temp_max)}°C</div>
+                      <div className="text-sm font-label text-on-surface-variant">{activeTiempo.descripcion}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-              {weatherMetrics.map((m) => (
-                <div key={m.label} className="bg-surface-container-low p-4 rounded-lg flex flex-col gap-1">
-                  <span className="text-xs text-on-surface-variant uppercase font-bold tracking-widest">{m.label}</span>
-                  <span className="text-lg font-bold">{m.value}</span>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                  {[
+                    { label: 'Temp. máx', value: `${Math.round(activeTiempo.temp_max)}°C` },
+                    { label: 'Temp. mín', value: `${Math.round(activeTiempo.temp_min)}°C` },
+                    { label: 'Precipitación', value: `${activeTiempo.precipitacion_mm} mm` },
+                    { label: 'Viento', value: `${Math.round(activeTiempo.viento_max_kmh)} km/h` },
+                  ].map((m) => (
+                    <div key={m.label} className="bg-surface-container-low p-4 rounded-lg flex flex-col gap-1">
+                      <span className="text-xs text-on-surface-variant uppercase font-bold tracking-widest">{m.label}</span>
+                      <span className="text-lg font-bold">{m.value}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 gap-3 text-on-surface-variant">
+                <span className="material-symbols-outlined text-4xl">cloud_off</span>
+                <p className="font-label text-sm">Sin datos meteorológicos disponibles</p>
+              </div>
+            )}
             <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
           </div>
 
           {/* Calendar Panel */}
           <div className="md:col-span-4">
             {schedule.length > 0 ? (
-              <EventCalendar entries={schedule} />
+              <EventCalendar entries={schedule} onDateSelect={setSelectedCalendarDate} />
             ) : (
               <div className="bg-surface-container-low rounded-2xl p-6 border border-outline-variant/20 h-full flex flex-col items-center justify-center text-center gap-2">
                 <span className="material-symbols-outlined text-primary text-4xl">calendar_month</span>
