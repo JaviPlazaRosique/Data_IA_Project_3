@@ -3,12 +3,14 @@ from __future__ import annotations
 import os
 import re
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,1023}$")
 _PROJECT_RE = re.compile(r"^[a-z][a-z0-9-]{4,61}[a-z0-9]$")
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
 
 
 def _first_env(*names: str, default: str = "") -> str:
@@ -30,7 +32,7 @@ class AgentSettings(BaseSettings):
     embedding_dimension: int = Field(default=3072, alias="EMBEDDING_DIMENSION")
     agent_model: str = Field(default="gemini-2.5-flash", alias="AGENT_MODEL")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_ENV_PATH), env_file_encoding="utf-8", extra="ignore")
 
     @field_validator("project_id")
     @classmethod

@@ -9,6 +9,9 @@ import vertexai
 from vertexai import agent_engines
 
 
+_EXTRACTOR_AGENT_NAME = "user_query_extractor"
+
+
 def _event_text(event: Any) -> str:
     if isinstance(event, str):
         return event
@@ -23,6 +26,14 @@ def _event_text(event: Any) -> str:
     return text if isinstance(text, str) else ""
 
 
+def _event_author(event: Any) -> str | None:
+    if isinstance(event, dict):
+        author = event.get("author")
+        return author if isinstance(author, str) else None
+    author = getattr(event, "author", None)
+    return author if isinstance(author, str) else None
+
+
 async def call_remote(resource_name: str, user_id: str, session_id: str, message: str) -> None:
     vertexai.init(project=os.getenv("PROJECT_ID") or None, location=os.getenv("REGION", "europe-west1"))
     remote_agent = agent_engines.get(resource_name)
@@ -35,6 +46,8 @@ async def call_remote(resource_name: str, user_id: str, session_id: str, message
     except TypeError:
         stream = remote_agent.async_stream_query(user_id=user_id, message=message)
     async for event in stream:
+        if _event_author(event) == _EXTRACTOR_AGENT_NAME:
+            continue
         text = _event_text(event)
         if text:
             print(text)
