@@ -107,7 +107,7 @@ with event_catalog as (
     genero,
     subgenero,
     (
-      if(@preferred_location is not null and lower(ciudad) = lower(@preferred_location), 1.0, 0.0)
+      if(@preferred_location is not null and lower(ciudad) = lower(@preferred_location), 0.8, 0.0)
       + if(
           array_length(@preferred_categories) > 0
           and exists (
@@ -121,7 +121,7 @@ with event_catalog as (
               coalesce(subcategoria, '')
             )) like concat('%', lower(category), '%')
           ),
-          0.4,
+          1.0,
           0.0
         )
       + greatest(0.0, 0.20 - date_diff(fecha, current_date(), day) * 0.003)
