@@ -3,7 +3,9 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   signOut,
   type User as FbUser,
 } from 'firebase/auth';
@@ -46,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const auth = await getFirebaseAuth();
+      // Process any pending redirect result (mobile fallback)
+      await getRedirectResult(auth).catch(() => {});
       unsub = onAuthStateChanged(auth, async (u) => {
         if (!u) {
           setFbUser(null);
@@ -77,12 +81,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loginGoogle() {
     const auth = await getFirebaseAuth();
-    await signInWithRedirect(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        throw err;
+      }
+    }
   }
 
   async function loginMicrosoft() {
     const auth = await getFirebaseAuth();
-    await signInWithRedirect(auth, microsoftProvider);
+    try {
+      await signInWithPopup(auth, microsoftProvider);
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, microsoftProvider);
+      } else {
+        throw err;
+      }
+    }
   }
 
   async function registerEmail(email: string, password: string) {
