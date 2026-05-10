@@ -81,7 +81,11 @@ async def update_me(
 
     if "preferred_location" in update_data:
         location = update_data["preferred_location"]
-        if location:
+        client_has_coords = (
+            "preferred_location_lat" in update_data
+            and "preferred_location_lng" in update_data
+        )
+        if location and not client_has_coords:
             coords = await _geocode(location)
             if coords:
                 update_data["preferred_location_lat"] = coords[0]
@@ -89,7 +93,7 @@ async def update_me(
             else:
                 update_data["preferred_location_lat"] = None
                 update_data["preferred_location_lng"] = None
-        else:
+        elif not location:
             update_data["preferred_location_lat"] = None
             update_data["preferred_location_lng"] = None
 

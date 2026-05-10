@@ -51,6 +51,8 @@ function RecCard({ rec }: { rec: ClusterRecommendationRead }) {
   const dateLabel = rec.fecha_evento
     ? new Date(rec.fecha_evento).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
     : null;
+  const recommendationBadge = rec.recommendation_reason
+    ?? (rec.cluster_source === 'cold_start' ? 'Plan destacado' : null);
 
   return (
     <div className="bg-surface-container rounded-2xl border border-outline-variant/10 hover:bg-surface-container-high transition-colors overflow-hidden flex flex-col">
@@ -84,9 +86,9 @@ function RecCard({ rec }: { rec: ClusterRecommendationRead }) {
             </span>
           )}
         </div>
-        {rec.cluster_source === 'cold_start' && (
+        {recommendationBadge && (
           <span className="mt-1 self-start text-[10px] font-bold uppercase tracking-wide bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">
-            Popular cerca
+            {recommendationBadge}
           </span>
         )}
       </div>

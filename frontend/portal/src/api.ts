@@ -265,6 +265,15 @@ export interface SwipeEventAccepted {
 
 // ─── Event catalog types ──────────────────────────────────────────────────────
 
+export interface EventTiempo {
+  temp_max: number;
+  temp_min: number;
+  precipitacion_mm: number;
+  codigo_wmo: number;
+  descripcion: string;
+  viento_max_kmh: number;
+}
+
 export interface EventCatalogItem {
   id: string;
   nombre: string | null;
@@ -285,6 +294,7 @@ export interface EventCatalogItem {
   artista_nombre: string | null;
   artista_imagen: string | null;
   imagen_evento: string | null;
+  tiempo: EventTiempo | null;
 }
 
 // ─── Plans API ────────────────────────────────────────────────────────────────
@@ -439,6 +449,7 @@ export interface ClusterRecommendationRead {
   recommendation_rank: number;
   recommendation_score: number;
   cluster_source: string;
+  recommendation_reason?: string | null;
 }
 
 export async function apiListRecommendations(limit = 10): Promise<ClusterRecommendationRead[]> {

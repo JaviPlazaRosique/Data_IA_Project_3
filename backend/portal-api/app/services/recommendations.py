@@ -75,7 +75,8 @@ select
   subgenero,
   recommendation_rank,
   recommendation_score,
-  cluster_source
+  cluster_source,
+  cast(null as string) as recommendation_reason
 from {_recommendations_table()}
 where user_id = @user_id
 order by recommendation_rank asc
@@ -107,21 +108,46 @@ with event_catalog as (
     genero,
     subgenero,
     (
-      if(@preferred_location is not null and lower(ciudad) = lower(@preferred_location), 1.0, 0.0)
+      nullif(trim(@preferred_location), '') is not null
+      and lower(ciudad) = lower(nullif(trim(@preferred_location), ''))
+    ) as matches_preferred_location,
+    (
+      array_length(@preferred_categories) > 0
+      and exists (
+        select 1
+        from unnest(@preferred_categories) category
+        where nullif(trim(category), '') is not null
+          and lower(concat(
+            coalesce(segmento, ''), ' ',
+            coalesce(genero, ''), ' ',
+            coalesce(subgenero, ''), ' ',
+            coalesce(categoria, ''), ' ',
+            coalesce(subcategoria, '')
+          )) like concat('%', lower(trim(category)), '%')
+      )
+    ) as matches_preferred_category,
+    (
+      if(
+        nullif(trim(@preferred_location), '') is not null
+        and lower(ciudad) = lower(nullif(trim(@preferred_location), '')),
+        0.8,
+        0.0
+      )
       + if(
           array_length(@preferred_categories) > 0
           and exists (
             select 1
             from unnest(@preferred_categories) category
-            where lower(concat(
+            where nullif(trim(category), '') is not null
+              and lower(concat(
               coalesce(segmento, ''), ' ',
               coalesce(genero, ''), ' ',
               coalesce(subgenero, ''), ' ',
               coalesce(categoria, ''), ' ',
               coalesce(subcategoria, '')
-            )) like concat('%', lower(category), '%')
+            )) like concat('%', lower(trim(category)), '%')
           ),
-          0.4,
+          1.0,
           0.0
         )
       + greatest(0.0, 0.20 - date_diff(fecha, current_date(), day) * 0.003)
@@ -163,7 +189,13 @@ select
     order by recommendation_score desc, fecha_evento asc, event_id asc
   ) as recommendation_rank,
   recommendation_score,
-  'cold_start' as cluster_source
+  'cold_start' as cluster_source,
+  case
+    when matches_preferred_location and matches_preferred_category then 'Para ti'
+    when matches_preferred_category then 'Según tus preferencias'
+    when matches_preferred_location then 'Cerca de ti'
+    else 'Plan destacado'
+  end as recommendation_reason
 from scored_events
 order by recommendation_rank asc
 limit @limit
@@ -206,6 +238,7 @@ def _query_local_fallback(user_id: str, limit: int) -> list[ClusterRecommendatio
                     recommendation_rank=int(row["recommendation_rank"]),
                     recommendation_score=float(row["recommendation_score"]),
                     cluster_source=row["cluster_source"],
+                    recommendation_reason=row.get("recommendation_reason") or None,
                 )
             )
 
