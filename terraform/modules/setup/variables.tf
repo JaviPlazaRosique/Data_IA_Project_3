@@ -28,7 +28,8 @@ variable "servicios_gcp" {
     "maps-backend.googleapis.com",
     "firebase.googleapis.com",
     "identitytoolkit.googleapis.com",
-    "modelarmor.googleapis.com"
+    "modelarmor.googleapis.com",
+    "workflows.googleapis.com"
   ]
 }
 

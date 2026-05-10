@@ -63,9 +63,9 @@ ejecutar_y_esperar_job:
 
     - evaluar_estado:
         switch:
-          - condition: ${"error" in estado.body and estado.body.done == true}
+          - condition: ${"done" in estado.body and "error" in estado.body and estado.body.done == true}
             raise: ${estado.body.error}
-          - condition: ${estado.body.done == true}
+          - condition: ${"done" in estado.body and estado.body.done == true}
             next: job_completado
         next: esperar
 

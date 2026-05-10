@@ -1156,6 +1156,7 @@ module "workflow_dbt_clustering_sa" {
   nombre_despliege   = "Cuenta de servicio para el workflow de orquestación dbt + clustering"
   cuenta_servicio_roles = [
     "roles/run.invoker",
+    "roles/run.viewer",
     "roles/logging.logWriter",
   ]
   depends_on = [
