@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import TopNav from '../components/layout/TopNav';
 import BottomNav from '../components/layout/BottomNav';
 import { itineraryMapImage } from '../data/mockData';
@@ -20,6 +20,31 @@ const SEGMENT_ICON: Record<string, string> = {
   Arts_Theatre: 'theater_comedy',
   Family: 'family_restroom',
 };
+
+const URL_REGEX = /(https?:\/\/\S+)/g;
+const TRAILING_PUNCT = /[.,;:!?)\]}>"']+$/;
+
+function renderWithLinks(text: string): ReactNode[] {
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, idx) => {
+    if (idx % 2 === 0) return part;
+    const trailing = part.match(TRAILING_PUNCT)?.[0] ?? '';
+    const url = trailing ? part.slice(0, -trailing.length) : part;
+    return (
+      <span key={idx}>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline underline-offset-2 hover:opacity-80 break-all"
+        >
+          {url}
+        </a>
+        {trailing}
+      </span>
+    );
+  });
+}
 
 function RecCard({ rec }: { rec: ClusterRecommendationRead }) {
   const icon = SEGMENT_ICON[rec.segmento ?? ''] ?? 'event';
@@ -289,7 +314,9 @@ export default function AIPlannerPage() {
                               : 'bg-primary/10 rounded-tr-none border-primary/20'
                           }`}
                         >
-                          <p className="text-sm leading-relaxed text-on-surface break-words">{msg.content}</p>
+                          <p className="text-sm leading-relaxed text-on-surface break-words whitespace-pre-wrap">
+                            {msg.role === 'assistant' ? renderWithLinks(msg.content) : msg.content}
+                          </p>
                         </div>
                         {msg.timestamp && (
                           <span className="text-[10px] text-on-surface-variant px-1 uppercase tracking-widest">

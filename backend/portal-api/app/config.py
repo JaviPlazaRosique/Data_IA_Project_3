@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     AGENT_ENGINE_RESOURCE_NAME: str = ""
     AGENT_REGION: str = "europe-west1"
 
+    # Model Armor — guardrails del chat (input sanitization)
+    MODEL_ARMOR_ENABLED: bool = False
+    MODEL_ARMOR_LOCATION: str = "europe-west1"
+    MODEL_ARMOR_TEMPLATE_ID: str = ""
+
     @model_validator(mode="after")
     def validate_db_config(self) -> "Settings":
         has_full_url = bool(self.DATABASE_URL)

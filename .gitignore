@@ -61,3 +61,5 @@ local/swipes_data/
 
 # Estado local del ADK (sesiones del agente)
 .adk/
+ingestion/backfill_embeddings.py
+ingestion/migrar_rag.py
