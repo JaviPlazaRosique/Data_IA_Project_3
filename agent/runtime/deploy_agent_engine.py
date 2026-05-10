@@ -24,6 +24,8 @@ def deploy() -> str:
     project_id = _required_env("PROJECT_ID")
     region = os.getenv("REGION", settings.region)
     staging_bucket = _required_env("STAGING_BUCKET")
+    if not staging_bucket.startswith("gs://"):
+        staging_bucket = f"gs://{staging_bucket}"
 
     if isinstance(root_agent, _MissingAgentEnvironment):
         raise RuntimeError(
