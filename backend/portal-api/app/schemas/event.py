@@ -57,3 +57,4 @@ class EventRead(BaseModel):
     restaurantes_cercanos: list[NearbyPlace] = []
     alojamientos_cercanos: list[NearbyPlace] = []
     antelacion_recomendada: AntelacionRecomendada | None = None
+    tiempo: dict | None = None
