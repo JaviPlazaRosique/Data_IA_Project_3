@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import logging
 import math
@@ -36,48 +37,42 @@ def validate_embedding(vector: list[float]) -> list[float]:
 
 def build_vector_search_sql(rag_table_fqn: str) -> str:
     return f"""
-SELECT * EXCEPT(rn)
-FROM (
-  SELECT
-    base.id              AS id,
-    base.nombre          AS title,
-    base.categoria       AS category,
-    base.ciudad          AS ciudad,
-    base.franja_horaria  AS franja_horaria,
-    base.contexto_rag    AS content,
-    base.url             AS source_url,
-    base.fecha           AS fecha_evento,
-    CURRENT_TIMESTAMP()  AS updated_at,
-    distance,
-    ROW_NUMBER() OVER (PARTITION BY base.id ORDER BY distance ASC) AS rn
-  FROM VECTOR_SEARCH(
-    (
-      SELECT id, nombre, categoria, ciudad, franja_horaria, contexto_rag, url, fecha, embedding
-      FROM {rag_table_fqn}
-      WHERE ARRAY_LENGTH(embedding) = @embedding_dim
-        AND (@category IS NULL OR categoria = @category)
-        AND (@ciudad IS NULL OR ciudad = @ciudad)
-        AND (@franja_horaria IS NULL OR franja_horaria = @franja_horaria)
-        AND (@date_from IS NULL OR fecha >= CAST(@date_from AS DATE))
-        AND (@date_to   IS NULL OR fecha <= CAST(@date_to   AS DATE))
-    ),
-    'embedding',
-    (SELECT @query_embedding AS embedding, @query_text AS query_text),
-    top_k => @top_k,
-    distance_type => 'COSINE',
-    options => '{{"use_brute_force": true}}'
-  )
+SELECT
+  base.id              AS id,
+  base.nombre          AS title,
+  base.categoria       AS category,
+  base.ciudad          AS ciudad,
+  base.franja_horaria  AS franja_horaria,
+  base.contexto_rag    AS content,
+  base.url             AS source_url,
+  base.fecha           AS fecha_evento,
+  CURRENT_TIMESTAMP()  AS updated_at,
+  distance
+FROM VECTOR_SEARCH(
+  (
+    SELECT id, nombre, categoria, ciudad, franja_horaria, contexto_rag, url, fecha, embedding
+    FROM {rag_table_fqn}
+    WHERE ARRAY_LENGTH(embedding) = @embedding_dim
+      AND (@category IS NULL OR categoria = @category)
+      AND (@ciudad IS NULL OR ciudad = @ciudad)
+      AND (@franja_horaria IS NULL OR franja_horaria = @franja_horaria)
+      AND (@date_from IS NULL OR fecha >= CAST(@date_from AS DATE))
+      AND (@date_to   IS NULL OR fecha <= CAST(@date_to   AS DATE))
+  ),
+  'embedding',
+  (SELECT @query_embedding AS embedding, @query_text AS query_text),
+  top_k => @top_k,
+  distance_type => 'COSINE',
+  options => '{{"use_brute_force": true}}'
 )
-WHERE rn = 1
 ORDER BY distance ASC
 """.strip()
 
 
 def _serialize_row(row: Any) -> dict[str, Any]:
-    import datetime
     raw = dict(row.items()) if hasattr(row, "items") else dict(row)
     return {
-        k: v.isoformat() if isinstance(v, (datetime.date, datetime.datetime)) else v
+        k: v.isoformat() if isinstance(v, (_dt.date, _dt.datetime)) else v
         for k, v in raw.items()
     }
 

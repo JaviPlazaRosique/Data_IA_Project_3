@@ -8,7 +8,7 @@ import vertexai
 from vertexai import agent_engines
 from vertexai.agent_engines import AdkApp
 
-from agent.agent import root_agent
+from agent.agent import _MissingAgentEnvironment, root_agent
 from agent.config import get_settings
 
 
@@ -25,8 +25,11 @@ def deploy() -> str:
     region = os.getenv("REGION", settings.region)
     staging_bucket = _required_env("STAGING_BUCKET")
 
-    if getattr(root_agent, "import_error", None):
-        raise RuntimeError(f"No se puede desplegar: ADK no construyó un agente real: {root_agent.import_error}")
+    if isinstance(root_agent, _MissingAgentEnvironment):
+        raise RuntimeError(
+            f"No se puede desplegar: ADK no construyó un agente real ({root_agent._import_error}). "
+            "Instala 'google-adk' en el entorno antes de desplegar."
+        )
 
     vertexai.init(project=project_id, location=region, staging_bucket=staging_bucket)
     adk_app = AdkApp(agent=root_agent, app_name="eventos-rag-agent")
@@ -49,6 +52,7 @@ def deploy() -> str:
         "google-genai>=1.0.0",
         "pydantic>=2.8.0",
         "pydantic-settings>=2.4.0",
+        "dateparser>=1.2",
     ]
 
     remote_agent = agent_engines.create(

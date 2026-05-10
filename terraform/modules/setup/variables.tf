@@ -27,7 +27,8 @@ variable "servicios_gcp" {
     "cloudtasks.googleapis.com",
     "maps-backend.googleapis.com",
     "firebase.googleapis.com",
-    "identitytoolkit.googleapis.com"
+    "identitytoolkit.googleapis.com",
+    "modelarmor.googleapis.com"
   ]
 }
 
