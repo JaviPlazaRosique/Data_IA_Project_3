@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import logging
 import math
@@ -36,48 +37,75 @@ def validate_embedding(vector: list[float]) -> list[float]:
 
 def build_vector_search_sql(rag_table_fqn: str) -> str:
     return f"""
-SELECT * EXCEPT(rn)
-FROM (
-  SELECT
-    base.id              AS id,
-    base.nombre          AS title,
-    base.categoria       AS category,
-    base.ciudad          AS ciudad,
-    base.franja_horaria  AS franja_horaria,
-    base.contexto_rag    AS content,
-    base.url             AS source_url,
-    base.fecha           AS fecha_evento,
-    CURRENT_TIMESTAMP()  AS updated_at,
-    distance,
-    ROW_NUMBER() OVER (PARTITION BY base.id ORDER BY distance ASC) AS rn
-  FROM VECTOR_SEARCH(
-    (
-      SELECT id, nombre, categoria, ciudad, franja_horaria, contexto_rag, url, fecha, embedding
-      FROM {rag_table_fqn}
-      WHERE ARRAY_LENGTH(embedding) = @embedding_dim
-        AND (@category IS NULL OR categoria = @category)
-        AND (@ciudad IS NULL OR ciudad = @ciudad)
-        AND (@franja_horaria IS NULL OR franja_horaria = @franja_horaria)
-        AND (@date_from IS NULL OR fecha >= CAST(@date_from AS DATE))
-        AND (@date_to   IS NULL OR fecha <= CAST(@date_to   AS DATE))
-    ),
-    'embedding',
-    (SELECT @query_embedding AS embedding, @query_text AS query_text),
-    top_k => @top_k,
-    distance_type => 'COSINE',
-    options => '{{"use_brute_force": true}}'
-  )
+SELECT
+  base.id              AS id,
+  base.nombre          AS title,
+  base.categoria       AS category,
+  base.ciudad          AS ciudad,
+  base.franja_horaria  AS franja_horaria,
+  base.contexto_rag    AS content,
+  base.url             AS source_url,
+  base.fecha           AS fecha_evento,
+  CURRENT_TIMESTAMP()  AS updated_at,
+  distance
+FROM VECTOR_SEARCH(
+  (
+    SELECT id, nombre, categoria, ciudad, franja_horaria, contexto_rag, url, fecha, embedding
+    FROM {rag_table_fqn}
+    WHERE ARRAY_LENGTH(embedding) = @embedding_dim
+      AND (@category IS NULL OR categoria = @category)
+      AND (@ciudad IS NULL OR ciudad = @ciudad)
+      AND (@franja_horaria IS NULL OR franja_horaria = @franja_horaria)
+      AND (@date_from IS NULL OR fecha >= CAST(@date_from AS DATE))
+      AND (@date_to   IS NULL OR fecha <= CAST(@date_to   AS DATE))
+  ),
+  'embedding',
+  (SELECT @query_embedding AS embedding, @query_text AS query_text),
+  top_k => @top_k,
+  distance_type => 'COSINE',
+  options => '{{"use_brute_force": true}}'
 )
-WHERE rn = 1
 ORDER BY distance ASC
 """.strip()
 
 
+def build_list_events_sql(rag_table_fqn: str) -> str:
+    """Lista eventos rotando categorías para garantizar variedad.
+
+    Se calcula un ROW_NUMBER particionado por categoría (ordenado por fecha y
+    desempates aleatorios) y luego se ordena por ese rn: las primeras filas son la
+    1ª de cada categoría, luego la 2ª de cada, etc. Así un top_k=5 verá al menos
+    una de cada una de las 4 categorías (si existen eventos en cada una para los
+    filtros), no 5 todos del mismo tipo.
+    """
+    return f"""
+SELECT
+  id, nombre AS title, categoria AS category, ciudad,
+  franja_horaria, contexto_rag AS content, url AS source_url,
+  fecha AS fecha_evento
+FROM (
+  SELECT
+    id, nombre, categoria, ciudad, franja_horaria, contexto_rag, url, fecha,
+    ROW_NUMBER() OVER (
+      PARTITION BY categoria
+      ORDER BY fecha ASC, RAND()
+    ) AS rn_categoria
+  FROM {rag_table_fqn}
+  WHERE (@category IS NULL OR categoria = @category)
+    AND (@ciudad IS NULL OR ciudad = @ciudad)
+    AND (@franja_horaria IS NULL OR franja_horaria = @franja_horaria)
+    AND (@date_from IS NULL OR fecha >= CAST(@date_from AS DATE))
+    AND (@date_to   IS NULL OR fecha <= CAST(@date_to   AS DATE))
+)
+ORDER BY rn_categoria ASC, fecha ASC, id ASC
+LIMIT @top_k
+""".strip()
+
+
 def _serialize_row(row: Any) -> dict[str, Any]:
-    import datetime
     raw = dict(row.items()) if hasattr(row, "items") else dict(row)
     return {
-        k: v.isoformat() if isinstance(v, (datetime.date, datetime.datetime)) else v
+        k: v.isoformat() if isinstance(v, (_dt.date, _dt.datetime)) else v
         for k, v in raw.items()
     }
 
@@ -196,6 +224,60 @@ OPTIONS(index_type = 'IVF', distance_type = 'COSINE')
                 "bq_ms": bq_ms,
                 "count": len(results),
                 "distance_top1": results[0].get("distance") if results else None,
+            },
+        )
+        return results
+
+    def list_events(
+        self,
+        *,
+        top_k: int = 5,
+        category: str | None = None,
+        ciudad: str | None = None,
+        franja_horaria: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Lista eventos directamente, sin VECTOR_SEARCH.
+
+        Pensado para consultas genéricas en las que el usuario no describe el tipo
+        de plan: aplica solo filtros estructurales (ciudad/categoría/franja/fechas)
+        y devuelve los más próximos en el tiempo. Mantiene el mismo schema de salida
+        que `rag_search` (salvo `distance`, que no aplica).
+        """
+        top_k = max(1, min(int(top_k), 20))
+        today_iso = date.today().isoformat()
+        if not date_from or date_from < today_iso:
+            date_from = today_iso
+
+        if bigquery is None:
+            raise BigQueryServiceError("google-cloud-bigquery no está instalado")
+        params = [
+            bigquery.ScalarQueryParameter("top_k", "INT64", top_k),
+            bigquery.ScalarQueryParameter("category", "STRING", category),
+            bigquery.ScalarQueryParameter("ciudad", "STRING", ciudad),
+            bigquery.ScalarQueryParameter("franja_horaria", "STRING", franja_horaria),
+            bigquery.ScalarQueryParameter("date_from", "STRING", date_from),
+            bigquery.ScalarQueryParameter("date_to", "STRING", date_to),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        bq_t0 = time.perf_counter()
+        rows = self.client.query(build_list_events_sql(self.rag_table_fqn), job_config=job_config).result()
+        results = [_serialize_row(row) for row in rows]
+        bq_ms = round((time.perf_counter() - bq_t0) * 1000, 1)
+
+        logger.info(
+            "list_events_done",
+            extra={
+                "top_k": top_k,
+                "category": category,
+                "ciudad": ciudad,
+                "franja_horaria": franja_horaria,
+                "date_from": date_from,
+                "date_to": date_to,
+                "bq_ms": bq_ms,
+                "count": len(results),
             },
         )
         return results

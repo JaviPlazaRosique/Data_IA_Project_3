@@ -13,6 +13,10 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+_AGENT_TIMEOUT_SECONDS = 60.0
+_EXTRACTOR_AGENT_NAME = "user_query_extractor"
+
+
 class AgentEngineError(RuntimeError):
     pass
 
@@ -29,6 +33,14 @@ def _event_text(event: Any) -> str:
             return "\n".join(str(p.get("text", "")) for p in parts if isinstance(p, dict)).strip()
     text = getattr(event, "text", None)
     return text if isinstance(text, str) else ""
+
+
+def _event_author(event: Any) -> str | None:
+    if isinstance(event, dict):
+        author = event.get("author")
+        return author if isinstance(author, str) else None
+    author = getattr(event, "author", None)
+    return author if isinstance(author, str) else None
 
 
 @lru_cache(maxsize=1)
@@ -60,12 +72,22 @@ async def ask_agent(*, user_id: str, session_id: str, message: str) -> str:
         except TypeError:
             events = remote_agent.stream_query(user_id=user_id, message=message)
         for event in events:
+            if _event_author(event) == _EXTRACTOR_AGENT_NAME:
+                continue
             text = _event_text(event)
             if text:
                 result.append(text)
         return result
 
-    chunks = await asyncio.to_thread(_do_stream)
+    try:
+        chunks = await asyncio.wait_for(
+            asyncio.to_thread(_do_stream),
+            timeout=_AGENT_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError as exc:
+        raise AgentEngineError(
+            f"El agente no respondió en {_AGENT_TIMEOUT_SECONDS:.0f}s"
+        ) from exc
 
     answer = "\n".join(chunk for chunk in chunks if chunk).strip()
     if not answer:

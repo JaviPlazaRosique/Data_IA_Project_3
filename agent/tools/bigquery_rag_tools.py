@@ -4,13 +4,25 @@ import calendar
 import logging
 import re
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import dateparser
+from google.api_core.exceptions import GoogleAPICallError
 
 from agent.services.bigquery_service import BigQueryRagService, BigQueryServiceError
 from agent.services.embedding_service import EmbeddingService, EmbeddingError
+
+
+@lru_cache(maxsize=1)
+def _bigquery_service() -> BigQueryRagService:
+    return BigQueryRagService()
+
+
+@lru_cache(maxsize=1)
+def _embedding_service() -> EmbeddingService:
+    return EmbeddingService()
 
 logger = logging.getLogger(__name__)
 
@@ -53,66 +65,27 @@ _WEEKDAYS = {
     "domingo": 6,
 }
 
-_DIAS_SEMANA = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-
 _FRANJAS = {
     "tarde": ("por la tarde", "esta tarde", "de tarde"),
-    "noche": ("por la noche", "esta noche", "de noche"),
+    "noche": ("por la noche", "esta noche", "de noche", "de madrugada", "por la madrugada", "esta madrugada"),
     "mañana": ("por la mañana", "esta mañana", "de mañana"),
-    "madrugada": ("de madrugada", "por la madrugada", "esta madrugada"),
 }
-
-
-def _franja_de_hora(hour: int) -> str:
-    if 6 <= hour < 12:
-        return "mañana"
-    if 12 <= hour < 19:
-        return "tarde"
-    if 19 <= hour < 24:
-        return "noche"
-    return "madrugada"
-
-
-def obtener_fecha_actual() -> dict[str, str]:
-    """Devuelve la fecha y hora actual (zona Europe/Madrid).
-
-    Llámala SIEMPRE como primer paso en cada conversación. No asumas qué día es:
-    tu conocimiento entrenado puede estar desfasado meses respecto al reloj real.
-
-    Returns:
-        dict con:
-          - fecha: 'YYYY-MM-DD' (pásalo como `fecha_actual` a calcular_rango_fechas).
-          - hora: 'HH:MM' en formato 24h.
-          - dia_semana: 'lunes' | 'martes' | … | 'domingo'.
-          - franja_actual: 'mañana' (06-12) | 'tarde' (12-19) | 'noche' (19-24) | 'madrugada' (00-06).
-    """
-    now = datetime.now(_TZ)
-    return {
-        "fecha": now.date().isoformat(),
-        "hora": now.strftime("%H:%M"),
-        "dia_semana": _DIAS_SEMANA[now.weekday()],
-        "franja_actual": _franja_de_hora(now.hour),
-    }
 
 
 def calcular_rango_fechas(referencia: str, fecha_actual: str | None = None) -> dict[str, str | None]:
     """Convierte una referencia temporal en español a fechas y franja horaria.
 
-    Llámala DESPUÉS de obtener_fecha_actual y pásale el campo 'fecha' del resultado
-    como `fecha_actual`. Esto evita errores por desfase entre el reloj real y la fecha
-    que el modelo cree estar viviendo.
-
     Args:
         referencia: Expresión temporal en lenguaje natural ("esta noche",
             "este finde", "el viernes que viene", "esta semana", etc.).
-        fecha_actual: Fecha de hoy en formato 'YYYY-MM-DD' devuelta por
-            obtener_fecha_actual. Si se omite, se usa el reloj del servidor
-            como respaldo, pero se prefiere el explícito.
+        fecha_actual: Fecha de hoy en formato 'YYYY-MM-DD'. Si se omite, se
+            usa el reloj del servidor (Europe/Madrid). Útil para tests
+            deterministas: permite inyectar una "hoy" fija sin mockear datetime.
 
     Returns:
         dict con:
           - date_from y date_to en formato YYYY-MM-DD (o None)
-          - franja_horaria: 'mañana' | 'tarde' | 'noche' | 'madrugada' (o None)
+          - franja_horaria: 'mañana' | 'tarde' | 'noche' (o None)
         Pasa estos valores directamente como parámetros a rag_search.
     """
     today = date.fromisoformat(fecha_actual) if fecha_actual else datetime.now(_TZ).date()
@@ -127,8 +100,6 @@ def calcular_rango_fechas(referencia: str, fecha_actual: str | None = None) -> d
             if frase in ref_sin_franjas:
                 franja_detectada = franja
                 ref_sin_franjas = ref_sin_franjas.replace(frase, " ")
-    if franja_detectada == "madrugada":
-        franja_detectada = "noche"
     result["franja_horaria"] = franja_detectada
 
     def _set(d_from: date, d_to: date) -> dict[str, str | None]:
@@ -200,10 +171,8 @@ def calcular_rango_fechas(referencia: str, fecha_actual: str | None = None) -> d
             )
         )
         days_ahead = (idx - wd) % 7
-        if es_proximo and days_ahead < 7:
+        if es_proximo:
             days_ahead += 7
-        if days_ahead == 0 and es_proximo:
-            days_ahead = 7
         target = today + timedelta(days=days_ahead)
         return _set(target, target)
 
@@ -263,11 +232,16 @@ def calcular_rango_fechas(referencia: str, fecha_actual: str | None = None) -> d
 
 
 def _agrupar_sesiones(rows: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
-    """Colapsa filas con mismo (title, ciudad) en un único evento con sesiones[]."""
-    grupos: dict[tuple[str, str], dict[str, Any]] = {}
-    orden: list[tuple[str, str]] = []
+    """Colapsa filas con mismo `id` (mismo evento) en una sola entrada con sesiones[].
+
+    BigQuery puede devolver varias filas del mismo evento si tiene varias sesiones
+    (distintas fechas/franjas) que caen dentro del rango filtrado. Aquí las juntamos
+    en un único dict con `sesiones` como lista ordenada de {fecha, franja_horaria}.
+    """
+    grupos: dict[str, dict[str, Any]] = {}
+    orden: list[str] = []
     for row in rows:
-        clave = (row.get("title") or "", row.get("ciudad") or "")
+        clave = row.get("id") or ""
         sesion = {"fecha": row.get("fecha_evento"), "franja_horaria": row.get("franja_horaria")}
         if clave not in grupos:
             grupos[clave] = {
@@ -285,8 +259,11 @@ def _agrupar_sesiones(rows: list[dict[str, Any]], top_k: int) -> list[dict[str, 
             existing = grupos[clave]
             if sesion not in existing["sesiones"]:
                 existing["sesiones"].append(sesion)
-            if row.get("distance") is not None and row["distance"] < existing["distance"]:
-                existing["distance"] = row["distance"]
+            new_distance = row.get("distance")
+            if new_distance is not None and (
+                existing["distance"] is None or new_distance < existing["distance"]
+            ):
+                existing["distance"] = new_distance
     for clave in orden:
         grupos[clave]["sesiones"].sort(key=lambda s: (s["fecha"] or "", s["franja_horaria"] or ""))
     return [grupos[c] for c in orden[:top_k]]
@@ -294,7 +271,6 @@ def _agrupar_sesiones(rows: list[dict[str, Any]], top_k: int) -> list[dict[str, 
 
 def rag_search(
     question: str,
-    user_id: str = "anonymous",
     top_k: int = 5,
     category: str | None = None,
     ciudad: str | None = None,
@@ -304,13 +280,12 @@ def rag_search(
 ) -> dict[str, Any]:
     """Busca eventos afines en BigQuery VECTOR_SEARCH usando la pregunta del usuario.
 
-    Cuando un evento tiene varias sesiones (mismas obra/concierto en distintos días u
-    horarios), se devuelve UNA sola entrada con todas las sesiones agrupadas en
-    `sesiones`. Menciónalas todas al usuario para que pueda elegir.
+    Cuando un evento tiene varias sesiones (mismo evento en distintos días u horarios)
+    que caen dentro del rango filtrado, se devuelve UNA sola entrada con todas las
+    sesiones agrupadas en `sesiones`. Menciónalas todas al usuario para que pueda elegir.
 
     Args:
         question: Descripción del plan o evento que busca el usuario.
-        user_id: Identificador del usuario (obligatorio para trazabilidad).
         top_k: Número máximo de eventos únicos (1-20).
         category: Filtro opcional de categoría (ej: 'Música', 'Deportes').
         ciudad: Filtro exacto de ciudad (ej: 'Barcelona', 'Madrid').
@@ -323,16 +298,14 @@ def rag_search(
     Returns:
         dict con:
           - count: nº de eventos únicos.
-          - results: lista de eventos. Cada evento incluye campos del evento más
+          - results: lista de eventos. Cada evento incluye sus campos más
             `sesiones`: lista de {fecha, franja_horaria} en las que está disponible.
     """
-    if not user_id or not user_id.strip():
-        return {"source": "bigquery_rag", "error": "user_id es obligatorio para trazabilidad"}
     try:
         top_k_raw = max(top_k * 4, 20)
-        rows = BigQueryRagService().rag_search(
+        rows = _bigquery_service().rag_search(
             question,
-            EmbeddingService(),
+            _embedding_service(),
             top_k=top_k_raw,
             category=category,
             ciudad=ciudad,
@@ -343,12 +316,107 @@ def rag_search(
         eventos = _agrupar_sesiones(rows, top_k=top_k)
         logger.info(
             "rag_tool_done",
-            extra={"user_id": user_id, "rows": len(rows), "eventos_unicos": len(eventos)},
+            extra={"rows": len(rows), "eventos_unicos": len(eventos)},
         )
-        return {"source": "bigquery_rag", "user_id": user_id, "count": len(eventos), "results": eventos}
-    except (BigQueryServiceError, EmbeddingError, ValueError) as exc:
+        return {"source": "bigquery_rag", "count": len(eventos), "results": eventos}
+    except (BigQueryServiceError, EmbeddingError, ValueError, GoogleAPICallError) as exc:
         logger.warning(
             "rag_tool_error",
-            extra={"user_id": user_id, "error_type": type(exc).__name__, "error": str(exc)},
+            extra={"error_type": type(exc).__name__, "error": str(exc)},
         )
-        return {"source": "bigquery_rag", "user_id": user_id, "error": str(exc)}
+        return {"source": "bigquery_rag", "error": str(exc)}
+
+
+def listar_eventos(
+    top_k: int = 5,
+    category: str | None = None,
+    ciudad: str | None = None,
+    franja_horaria: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict[str, Any]:
+    """Devuelve eventos sin VECTOR_SEARCH, solo con filtros estructurales.
+
+    Se usa cuando el usuario pide planes pero no describe el tipo (consulta genérica):
+    aquí no tiene sentido hacer búsqueda semántica con una frase neutra, porque sesga
+    el ranking sin aportar información. En su lugar, listamos los eventos disponibles
+    ordenados por fecha y los agrupamos por sesiones igual que en `rag_search`.
+    """
+    try:
+        top_k_raw = max(top_k * 4, 20)
+        rows = _bigquery_service().list_events(
+            top_k=top_k_raw,
+            category=category,
+            ciudad=ciudad,
+            franja_horaria=franja_horaria,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        eventos = _agrupar_sesiones(rows, top_k=top_k)
+        logger.info(
+            "list_tool_done",
+            extra={"rows": len(rows), "eventos_unicos": len(eventos)},
+        )
+        return {"source": "bigquery_list", "count": len(eventos), "results": eventos}
+    except (BigQueryServiceError, ValueError, GoogleAPICallError) as exc:
+        logger.warning(
+            "list_tool_error",
+            extra={"error_type": type(exc).__name__, "error": str(exc)},
+        )
+        return {"source": "bigquery_list", "error": str(exc)}
+
+
+def buscar_eventos(
+    question: str | None,
+    referencia_temporal: str | None = None,
+    ciudad: str | None = None,
+    category: str | None = None,
+    top_k: int = 5,
+) -> dict[str, Any]:
+    """Pipeline completo de búsqueda de eventos.
+
+    Orquesta internamente las llamadas que antes hacía el agente paso a paso:
+    1. Si hay referencia_temporal, obtiene la fecha real y la traduce a rango ISO + franja.
+    2. Si `question` tiene texto (plan específico) llama a `rag_search` con
+       VECTOR_SEARCH; si es null o vacía (plan genérico) llama a `listar_eventos`
+       y devuelve variedad ordenada por fecha.
+
+    Args:
+        question: parte semántica de la búsqueda, o None / "" si el usuario no
+            especifica tipo de plan ("qué planes hay", "algo para hacer").
+        referencia_temporal: expresión literal del usuario ("esta noche", "este finde", …) o None.
+        ciudad: ciudad española o None.
+        category: una de "Música" | "Arte y Teatro" | "Deportes" | "Familia y otros", o None.
+        top_k: nº máximo de eventos únicos a devolver.
+
+    Returns:
+        dict {source, count, results} con `sesiones` por evento.
+    """
+    franja: str | None = None
+    date_from: str | None = None
+    date_to: str | None = None
+
+    if referencia_temporal:
+        rango = calcular_rango_fechas(referencia_temporal)
+        franja = rango.get("franja_horaria")
+        date_from = rango.get("date_from")
+        date_to = rango.get("date_to")
+
+    if question and question.strip():
+        return rag_search(
+            question=question,
+            top_k=top_k,
+            category=category,
+            ciudad=ciudad,
+            franja_horaria=franja,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    return listar_eventos(
+        top_k=top_k,
+        category=category,
+        ciudad=ciudad,
+        franja_horaria=franja,
+        date_from=date_from,
+        date_to=date_to,
+    )
