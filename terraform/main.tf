@@ -1386,6 +1386,7 @@ module "cicd_agent_rag" {
     "roles/aiplatform.user",
     "roles/run.developer",
     "roles/iam.serviceAccountUser",
+    "roles/artifactregistry.reader"
   ]
   nombre_pool     = module.setup.nombre_pool
   nombre_workflow = "cicd_agent_rag"
