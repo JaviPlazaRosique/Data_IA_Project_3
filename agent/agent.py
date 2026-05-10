@@ -145,3 +145,14 @@ def build_root_agent():
 
 
 root_agent = build_root_agent()
+
+
+def _build_agent_engine():
+    try:
+        from vertexai.preview.reasoning_engines import AdkApp
+        return AdkApp(agent=root_agent, enable_tracing=False)
+    except Exception:
+        return root_agent
+
+
+agent_engine = _build_agent_engine()
