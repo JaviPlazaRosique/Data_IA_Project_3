@@ -361,9 +361,10 @@ export default function AIPlannerPage() {
                         <span className="material-symbols-outlined text-on-primary-container">smart_toy</span>
                       </div>
                       <div className="p-4 rounded-2xl rounded-tl-none border border-outline-variant/15 bg-surface-container-high">
-                        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-                          <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                          Pensando en planes reales...
+                        <div className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
                         </div>
                       </div>
                     </div>
