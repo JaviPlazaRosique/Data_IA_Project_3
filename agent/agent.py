@@ -145,14 +145,3 @@ def build_root_agent():
 
 
 root_agent = build_root_agent()
-
-
-def build_agent_engine():
-    try:
-        from vertexai.agent_engines import AdkApp
-    except Exception:
-        return root_agent
-    return AdkApp(agent=root_agent, app_name="eventos-rag-agent")
-
-
-agent_engine = build_agent_engine()
