@@ -439,6 +439,7 @@ export interface ClusterRecommendationRead {
   recommendation_rank: number;
   recommendation_score: number;
   cluster_source: string;
+  recommendation_reason?: string | null;
 }
 
 export async function apiListRecommendations(limit = 10): Promise<ClusterRecommendationRead[]> {
