@@ -109,6 +109,7 @@ jobs:
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           REGION: ${{ env.REGION }}
           STAGING_BUCKET: ${{ secrets.AGENT_STAGING_BUCKET }}
+          AGENT_ENGINE_SA: rag-agent-engine-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: Actualizar AGENT_ENGINE_RESOURCE_NAME en Cloud Run
         run: |

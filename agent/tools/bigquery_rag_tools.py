@@ -9,6 +9,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import dateparser
+from google.api_core.exceptions import GoogleAPICallError
 
 from agent.services.bigquery_service import BigQueryRagService, BigQueryServiceError
 from agent.services.embedding_service import EmbeddingService, EmbeddingError
@@ -318,7 +319,7 @@ def rag_search(
             extra={"rows": len(rows), "eventos_unicos": len(eventos)},
         )
         return {"source": "bigquery_rag", "count": len(eventos), "results": eventos}
-    except (BigQueryServiceError, EmbeddingError, ValueError) as exc:
+    except (BigQueryServiceError, EmbeddingError, ValueError, GoogleAPICallError) as exc:
         logger.warning(
             "rag_tool_error",
             extra={"error_type": type(exc).__name__, "error": str(exc)},
