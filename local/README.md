@@ -106,6 +106,23 @@ one each in Barcelona, Valencia, and Sevilla — covering `Music`, `Arts &
 Theatre`, `Film`, and `Sports` segments so every pin color shows on the map.
 Safe to re-run (`make seed-events`) — documents are upserted by id.
 
+## Synthetic catalog events
+
+`local/generate_synthetic_events.py` creates enriched synthetic event rows that
+mirror the Dataflow output: Firestore receives the enriched event document
+without embeddings, while BigQuery receives only the fields exposed by
+`recomendacion_planes.eventos`.
+
+```bash
+python3 local/generate_synthetic_events.py --count 100
+python3 local/generate_synthetic_events.py --count 100 --upload-firestore
+python3 local/generate_synthetic_events.py --count 100 --upload-bigquery --project-id project3grupo3
+```
+
+By default it only writes `local/swipes_data/synthetic_events_generated.jsonl`.
+Use the upload flags intentionally; Firestore upserts by document id, while
+BigQuery skips existing ids unless `--replace-existing` is passed.
+
 ## Common commands
 
 ```bash
