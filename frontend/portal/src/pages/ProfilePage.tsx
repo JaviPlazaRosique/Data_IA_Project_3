@@ -6,6 +6,7 @@ import BottomNav from '../components/layout/BottomNav';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { SectionLabel } from '../components/np/Primitives';
+import CityAutocomplete from '../components/CityAutocomplete';
 import {
   apiUpdateMe,
   apiCheckUsername,
@@ -23,7 +24,6 @@ type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const { t } = useLang();
-  const [locationDraft, setLocationDraft] = useState(user?.preferred_location ?? '');
   const [savedEvents, setSavedEvents] = useState<SavedEventRead[]>([]);
   const [showAvatarEdit, setShowAvatarEdit] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -34,10 +34,6 @@ export default function ProfilePage() {
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [usernameSaving, setUsernameSaving] = useState(false);
   const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setLocationDraft(user?.preferred_location ?? '');
-  }, [user?.preferred_location]);
 
   useEffect(() => {
     setUsernameDraft(user?.username ?? '');
@@ -112,11 +108,24 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleLocationBlur() {
-    const value = locationDraft.trim();
-    if (value === (user?.preferred_location ?? '')) return;
+  async function handleCitySelect(name: string, lat: number, lng: number) {
     try {
-      const updated = await apiUpdateMe({ preferred_location: value || null });
+      const updated = await apiUpdateMe({
+        preferred_location: name,
+        preferred_location_lat: lat,
+        preferred_location_lng: lng,
+      });
+      setUser(updated);
+    } catch { /* silent */ }
+  }
+
+  async function handleCityClear() {
+    try {
+      const updated = await apiUpdateMe({
+        preferred_location: null,
+        preferred_location_lat: null,
+        preferred_location_lng: null,
+      });
       setUser(updated);
     } catch { /* silent */ }
   }
@@ -313,17 +322,11 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-4">Ciudad</label>
-                    <div className="bg-surface-container-lowest flex items-center gap-3 p-3 rounded-xl">
-                      <span className="material-symbols-outlined text-secondary">location_on</span>
-                      <input
-                        type="text"
-                        value={locationDraft}
-                        onChange={(e) => setLocationDraft(e.target.value)}
-                        onBlur={handleLocationBlur}
-                        placeholder="Ej. Madrid, Barcelona…"
-                        className="flex-1 bg-transparent text-sm font-medium focus:outline-none placeholder:text-on-surface-variant/40"
-                      />
-                    </div>
+                    <CityAutocomplete
+                      value={user?.preferred_location ?? null}
+                      onSave={handleCitySelect}
+                      onClear={handleCityClear}
+                    />
                   </div>
                 </div>
               </div>
