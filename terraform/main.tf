@@ -241,6 +241,8 @@ module "cloud_run_admin_api" {
     BIGQUERY_PROJECT_ID        = var.id_proyecto
     BIGQUERY_ANALYTICS_DATASET = module.bigquery.id_dataset
     BIGQUERY_MARTS_DATASET     = "${module.bigquery.id_dataset}_marts"
+    PORTAL_API_URL             = module.cloud_run_portal_api.service_url
+    ADMIN_API_URL              = module.cloud_run_admin_api.service_url
   }
 
   secretos_entorno = {

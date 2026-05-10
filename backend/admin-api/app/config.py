@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     BIGQUERY_ANALYTICS_DATASET: str = "recomendacion_planes"
     BIGQUERY_MARTS_DATASET: str = "recomendacion_planes_marts"
 
+    PORTAL_API_URL: str = ""
+    ADMIN_API_URL: str = ""
+
     @model_validator(mode="after")
     def validate_config(self) -> "Settings":
         has_full_url = bool(self.DATABASE_URL)

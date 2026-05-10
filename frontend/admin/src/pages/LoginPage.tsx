@@ -41,7 +41,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">The Electric Curator</p>
+          <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">NextPlan</p>
           <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
         </div>
 

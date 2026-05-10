@@ -5,17 +5,17 @@ import { ToastProvider, useToast } from '../components/Toast';
 import { OverviewTab } from '../components/tabs/OverviewTab';
 import { EventsTab } from '../components/tabs/EventsTab';
 import { AnalyticsTab } from '../components/tabs/AnalyticsTab';
-import { ArchitectureTab } from '../components/tabs/ArchitectureTab';
 import { SavedEventsTab } from '../components/tabs/SavedEventsTab';
-import { PlannerTab } from '../components/tabs/PlannerTab';
+import { InfrastructureTab } from '../components/tabs/InfrastructureTab';
+import { KPIsTab } from '../components/tabs/KPIsTab';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'dashboard', key: '1' },
-  { id: 'events', label: 'Events', icon: 'event', key: '2' },
-  { id: 'analytics', label: 'Analytics', icon: 'bar_chart', key: '3' },
-  { id: 'saved-events', label: 'Saved Events', icon: 'bookmark', key: '4' },
-  { id: 'planner', label: 'AI Planner', icon: 'smart_toy', key: '5' },
-  { id: 'architecture', label: 'Architecture', icon: 'hub', key: '6' },
+  { id: 'kpis', label: 'KPIs', icon: 'leaderboard', key: '2' },
+  { id: 'infrastructure', label: 'Infraestructura', icon: 'dns', key: '3' },
+  { id: 'events', label: 'Eventos', icon: 'event', key: '4' },
+  { id: 'analytics', label: 'Analytics', icon: 'bar_chart', key: '5' },
+  { id: 'saved-events', label: 'Planes guardados', icon: 'bookmark', key: '6' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -42,7 +42,7 @@ function DashboardInner() {
 
   function manualRefresh() {
     setRefreshTick((t) => t + 1);
-    toast('Refreshed', 'info');
+    toast('Actualizado', 'info');
   }
 
   useEffect(() => {
@@ -75,12 +75,11 @@ function DashboardInner() {
     <div className="min-h-screen flex flex-col bg-gray-950">
       <header className="border-b border-gray-800 px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-xs text-gray-500 uppercase tracking-widest">The Electric Curator</span>
+          <span className="text-xs text-gray-500 uppercase tracking-widest">NextPlan</span>
           <span className="text-gray-700">·</span>
           <span className="text-sm font-semibold text-white">Admin</span>
         </div>
         <div className="flex items-center gap-3 ml-auto">
-          {/* Auto-refresh */}
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-gray-500">Refresh:</span>
             <div className="flex rounded overflow-hidden border border-gray-700">
@@ -100,7 +99,7 @@ function DashboardInner() {
             </div>
             <button
               onClick={manualRefresh}
-              title="Refresh now (R)"
+              title="Refrescar (R)"
               className="text-gray-500 hover:text-white transition-colors text-sm"
             >
               <span className="material-symbols-outlined text-[16px]">refresh</span>
@@ -111,13 +110,13 @@ function DashboardInner() {
             onClick={handleLogout}
             className="text-xs text-gray-500 hover:text-white transition-colors"
           >
-            Sign out
+            Cerrar sesión
           </button>
         </div>
       </header>
 
       <div className="flex flex-1">
-        <nav className="w-52 border-r border-gray-800 p-4 flex flex-col gap-1 shrink-0">
+        <nav className="w-56 border-r border-gray-800 p-4 flex flex-col gap-1 shrink-0">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -134,7 +133,7 @@ function DashboardInner() {
             </button>
           ))}
           <div className="mt-auto pt-4 text-xs text-gray-700 px-3">
-            1-6 switch tabs · R refresh
+            1-6 cambiar tab · R refrescar
           </div>
         </nav>
 
@@ -145,11 +144,11 @@ function DashboardInner() {
           {activeTab === 'overview' && (
             <OverviewTab onNavigate={navigateTo} refreshTick={refreshTick} />
           )}
+          {activeTab === 'kpis' && <KPIsTab refreshTick={refreshTick} />}
+          {activeTab === 'infrastructure' && <InfrastructureTab refreshTick={refreshTick} />}
           {activeTab === 'events' && <EventsTab />}
           {activeTab === 'analytics' && <AnalyticsTab refreshTick={refreshTick} />}
           {activeTab === 'saved-events' && <SavedEventsTab refreshTick={refreshTick} />}
-          {activeTab === 'planner' && <PlannerTab />}
-          {activeTab === 'architecture' && <ArchitectureTab />}
         </main>
       </div>
     </div>

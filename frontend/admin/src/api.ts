@@ -164,3 +164,71 @@ export function apiGetEventSwipeStats(limit = 20): Promise<EventSwipeStats[]> {
 export function apiGetSavedEvents(limit = 20): Promise<SavedEventsAdminResponse> {
   return apiFetch(`/api/v1/saved-events?limit=${limit}`);
 }
+
+// ─── Infrastructure ───────────────────────────────────────────────────────────
+
+export interface ServiceCheck {
+  name: string;
+  status: 'ok' | 'degraded' | 'error' | 'unknown';
+  latency_ms: number | null;
+  detail: string | null;
+}
+
+export interface InfrastructureResponse {
+  services: ServiceCheck[];
+}
+
+export function apiGetInfrastructure(): Promise<InfrastructureResponse> {
+  return apiFetch('/api/v1/infrastructure');
+}
+
+// ─── KPIs ─────────────────────────────────────────────────────────────────────
+
+export interface EngagementKPIs {
+  active_users_7d: number;
+  active_users_30d: number;
+  total_swipes_30d: number;
+  right_swipes_30d: number;
+  avg_right_swipe_rate: number;
+  avg_dwell_ms: number;
+  avg_dwell_liked_ms: number;
+  avg_plans_per_active_user: number;
+}
+
+export interface SegmentStat {
+  name: string;
+  total: number;
+  liked: number;
+  like_rate: number;
+}
+
+export interface CityActivity {
+  city: string;
+  total_swipes: number;
+  liked: number;
+  like_rate: number;
+}
+
+export interface DailyActivity {
+  date: string;
+  swipes: number;
+  likes: number;
+}
+
+export interface PlannerUsage {
+  total_chat_swipes_30d: number;
+  chat_right_rate: number;
+}
+
+export interface KPIsResponse {
+  engagement: EngagementKPIs;
+  top_segments: SegmentStat[];
+  top_genres: SegmentStat[];
+  top_cities: CityActivity[];
+  daily_activity_30d: DailyActivity[];
+  planner: PlannerUsage;
+}
+
+export function apiGetKPIs(): Promise<KPIsResponse> {
+  return apiFetch('/api/v1/kpis');
+}
