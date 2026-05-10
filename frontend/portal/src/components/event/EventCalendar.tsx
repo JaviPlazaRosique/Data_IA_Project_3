@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export type CalendarSlot = { time: string; url: string | null };
 export type CalendarEntry = { date: string; slots: CalendarSlot[] };
 
 type Props = {
   entries: CalendarEntry[];
+  onDateSelect?: (date: string | null) => void;
 };
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -27,26 +28,47 @@ function toISO(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export default function EventCalendar({ entries }: Props) {
-  const entryMap = useMemo(() => {
-    const m = new Map<string, CalendarEntry>();
-    for (const e of entries) m.set(e.date, e);
-    return m;
-  }, [entries]);
+export default function EventCalendar({ entries, onDateSelect }: Props) {
+  const todayISO = toISO(new Date());
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
 
-  const firstEventDate = useMemo(() => {
+  const futureEntryMap = useMemo(() => {
+    const m = new Map<string, CalendarEntry>();
     for (const e of entries) {
-      const d = parseISO(e.date);
+      if (e.date < todayISO) continue;
+      if (e.date === todayISO) {
+        const futureSlots = e.slots.filter((s) => {
+          const [h, min] = s.time.split(':').map(Number);
+          return !isNaN(h) && h * 60 + (min ?? 0) > nowMinutes;
+        });
+        if (futureSlots.length === 0) continue;
+        m.set(e.date, { ...e, slots: futureSlots });
+      } else {
+        m.set(e.date, e);
+      }
+    }
+    return m;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, todayISO]);
+
+  const firstFutureDate = useMemo(() => {
+    for (const iso of futureEntryMap.keys()) {
+      const d = parseISO(iso);
       if (d) return d;
     }
     return new Date();
-  }, [entries]);
+  }, [futureEntryMap]);
+
+  const currentMonthStart = useMemo(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    [],
+  );
 
   const [viewMonth, setViewMonth] = useState<Date>(
-    () => new Date(firstEventDate.getFullYear(), firstEventDate.getMonth(), 1)
+    () => new Date(firstFutureDate.getFullYear(), firstFutureDate.getMonth(), 1)
   );
   const [selectedDate, setSelectedDate] = useState<string | null>(() => {
-    for (const e of entries) if (parseISO(e.date)) return e.date;
+    for (const iso of futureEntryMap.keys()) if (parseISO(iso)) return iso;
     return null;
   });
 
@@ -63,11 +85,17 @@ export default function EventCalendar({ entries }: Props) {
     return cells;
   }, [viewMonth]);
 
-  const goPrev = () => setViewMonth((v) => new Date(v.getFullYear(), v.getMonth() - 1, 1));
+  const canGoPrev = viewMonth > currentMonthStart;
+  const goPrev = () => {
+    if (canGoPrev) setViewMonth((v) => new Date(v.getFullYear(), v.getMonth() - 1, 1));
+  };
   const goNext = () => setViewMonth((v) => new Date(v.getFullYear(), v.getMonth() + 1, 1));
 
-  const selectedEntry = selectedDate ? entryMap.get(selectedDate) ?? null : null;
-  const todayISO = toISO(new Date());
+  useEffect(() => {
+    onDateSelect?.(selectedDate);
+  }, [selectedDate, onDateSelect]);
+
+  const selectedEntry = selectedDate ? futureEntryMap.get(selectedDate) ?? null : null;
 
   return (
     <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 border border-outline-variant/20">
@@ -75,8 +103,9 @@ export default function EventCalendar({ entries }: Props) {
         <button
           type="button"
           onClick={goPrev}
+          disabled={!canGoPrev}
           aria-label="Previous month"
-          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-default"
         >
           <span className="material-symbols-outlined rotate-180">chevron_right</span>
         </button>
@@ -101,7 +130,7 @@ export default function EventCalendar({ entries }: Props) {
         {grid.map((cell, idx) => {
           if (!cell) return <div key={`empty-${idx}`} className="aspect-square" />;
           const iso = toISO(cell);
-          const hasEvent = entryMap.has(iso);
+          const hasEvent = futureEntryMap.has(iso);
           const isSelected = iso === selectedDate;
           const isToday = iso === todayISO;
           return (

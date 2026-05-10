@@ -623,6 +623,7 @@ export default function MapPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventCatalogItem | null>(null);
   const [selectedOccurrences, setSelectedOccurrences] = useState<EventCatalogItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+  const [selectedTime, setSelectedTime] = useState<string>('');
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dateRef = useRef<string>(todayIso());
@@ -851,7 +852,11 @@ export default function MapPage() {
     };
   }, [categoryMenuOpen]);
 
-  const mappableEvents = events.filter(hasCoords);
+  const mappableEvents = events.filter(hasCoords).filter((e) => {
+    if (!selectedTime) return true;
+    const hora = (e.hora ?? '').trim();
+    return hora >= selectedTime;
+  });
   const groupedEvents = groupMappableEvents(mappableEvents);
 
   const visibleGroups = bounds
@@ -931,6 +936,7 @@ export default function MapPage() {
                     ref={dateInputRef}
                     type="date"
                     value={selectedDate}
+                    min={todayIso()}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="bg-transparent border-none outline-none font-label text-sm font-semibold text-on-surface [color-scheme:dark] cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                   />
@@ -940,6 +946,25 @@ export default function MapPage() {
                       onClick={() => setSelectedDate('')}
                       className="material-symbols-outlined text-on-surface-variant text-sm hover:text-on-surface transition-colors"
                       aria-label="Clear date filter"
+                    >
+                      close
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 border-r border-outline-variant/20 pr-6">
+                  <span className="material-symbols-outlined text-primary text-lg">schedule</span>
+                  <input
+                    type="time"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="bg-transparent border-none outline-none font-label text-sm font-semibold text-on-surface [color-scheme:dark] cursor-pointer"
+                  />
+                  {selectedTime && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTime('')}
+                      className="material-symbols-outlined text-on-surface-variant text-sm hover:text-on-surface transition-colors"
+                      aria-label="Clear time filter"
                     >
                       close
                     </button>
@@ -1051,7 +1076,7 @@ export default function MapPage() {
                 aria-expanded={mobileFiltersOpen}
               >
                 <span className="material-symbols-outlined text-primary text-xl">tune</span>
-                {(selectedCategories.length > 0 || selectedDate) && (
+                {(selectedCategories.length > 0 || selectedDate || selectedTime) && (
                   <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary border-2 border-surface" />
                 )}
               </button>
@@ -1066,6 +1091,7 @@ export default function MapPage() {
                       <input
                         type="date"
                         value={selectedDate}
+                        min={todayIso()}
                         onChange={(e) => setSelectedDate(e.target.value)}
                         className="flex-1 bg-surface-container rounded-lg px-3 py-2 text-sm font-semibold text-on-surface [color-scheme:dark] outline-none border border-outline-variant/20"
                       />
@@ -1075,6 +1101,31 @@ export default function MapPage() {
                           onClick={() => setSelectedDate('')}
                           className="material-symbols-outlined text-on-surface-variant text-base hover:text-on-surface"
                           aria-label="Clear date filter"
+                        >
+                          close
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-primary text-base">schedule</span>
+                      <span className="font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant">From hour</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={selectedTime}
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="flex-1 bg-surface-container rounded-lg px-3 py-2 text-sm font-semibold text-on-surface [color-scheme:dark] outline-none border border-outline-variant/20"
+                      />
+                      {selectedTime && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTime('')}
+                          className="material-symbols-outlined text-on-surface-variant text-base hover:text-on-surface"
+                          aria-label="Clear time filter"
                         >
                           close
                         </button>
