@@ -327,8 +327,47 @@ def rag_search(
         return {"source": "bigquery_rag", "error": str(exc)}
 
 
+def listar_eventos(
+    top_k: int = 5,
+    category: str | None = None,
+    ciudad: str | None = None,
+    franja_horaria: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict[str, Any]:
+    """Devuelve eventos sin VECTOR_SEARCH, solo con filtros estructurales.
+
+    Se usa cuando el usuario pide planes pero no describe el tipo (consulta genérica):
+    aquí no tiene sentido hacer búsqueda semántica con una frase neutra, porque sesga
+    el ranking sin aportar información. En su lugar, listamos los eventos disponibles
+    ordenados por fecha y los agrupamos por sesiones igual que en `rag_search`.
+    """
+    try:
+        top_k_raw = max(top_k * 4, 20)
+        rows = _bigquery_service().list_events(
+            top_k=top_k_raw,
+            category=category,
+            ciudad=ciudad,
+            franja_horaria=franja_horaria,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        eventos = _agrupar_sesiones(rows, top_k=top_k)
+        logger.info(
+            "list_tool_done",
+            extra={"rows": len(rows), "eventos_unicos": len(eventos)},
+        )
+        return {"source": "bigquery_list", "count": len(eventos), "results": eventos}
+    except (BigQueryServiceError, ValueError, GoogleAPICallError) as exc:
+        logger.warning(
+            "list_tool_error",
+            extra={"error_type": type(exc).__name__, "error": str(exc)},
+        )
+        return {"source": "bigquery_list", "error": str(exc)}
+
+
 def buscar_eventos(
-    question: str,
+    question: str | None,
     referencia_temporal: str | None = None,
     ciudad: str | None = None,
     category: str | None = None,
@@ -338,17 +377,20 @@ def buscar_eventos(
 
     Orquesta internamente las llamadas que antes hacía el agente paso a paso:
     1. Si hay referencia_temporal, obtiene la fecha real y la traduce a rango ISO + franja.
-    2. Llama a rag_search con todos los filtros y devuelve los eventos agrupados por sesión.
+    2. Si `question` tiene texto (plan específico) llama a `rag_search` con
+       VECTOR_SEARCH; si es null o vacía (plan genérico) llama a `listar_eventos`
+       y devuelve variedad ordenada por fecha.
 
     Args:
-        question: parte semántica de la búsqueda (sin ciudad, sin fecha, sin franja).
+        question: parte semántica de la búsqueda, o None / "" si el usuario no
+            especifica tipo de plan ("qué planes hay", "algo para hacer").
         referencia_temporal: expresión literal del usuario ("esta noche", "este finde", …) o None.
         ciudad: ciudad española o None.
         category: una de "Música" | "Arte y Teatro" | "Deportes" | "Familia y otros", o None.
         top_k: nº máximo de eventos únicos a devolver.
 
     Returns:
-        Mismo dict que rag_search: {source, count, results} con `sesiones` por evento.
+        dict {source, count, results} con `sesiones` por evento.
     """
     franja: str | None = None
     date_from: str | None = None
@@ -360,8 +402,17 @@ def buscar_eventos(
         date_from = rango.get("date_from")
         date_to = rango.get("date_to")
 
-    return rag_search(
-        question=question,
+    if question and question.strip():
+        return rag_search(
+            question=question,
+            top_k=top_k,
+            category=category,
+            ciudad=ciudad,
+            franja_horaria=franja,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    return listar_eventos(
         top_k=top_k,
         category=category,
         ciudad=ciudad,
