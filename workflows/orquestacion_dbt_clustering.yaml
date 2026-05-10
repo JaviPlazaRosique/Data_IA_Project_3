@@ -1,0 +1,79 @@
+main:
+  steps:
+    - init:
+        assign:
+          - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "europe-west1"
+
+    - log_inicio:
+        call: sys.log
+        args:
+          text: "Iniciando pipeline dbt → clustering"
+          severity: INFO
+
+    - ejecutar_dbt:
+        call: ejecutar_y_esperar_job
+        args:
+          project: ${project}
+          region: ${region}
+          job: "dbt-transformations"
+
+    - log_dbt_ok:
+        call: sys.log
+        args:
+          text: "dbt-transformations completado. Lanzando clustering..."
+          severity: INFO
+
+    - ejecutar_clustering:
+        call: ejecutar_y_esperar_job
+        args:
+          project: ${project}
+          region: ${region}
+          job: "clustering-train-assign"
+
+    - log_fin:
+        call: sys.log
+        args:
+          text: "Pipeline completado con exito"
+          severity: INFO
+
+
+ejecutar_y_esperar_job:
+  params: [project, region, job]
+  steps:
+    - lanzar:
+        call: http.post
+        args:
+          url: ${"https://" + region + "-run.googleapis.com/v2/projects/" + project + "/locations/" + region + "/jobs/" + job + ":run"}
+          auth:
+            type: OAuth2
+        result: respuesta_lanzamiento
+
+    - guardar_operacion:
+        assign:
+          - nombre_operacion: ${respuesta_lanzamiento.body.name}
+
+    - consultar_operacion:
+        call: http.get
+        args:
+          url: ${"https://" + region + "-run.googleapis.com/v2/" + nombre_operacion}
+          auth:
+            type: OAuth2
+        result: estado
+
+    - evaluar_estado:
+        switch:
+          - condition: ${"error" in estado.body and estado.body.done == true}
+            raise: ${estado.body.error}
+          - condition: ${estado.body.done == true}
+            next: job_completado
+        next: esperar
+
+    - esperar:
+        call: sys.sleep
+        args:
+          seconds: 30
+        next: consultar_operacion
+
+    - job_completado:
+        return: ${estado.body}

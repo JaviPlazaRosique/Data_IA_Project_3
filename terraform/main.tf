@@ -1074,37 +1074,6 @@ module "dbt_transformations_job" {
   ]
 }
 
-module "scheduler_dbt_sa" {
-  source             = "./modules/iam"
-  id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "scheduler-dbt-sa"
-  nombre_despliege   = "Cuenta de servicio para el scheduler del Cloud Run Job de dbt"
-  cuenta_servicio_roles = [
-    "roles/run.invoker"
-  ]
-  depends_on = [
-    module.setup
-  ]
-}
-
-module "scheduler_dbt_lunes_jueves_media_noche" {
-  source       = "./modules/scheduler"
-  id_proyecto  = var.id_proyecto
-  region       = var.region
-  nombre_job   = "dbt-transformations-lunes-jueves-00h"
-  descripcion  = "Lanza dbt build (Cloud Run Job) lunes y jueves a las 00:00h (Europe/Madrid)"
-  cron         = "0 0 * * 1,4"
-  zona_horaria = "Europe/Madrid"
-  url_destino  = "https://${var.region}-run.googleapis.com/v2/projects/${var.id_proyecto}/locations/${var.region}/jobs/${module.dbt_transformations_job.nombre_job}:run"
-  metodo_http  = "POST"
-  cabeceras    = { "Content-Type" = "application/json" }
-
-  email_cuenta_servicio = module.scheduler_dbt_sa.email_cuenta_servicio
-  depends_on = [
-    module.scheduler_dbt_sa,
-    module.dbt_transformations_job
-  ]
-}
 
 module "clustering_sa" {
   source             = "./modules/iam"
@@ -1179,35 +1148,65 @@ module "clustering_train_assign_job" {
   ]
 }
 
-module "scheduler_clustering_sa" {
+
+module "workflow_dbt_clustering_sa" {
   source             = "./modules/iam"
   id_proyecto        = var.id_proyecto
-  id_cuenta_servicio = "scheduler-clustering-sa"
-  nombre_despliege   = "Cuenta de servicio para lanzar el Cloud Run Job semanal de clustering"
+  id_cuenta_servicio = "workflow-dbt-clustering-sa"
+  nombre_despliege   = "Cuenta de servicio para el workflow de orquestación dbt + clustering"
   cuenta_servicio_roles = [
-    "roles/run.invoker"
+    "roles/run.invoker",
+    "roles/logging.logWriter",
   ]
   depends_on = [
     module.setup
   ]
 }
 
-module "scheduler_clustering_lunes_01h" {
+module "scheduler_workflow_dbt_clustering_sa" {
+  source             = "./modules/iam"
+  id_proyecto        = var.id_proyecto
+  id_cuenta_servicio = "scheduler-workflow-dbt-sa"
+  nombre_despliege   = "Cuenta de servicio para disparar el workflow de orquestación dbt + clustering"
+  cuenta_servicio_roles = [
+    "roles/workflows.invoker",
+  ]
+  depends_on = [
+    module.setup
+  ]
+}
+
+module "workflow_dbt_clustering" {
+  source                = "./modules/cloud_workflow"
+  id_proyecto           = var.id_proyecto
+  region                = var.region
+  nombre_workflow       = "orquestacion-dbt-clustering"
+  email_cuenta_servicio = module.workflow_dbt_clustering_sa.email_cuenta_servicio
+  ruta_workflow         = "${path.root}/../workflows/orquestacion_dbt_clustering.yaml"
+
+  depends_on = [
+    module.workflow_dbt_clustering_sa,
+    module.dbt_transformations_job,
+    module.clustering_train_assign_job,
+  ]
+}
+
+module "scheduler_workflow_dbt_clustering" {
   source       = "./modules/scheduler"
   id_proyecto  = var.id_proyecto
   region       = var.region
-  nombre_job   = "clustering-train-assign-lunes-01h"
-  descripcion  = "Lanza el Cloud Run Job de clustering los lunes a la 01:00h (Europe/Madrid)"
-  cron         = "0 1 * * 1"
+  nombre_job   = "orquestacion-dbt-clustering-01h"
+  descripcion  = "Dispara el workflow de orquestación dbt + clustering cada noche a la 01:00h (Europe/Madrid)"
+  cron         = "0 1 * * *"
   zona_horaria = "Europe/Madrid"
-  url_destino  = "https://${var.region}-run.googleapis.com/v2/projects/${var.id_proyecto}/locations/${var.region}/jobs/${module.clustering_train_assign_job.nombre_job}:run"
+  url_destino  = "https://workflowexecutions.googleapis.com/v1/projects/${var.id_proyecto}/locations/${var.region}/workflows/${module.workflow_dbt_clustering.nombre_workflow}/executions"
   metodo_http  = "POST"
   cabeceras    = { "Content-Type" = "application/json" }
 
-  email_cuenta_servicio = module.scheduler_clustering_sa.email_cuenta_servicio
+  email_cuenta_servicio = module.scheduler_workflow_dbt_clustering_sa.email_cuenta_servicio
   depends_on = [
-    module.scheduler_clustering_sa,
-    module.clustering_train_assign_job
+    module.scheduler_workflow_dbt_clustering_sa,
+    module.workflow_dbt_clustering,
   ]
 }
 
