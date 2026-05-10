@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.db.firestore import get_firestore
 from app.dependencies import get_current_user, get_db
 from app.models.saved_event import SavedEvent
 from app.models.user import User
@@ -177,7 +176,7 @@ async def erase_me(
     """GDPR Art. 17 — permanent erasure of all personal data.
 
     Requires body: {"confirm": "DELETE MY ACCOUNT"}
-    Deletes: Firestore plans, saved_events, and the user row.
+    Deletes: saved_events and the user row.
     ON DELETE CASCADE handles child table rows automatically.
     """
     if confirm != "DELETE MY ACCOUNT":
@@ -185,15 +184,6 @@ async def erase_me(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Envía {"confirm": "DELETE MY ACCOUNT"} para confirmar el borrado.',
         )
-
-    # Delete Firestore plans belonging to this user
-    firestore = get_firestore()
-    plans_query = firestore.collection("plans").where(
-        "user_id", "==", str(current_user.id)
-    )
-    plan_docs = await plans_query.get()
-    for doc in plan_docs:
-        await doc.reference.delete()
 
     # Hard-delete the user row; ON DELETE CASCADE removes saved_events
     await db.delete(current_user)
@@ -225,7 +215,6 @@ async def export_me(
     export_data = {
         "profile": profile,
         "saved_events": saved_events,
-        "plans_note": "Your AI planning conversations are available at GET /api/v1/plans",
     }
 
     content = json.dumps(export_data, indent=2, default=str)

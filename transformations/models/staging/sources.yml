@@ -29,7 +29,7 @@ sources:
     schema: recomendacion_planes
     tables:
       - name: eventos
-        description: "Catalogo de eventos usado como fallback cuando el snapshot del swipe no trae todos los metadatos."
+        description: "Catalogo de eventos usado como fallback para metadatos descriptivos del evento cuando el snapshot del swipe no trae segmento, genero, subgenero, ciudad, recinto o fecha."
 
   - name: app
     database: "{{ env_var('GCP_PROJECT') }}"

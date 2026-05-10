@@ -27,9 +27,6 @@ function buildEventSnapshot(event: EventCatalogItem) {
     ciudad: event.ciudad,
     recinto_id: event.recinto_id,
     fecha_evento: event.fecha,
-    precio_min: event.precio_min,
-    precio_max: event.precio_max,
-    banda_precio: event.banda_precio,
   };
 }
 
@@ -548,6 +545,7 @@ function Card({
           Skip
         </div>
 
+<<<<<<< HEAD
         <div className="absolute bottom-0 left-0 right-0 p-6 space-y-2 pointer-events-none">
           {tags.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -583,6 +581,36 @@ function Card({
             </p>
           )}
         </div>
+=======
+      <div className="absolute bottom-0 left-0 right-0 p-6 space-y-2 pointer-events-none">
+        {tags.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {tags.map((t) => (
+              <span
+                key={t}
+                className="bg-surface-container-lowest/60 backdrop-blur-md text-primary font-bold text-[10px] px-3 py-1 rounded-full border border-primary/20 uppercase tracking-widest"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+        <h3 className="text-2xl md:text-3xl font-headline font-extrabold leading-tight">
+          {title}
+        </h3>
+        {locationLine && (
+          <p className="text-on-surface/70 text-sm flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">location_on</span>
+            {locationLine}
+          </p>
+        )}
+        {dateLine && (
+          <p className="text-on-surface/70 text-sm flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">calendar_today</span>
+            {dateLine}
+          </p>
+        )}
+>>>>>>> origin/main
       </div>
       );
 }

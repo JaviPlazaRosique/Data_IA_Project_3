@@ -54,6 +54,16 @@ select
   (select count(*) from {affinity}) as cluster_event_affinity_rows,
   (select count(*) from {candidates}) as recommendation_rows,
   (select count(distinct user_id) from {candidates}) as users_with_recommendations,
+  (
+    select count(*)
+    from (
+      select user_id, uuid_evento
+      from {candidates}
+      where uuid_evento is not null
+      group by user_id, uuid_evento
+      having count(*) > 1
+    )
+  ) as duplicate_event_uuid_recommendations,
   (select avg(recommendation_score) from {candidates} where recommendation_rank <= 5) as avg_top5_score,
   (select max(recommendation_rank) from {candidates}) as max_recommendation_rank
 """.strip()
@@ -67,6 +77,7 @@ select
   user_cluster_id,
   recommendation_rank,
   event_id,
+  uuid_evento,
   event_name,
   segmento,
   genero,

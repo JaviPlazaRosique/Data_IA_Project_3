@@ -28,16 +28,14 @@ function mapAuthError(code: string | undefined): string {
 }
 
 export default function RegisterPage() {
-  const { registerEmail, loginGoogle, loginMicrosoft, user } = useAuth();
+  const { registerEmail, loginGoogle, loginMicrosoft, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [pendingRedirect, setPendingRedirect] = useState(false);
 
   useEffect(() => {
-    if (pendingRedirect && user) {
-      setPendingRedirect(false);
+    if (!authLoading && user) {
       navigate('/onboarding');
     }
-  }, [pendingRedirect, user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,14 +74,12 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await registerEmail(email, password);
       localStorage.setItem('np_new_user', '1');
       sessionStorage.setItem('np_reg_username', trimmedUsername);
       sessionStorage.setItem('np_reg_fullname', fullName.trim());
-      setPendingRedirect(true);
+      await registerEmail(email, password);
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }
@@ -92,12 +88,10 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await loginGoogle();
       localStorage.setItem('np_new_user', '1');
-      setPendingRedirect(true);
+      await loginGoogle();
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }
@@ -106,12 +100,10 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await loginMicrosoft();
       localStorage.setItem('np_new_user', '1');
-      setPendingRedirect(true);
+      await loginMicrosoft();
     } catch (err) {
       setError(mapAuthError((err as { code?: string })?.code));
-    } finally {
       setLoading(false);
     }
   }

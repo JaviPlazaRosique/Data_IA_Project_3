@@ -37,9 +37,6 @@ class SwipeEventSnapshot(BaseModel):
     ciudad: str | None = None
     recinto_id: str | None = None
     fecha_evento: str | None = None
-    precio_min: float | None = Field(default=None, ge=0)
-    precio_max: float | None = Field(default=None, ge=0)
-    banda_precio: str | None = None
 
 
 class SwipeEventCreate(BaseModel):

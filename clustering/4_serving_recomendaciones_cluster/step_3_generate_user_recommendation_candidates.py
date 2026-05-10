@@ -136,35 +136,61 @@ with recommendation_clusters as (
 ),
 
 event_catalog as (
-  select
-    e.id as event_id,
-    e.nombre as event_name,
-    e.fecha as fecha_evento,
-    e.ciudad,
-    e.recinto_id,
-    e.recinto_nombre,
-    {segment_expr} as segmento,
-    {genre_expr} as genero,
-    coalesce(e.subgenero, e.subcategoria, 'Unknown') as subgenero,
-    coalesce(lower(e.banda_precio), 'unknown') as banda_precio,
-    e.banda_precio as banda_precio_original,
-    coalesce(
-      case lower(e.banda_precio)
-        when 'bajo' then 15.0
-        when 'medio' then 45.0
-        when 'alto' then 90.0
-      end,
-      45.0
-    ) as price_proxy_mid
-  from {eventos} e
-  where e.id is not null
-    and e.fecha is not null
-    and e.fecha >= date_sub(current_date(), interval 1 day)
+  select *
+  from (
+    select
+      e.id as event_id,
+      coalesce(nullif(cast(e.uuid_evento as string), ''), cast(e.id as string)) as uuid_evento,
+      e.nombre as event_name,
+      e.fecha as fecha_evento,
+      e.ciudad,
+      e.recinto_id,
+      e.recinto_nombre,
+      {segment_expr} as segmento,
+      {genre_expr} as genero,
+      coalesce(e.subgenero, e.subcategoria, 'Unknown') as subgenero
+    from {eventos} e
+    where e.id is not null
+      and e.fecha is not null
+      and e.fecha >= date_sub(current_date(), interval 1 day)
+  )
+  qualify row_number() over (
+    partition by uuid_evento
+    order by fecha_evento asc, event_id asc
+  ) = 1
 ),
 
 seen_events as (
-  select distinct user_id, event_id
+  select distinct
+    s.user_id,
+    coalesce(nullif(cast(e.uuid_evento as string), ''), cast(s.event_id as string)) as uuid_evento
+  from {fct_swipes} s
+  left join {eventos} e
+    on e.id = s.event_id
+),
+
+seen_event_ids as (
+  select distinct
+    user_id,
+    event_id
   from {fct_swipes}
+  where event_id is not null
+),
+
+unseen_events as (
+  select
+    a.user_id,
+    e.*
+  from {assignments} a
+  cross join event_catalog e
+  left join seen_events seen_uuid
+    on seen_uuid.user_id = a.user_id
+   and seen_uuid.uuid_evento = e.uuid_evento
+  left join seen_event_ids seen_id
+    on seen_id.user_id = a.user_id
+   and seen_id.event_id = e.event_id
+  where seen_uuid.uuid_evento is null
+    and seen_id.event_id is null
 ),
 
 scored_candidates as (
@@ -176,6 +202,7 @@ scored_candidates as (
     rc.cluster_rank,
     rc.cluster_weight,
     e.event_id,
+    e.uuid_evento,
     e.event_name,
     e.fecha_evento,
     e.ciudad,
@@ -184,8 +211,6 @@ scored_candidates as (
     e.segmento,
     e.genero,
     e.subgenero,
-    e.banda_precio_original as banda_precio,
-    e.price_proxy_mid,
     coalesce(aff.affinity_score, 0.0) as affinity_score,
     coalesce(aff.like_rate, 0.0) as cluster_like_rate_for_event_type,
     coalesce(aff.liked_share, 0.0) as cluster_liked_share_for_event_type,
@@ -199,23 +224,19 @@ scored_candidates as (
   from {assignments} a
   inner join recommendation_clusters rc
     on a.cluster_id = rc.user_cluster_id
-  cross join event_catalog e
+  inner join unseen_events e
+    on e.user_id = a.user_id
   left join {affinity} aff
     on aff.cluster_id = rc.recommendation_cluster_id
    and aff.segmento = e.segmento
    and aff.genero = e.genero
-   and aff.banda_precio = e.banda_precio
-  left join seen_events seen
-    on seen.user_id = a.user_id
-   and seen.event_id = e.event_id
-  where seen.event_id is null
 ),
 
 best_contribution as (
   select *
   from scored_candidates
   qualify row_number() over (
-    partition by user_id, event_id
+    partition by user_id, uuid_evento
     order by recommendation_score desc, cluster_weight desc, cluster_rank asc
   ) = 1
 ),
@@ -237,6 +258,7 @@ select
   user_cluster_id,
   recommendation_rank,
   event_id,
+  uuid_evento,
   event_name,
   fecha_evento,
   ciudad,
@@ -245,8 +267,6 @@ select
   segmento,
   genero,
   subgenero,
-  banda_precio,
-  price_proxy_mid,
   recommendation_cluster_id,
   cluster_source,
   cluster_rank,

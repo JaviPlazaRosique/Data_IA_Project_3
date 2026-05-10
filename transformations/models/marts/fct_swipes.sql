@@ -35,8 +35,7 @@ eventos as (
         subgenero,
         ciudad,
         recinto_id,
-        fecha       as fecha_evento,
-        banda_precio
+        fecha       as fecha_evento
     from {{ source('catalog', 'eventos') }}
 ),
 
@@ -67,27 +66,6 @@ select
     coalesce(d.snapshot_genero, e.genero) as genero,
     coalesce(d.snapshot_subgenero, e.subgenero) as subgenero,
     coalesce(d.snapshot_ciudad, e.ciudad) as ciudad,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo'  then 0.0
-        when 'medio' then 30.0
-        when 'alto'  then 60.0
-    end as precio_min,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo'  then 30.0
-        when 'medio' then 60.0
-        when 'alto'  then 120.0
-    end as precio_max,
-    coalesce(d.snapshot_banda_precio, e.banda_precio) as banda_precio,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo' then 1
-        when 'medio' then 2
-        when 'alto' then 3
-    end as banda_precio_score,
-    case lower(coalesce(d.snapshot_banda_precio, e.banda_precio))
-        when 'bajo' then 15.0
-        when 'medio' then 45.0
-        when 'alto' then 90.0
-    end as price_proxy_mid,
     coalesce(d.snapshot_fecha_evento, e.fecha_evento) as fecha_evento,
     coalesce(d.snapshot_recinto_id, e.recinto_id) as recinto_id,
     d.ingestion_timestamp
